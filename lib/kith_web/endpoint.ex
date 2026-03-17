@@ -8,7 +8,11 @@ defmodule KithWeb.Endpoint do
     store: :cookie,
     key: "_kith_key",
     signing_salt: "9bh4h8cE",
-    same_site: "Lax"
+    encryption_salt: "kith_enc",
+    same_site: "Strict",
+    http_only: true,
+    secure: true,
+    max_age: 14 * 24 * 60 * 60
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
@@ -39,6 +43,9 @@ defmodule KithWeb.Endpoint do
   plug Phoenix.LiveDashboard.RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
+
+  # Real IP extraction (must be before any rate limiting)
+  plug RemoteIp
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]

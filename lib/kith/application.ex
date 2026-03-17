@@ -26,6 +26,7 @@ defmodule Kith.Application do
 
       _web ->
         [
+          Kith.PromEx,
           KithWeb.Telemetry,
           {DNSCluster, query: Application.get_env(:kith, :dns_cluster_query) || :ignore},
           {Phoenix.PubSub, name: Kith.PubSub},

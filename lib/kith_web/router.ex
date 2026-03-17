@@ -14,16 +14,21 @@ defmodule KithWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Health check — no auth required
+  scope "/", KithWeb do
+    get "/health", HealthController, :index
+  end
+
   scope "/", KithWeb do
     pipe_through :browser
 
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", KithWeb do
-  #   pipe_through :api
-  # end
+  # API scope — Bearer token auth, no CSRF
+  scope "/api", KithWeb.API do
+    pipe_through :api
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:kith, :dev_routes) do
