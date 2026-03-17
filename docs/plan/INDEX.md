@@ -311,12 +311,12 @@ Comprehensive test catalogue:
 
 Before writing the first migration:
 
-- [ ] ERD committed and reviewed by 2 engineers (`phase-00-pre-code-gates.md` → TASK-00-01)
-- [ ] Frontend conventions document committed (`phase-00-pre-code-gates.md` → TASK-00-02)
-- [ ] Oban transactionality confirmation document committed (`phase-00-pre-code-gates.md` → TASK-00-03)
-- [ ] Three ADRs committed (`phase-00-pre-code-gates.md` → TASK-00-04)
+- [x] ERD committed and reviewed by 2 engineers (`phase-00-pre-code-gates.md` → TASK-00-01)
+- [x] Frontend conventions document committed (`phase-00-pre-code-gates.md` → TASK-00-02)
+- [x] Oban transactionality confirmation document committed (`phase-00-pre-code-gates.md` → TASK-00-03)
+- [x] Three ADRs committed (`phase-00-pre-code-gates.md` → TASK-00-04)
 - [ ] `assent` PKCE support explicitly confirmed (`phase-00-pre-code-gates.md` → TASK-00-04c)
-- [ ] All hex dependencies audited (`phase-00-pre-code-gates.md` → TASK-00-05)
+- [x] All hex dependencies audited (`phase-00-pre-code-gates.md` → TASK-00-05)
 
 ---
 
