@@ -20,6 +20,12 @@ config :kith, KithWeb.Endpoint,
   secret_key_base: "9QVosGIymc5flycbrRXuumAnww6vPwtL7Xf4iOAPW05MoPggLbe8eOQeVT0f8y9R",
   server: false
 
+# Disable Oban in tests (use Oban.Testing)
+config :kith, Oban, testing: :inline
+
+# Email — test adapter
+config :kith, Kith.Mailer, adapter: Swoosh.Adapters.Test
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

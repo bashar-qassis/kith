@@ -1,31 +1,39 @@
 defmodule Kith.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   @moduledoc false
 
   use Application
+  import Cachex.Spec
 
   @impl true
   def start(_type, _args) do
-    children = [
-      KithWeb.Telemetry,
-      Kith.Repo,
-      {DNSCluster, query: Application.get_env(:kith, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Kith.PubSub},
-      # Start a worker by calling: Kith.Worker.start_link(arg)
-      # {Kith.Worker, arg},
-      # Start to serve requests, typically the last entry
-      KithWeb.Endpoint
-    ]
-
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
+    children = base_children() ++ mode_children()
     opts = [strategy: :one_for_one, name: Kith.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
+  defp base_children do
+    [
+      Kith.Repo,
+      {Oban, Application.fetch_env!(:kith, Oban)},
+      {Cachex, name: :kith_cache, expiration: expiration(default: :timer.hours(24))}
+    ]
+  end
+
+  defp mode_children do
+    case System.get_env("KITH_MODE", "web") do
+      "worker" ->
+        []
+
+      _web ->
+        [
+          KithWeb.Telemetry,
+          {DNSCluster, query: Application.get_env(:kith, :dns_cluster_query) || :ignore},
+          {Phoenix.PubSub, name: Kith.PubSub},
+          KithWeb.Endpoint
+        ]
+    end
+  end
+
   @impl true
   def config_change(changed, _new, removed) do
     KithWeb.Endpoint.config_change(changed, removed)

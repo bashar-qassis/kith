@@ -67,6 +67,15 @@ config :kith, KithWeb.Endpoint,
     ]
   ]
 
+# Email — send to Mailpit in dev (docker-compose.dev.yml)
+config :kith, Kith.Mailer,
+  adapter: Swoosh.Adapters.SMTP,
+  relay: "localhost",
+  port: 1025,
+  ssl: false,
+  tls: :never,
+  auth: :never
+
 # Enable dev routes for dashboard and mailbox
 config :kith, dev_routes: true
 

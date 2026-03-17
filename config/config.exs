@@ -9,7 +9,36 @@ import Config
 
 config :kith,
   ecto_repos: [Kith.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  disable_signup: false
+
+# Oban background jobs
+config :kith, Oban,
+  repo: Kith.Repo,
+  queues: [
+    default: 10,
+    mailers: 10,
+    reminders: 5,
+    exports: 2,
+    imports: 2,
+    immich: 3,
+    purge: 1
+  ],
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 2 * * *", Kith.Workers.ReminderSchedulerWorker},
+       {"0 3 * * *", Kith.Workers.ContactPurgeWorker}
+     ]}
+  ]
+
+# Rate limiting (ETS default, Redis optional via RATE_LIMIT_BACKEND env)
+config :hammer,
+  backend: {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60, cleanup_interval_ms: 60_000 * 10]}
+
+# Timezone database
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 
 # Configure the endpoint
 config :kith, KithWeb.Endpoint,
@@ -46,7 +75,7 @@ config :tailwind,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :user_id, :account_id]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
