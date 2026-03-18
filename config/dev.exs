@@ -76,6 +76,12 @@ config :kith, Kith.Mailer,
   tls: :never,
   auth: :never
 
+# Disable Swoosh API client in dev (SMTP adapter handles delivery directly)
+config :swoosh, :api_client, false
+
+# Disable Sentry in dev (no hackney dependency needed)
+config :sentry, client: Sentry.NoopClient, dsn: nil
+
 # Enable dev routes for dashboard and mailbox
 config :kith, dev_routes: true
 
