@@ -56,12 +56,23 @@ defmodule Kith.Contacts do
   end
 
   def search_contacts(account_id, query) do
-    search = "%#{query}%"
+    search = "%#{String.replace(query, ~r/[%_\\]/, "\\\\\\0")}%"
 
     Contact
     |> scope_active(account_id)
-    |> where([c], ilike(c.display_name, ^search))
+    |> join(:left, [c], cf in ContactField, on: cf.contact_id == c.id)
+    |> where(
+      [c, cf],
+      ilike(c.first_name, ^search) or
+        ilike(c.last_name, ^search) or
+        ilike(c.display_name, ^search) or
+        ilike(c.nickname, ^search) or
+        ilike(c.company, ^search) or
+        ilike(cf.value, ^search)
+    )
+    |> distinct([c], c.id)
     |> order_by([c], asc: c.display_name)
+    |> preload([:tags])
     |> Repo.all()
   end
 
@@ -179,6 +190,12 @@ defmodule Kith.Contacts do
     tag
     |> Tag.changeset(attrs)
     |> Repo.update()
+  end
+
+  def get_tag!(account_id, id) do
+    Tag
+    |> scope_to_account(account_id)
+    |> Repo.get!(id)
   end
 
   def delete_tag(%Tag{} = tag) do

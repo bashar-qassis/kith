@@ -1,0 +1,296 @@
+defmodule KithWeb.ContactLive.Index do
+  use KithWeb, :live_view
+
+  alias Kith.Contacts
+  alias Kith.Contacts.Contact
+
+  @sort_options %{
+    "name_asc" => [asc: :display_name],
+    "name_desc" => [desc: :display_name],
+    "recently_added" => [desc: :inserted_at],
+    "recently_contacted" => [desc_nulls_last: :last_talked_to]
+  }
+
+  @impl true
+  def mount(_params, _session, socket) do
+    account_id = socket.assigns.current_scope.account.id
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Contacts")
+     |> assign(:account_id, account_id)
+     |> assign(:search, "")
+     |> assign(:sort, "name_asc")
+     |> assign(:show_archived, false)
+     |> assign(:show_deceased, false)
+     |> assign(:show_favorites_only, false)
+     |> assign(:selected_tag_ids, [])
+     |> assign(:selected_ids, MapSet.new())
+     |> assign(:tags, Contacts.list_tags(account_id))
+     |> load_contacts()}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :index, _params), do: socket
+
+  defp apply_action(socket, :archived, _params) do
+    socket
+    |> assign(:page_title, "Archived Contacts")
+    |> assign(:show_archived, true)
+    |> load_contacts()
+  end
+
+  @impl true
+  def handle_event("search", %{"search" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search, query)
+     |> load_contacts()}
+  end
+
+  def handle_event("sort", %{"sort" => sort}, socket) when is_map_key(@sort_options, sort) do
+    {:noreply,
+     socket
+     |> assign(:sort, sort)
+     |> load_contacts()}
+  end
+
+  def handle_event("toggle-archived", _params, socket) do
+    {:noreply,
+     socket
+     |> update(:show_archived, &(!&1))
+     |> load_contacts()}
+  end
+
+  def handle_event("toggle-deceased", _params, socket) do
+    {:noreply,
+     socket
+     |> update(:show_deceased, &(!&1))
+     |> load_contacts()}
+  end
+
+  def handle_event("toggle-favorites", _params, socket) do
+    {:noreply,
+     socket
+     |> update(:show_favorites_only, &(!&1))
+     |> load_contacts()}
+  end
+
+  def handle_event("filter-tags", %{"tag_ids" => tag_ids}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_tag_ids, tag_ids)
+     |> load_contacts()}
+  end
+
+  def handle_event("toggle-favorite", %{"id" => id}, socket) do
+    account_id = socket.assigns.account_id
+    contact = Contacts.get_contact!(account_id, String.to_integer(id))
+
+    {:ok, _} = Contacts.update_contact(contact, %{favorite: !contact.favorite})
+
+    {:noreply, load_contacts(socket)}
+  end
+
+  def handle_event("toggle-select", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+
+    selected =
+      if MapSet.member?(socket.assigns.selected_ids, id) do
+        MapSet.delete(socket.assigns.selected_ids, id)
+      else
+        MapSet.put(socket.assigns.selected_ids, id)
+      end
+
+    {:noreply, assign(socket, :selected_ids, selected)}
+  end
+
+  def handle_event("select-all", _params, socket) do
+    all_ids = socket.assigns.contacts |> Enum.map(& &1.id) |> MapSet.new()
+
+    selected =
+      if MapSet.equal?(socket.assigns.selected_ids, all_ids),
+        do: MapSet.new(),
+        else: all_ids
+
+    {:noreply, assign(socket, :selected_ids, selected)}
+  end
+
+  def handle_event("bulk-archive", _params, socket) do
+    perform_bulk_action(
+      socket,
+      fn contact ->
+        Contacts.archive_contact(contact)
+      end,
+      "archived"
+    )
+  end
+
+  def handle_event("bulk-delete", _params, socket) do
+    perform_bulk_action(
+      socket,
+      fn contact ->
+        Contacts.soft_delete_contact(contact)
+      end,
+      "moved to trash"
+    )
+  end
+
+  def handle_event("bulk-favorite", _params, socket) do
+    account_id = socket.assigns.account_id
+    contacts = get_selected_contacts(socket)
+
+    # If any are not favorited, favorite all. If all favorited, unfavorite all.
+    all_favorited = Enum.all?(contacts, & &1.favorite)
+    new_value = !all_favorited
+
+    Enum.each(contacts, fn contact ->
+      Contacts.update_contact(contact, %{favorite: new_value})
+    end)
+
+    action = if new_value, do: "favorited", else: "unfavorited"
+    count = length(contacts)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> put_flash(:info, "#{count} contact(s) #{action}.")
+     |> load_contacts()}
+  end
+
+  def handle_event("bulk-assign-tag", %{"tag_id" => tag_id}, socket) do
+    account_id = socket.assigns.account_id
+    tag = Contacts.get_tag!(account_id, String.to_integer(tag_id))
+    contacts = get_selected_contacts(socket)
+
+    Enum.each(contacts, fn contact ->
+      Contacts.tag_contact(contact, tag)
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> put_flash(:info, "Tag '#{tag.name}' assigned to #{length(contacts)} contact(s).")
+     |> load_contacts()}
+  end
+
+  def handle_event("bulk-remove-tag", %{"tag_id" => tag_id}, socket) do
+    account_id = socket.assigns.account_id
+    tag = Contacts.get_tag!(account_id, String.to_integer(tag_id))
+    contacts = get_selected_contacts(socket)
+
+    Enum.each(contacts, fn contact ->
+      Contacts.untag_contact(contact, tag)
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> put_flash(:info, "Tag '#{tag.name}' removed from #{length(contacts)} contact(s).")
+     |> load_contacts()}
+  end
+
+  defp perform_bulk_action(socket, action_fn, action_label) do
+    account_id = socket.assigns.account_id
+    user = socket.assigns.current_scope.user
+    contacts = get_selected_contacts(socket)
+
+    Enum.each(contacts, fn contact ->
+      {:ok, _} = action_fn.(contact)
+
+      Kith.AuditLogs.log_event(account_id, user, "Contact #{action_label}",
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
+    end)
+
+    count = length(contacts)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> put_flash(:info, "#{count} contact(s) #{action_label}.")
+     |> load_contacts()}
+  end
+
+  defp get_selected_contacts(socket) do
+    account_id = socket.assigns.account_id
+
+    socket.assigns.selected_ids
+    |> MapSet.to_list()
+    |> Enum.map(&Contacts.get_contact!(account_id, &1))
+  end
+
+  defp load_contacts(socket) do
+    account_id = socket.assigns.account_id
+    search = socket.assigns.search
+    sort = Map.get(@sort_options, socket.assigns.sort, asc: :display_name)
+    show_archived = socket.assigns.show_archived
+    show_deceased = socket.assigns.show_deceased
+    show_favorites_only = socket.assigns.show_favorites_only
+    selected_tag_ids = socket.assigns.selected_tag_ids
+
+    contacts =
+      if search != "" do
+        Contacts.search_contacts(account_id, search)
+      else
+        Contacts.list_contacts(account_id,
+          order_by: sort,
+          preload: [:tags]
+        )
+      end
+
+    contacts =
+      contacts
+      |> maybe_filter_archived(show_archived)
+      |> maybe_filter_deceased(show_deceased)
+      |> maybe_filter_favorites(show_favorites_only)
+      |> maybe_filter_tags(selected_tag_ids)
+
+    assign(socket, :contacts, contacts)
+  end
+
+  defp maybe_filter_archived(contacts, true), do: contacts
+  defp maybe_filter_archived(contacts, false), do: Enum.reject(contacts, & &1.is_archived)
+
+  defp maybe_filter_deceased(contacts, true), do: contacts
+  defp maybe_filter_deceased(contacts, false), do: Enum.reject(contacts, & &1.deceased)
+
+  defp maybe_filter_favorites(contacts, false), do: contacts
+  defp maybe_filter_favorites(contacts, true), do: Enum.filter(contacts, & &1.favorite)
+
+  defp maybe_filter_tags(contacts, []), do: contacts
+
+  defp maybe_filter_tags(contacts, tag_ids) do
+    tag_ids = Enum.map(tag_ids, &String.to_integer/1)
+
+    Enum.filter(contacts, fn contact ->
+      contact_tag_ids = Enum.map(contact.tags, & &1.id)
+      Enum.any?(tag_ids, &(&1 in contact_tag_ids))
+    end)
+  end
+
+  defp initials(%Contact{first_name: first, last_name: last}) do
+    f = if first, do: String.first(first), else: ""
+    l = if last, do: String.first(last), else: ""
+    String.upcase(f <> l)
+  end
+
+  defp can?(%{current_scope: scope}, action, resource) do
+    Kith.Policy.can?(scope.user, action, resource)
+  end
+
+  defp toggle_tag_id(selected, id) do
+    if id in selected, do: List.delete(selected, id), else: [id | selected]
+  end
+
+  defp tag_style(%{color: color}) when is_binary(color) and color != "" do
+    "background-color: #{color}20; color: #{color}; border-color: #{color}40;"
+  end
+
+  defp tag_style(_), do: ""
+end

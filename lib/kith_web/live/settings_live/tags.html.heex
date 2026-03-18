@@ -1,0 +1,87 @@
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Tags</h1>
+    <.link navigate={~p"/users/settings"} class="link link-hover text-sm">
+      <.icon name="hero-arrow-left" class="size-4" /> Back to Settings
+    </.link>
+  </div>
+
+  <%!-- Tag form (create or edit) --%>
+  <%= if @can_edit do %>
+    <div class="card bg-base-100 shadow-sm mb-6">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+          {if @editing_tag, do: "Edit Tag", else: "New Tag"}
+        </h2>
+        <.form for={@changeset} phx-change="validate" phx-submit="save" class="flex gap-3 items-end flex-wrap">
+          <div class="form-control flex-1 min-w-[200px]">
+            <label class="label"><span class="label-text">Name</span></label>
+            <input
+              type="text"
+              name="tag[name]"
+              value={Ecto.Changeset.get_field(@changeset, :name)}
+              class="input input-bordered input-sm"
+              required
+            />
+          </div>
+          <div class="form-control w-32">
+            <label class="label"><span class="label-text">Color</span></label>
+            <input
+              type="color"
+              name="tag[color]"
+              value={Ecto.Changeset.get_field(@changeset, :color) || "#6366f1"}
+              class="input input-bordered input-sm h-10 p-1"
+            />
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm" phx-disable-with="Saving...">
+              {if @editing_tag, do: "Update", else: "Create"}
+            </button>
+            <%= if @editing_tag do %>
+              <button type="button" phx-click="cancel-edit" class="btn btn-ghost btn-sm">
+                Cancel
+              </button>
+            <% end %>
+          </div>
+        </.form>
+      </div>
+    </div>
+  <% end %>
+
+  <%!-- Tag list --%>
+  <%= if @tags == [] do %>
+    <div class="text-center py-12 text-base-content/60">
+      <.icon name="hero-tag" class="size-12 mb-2 mx-auto block opacity-40" />
+      <p class="text-lg">No tags yet</p>
+      <p class="text-sm mt-1">Create your first tag above.</p>
+    </div>
+  <% else %>
+    <div class="space-y-2">
+      <%= for tag <- @tags do %>
+        <div class="flex items-center justify-between p-3 bg-base-100 rounded-lg shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="badge" style={tag_style(tag)}>{tag.name}</span>
+            <%= if tag.color do %>
+              <span class="text-xs text-base-content/50">{tag.color}</span>
+            <% end %>
+          </div>
+          <%= if @can_edit do %>
+            <div class="flex gap-1">
+              <button phx-click="edit" phx-value-id={tag.id} class="btn btn-ghost btn-xs">
+                <.icon name="hero-pencil-square" class="size-4" />
+              </button>
+              <button
+                phx-click="delete"
+                phx-value-id={tag.id}
+                class="btn btn-ghost btn-xs text-error"
+                data-confirm={"Delete tag '#{tag.name}'? This will remove it from all contacts."}
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

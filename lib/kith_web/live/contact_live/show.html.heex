@@ -1,0 +1,267 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <%!-- Back link --%>
+  <div class="mb-4">
+    <.link navigate={~p"/contacts"} class="link link-hover text-sm">
+      <.icon name="hero-arrow-left" class="size-4" /> Back to Contacts
+    </.link>
+  </div>
+
+  <div class="flex flex-col lg:flex-row gap-8">
+    <%!-- Sidebar --%>
+    <aside class="lg:w-80 shrink-0">
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body items-center text-center">
+          <%!-- Avatar --%>
+          <div class="avatar placeholder mb-2">
+            <div class="bg-neutral text-neutral-content rounded-full w-24 h-24">
+              <span class="text-3xl">{initials(@contact)}</span>
+            </div>
+          </div>
+
+          <%!-- Name & favorite --%>
+          <div class="flex items-center gap-2">
+            <h1 class="card-title text-xl">{@contact.display_name}</h1>
+            <button
+              phx-click="toggle-favorite"
+              class="btn btn-ghost btn-xs"
+              title={if @contact.favorite, do: "Unfavorite", else: "Favorite"}
+            >
+              <.icon
+                name={if @contact.favorite, do: "hero-star-solid", else: "hero-star"}
+                class={["size-5", @contact.favorite && "text-warning"]}
+              />
+            </button>
+          </div>
+
+          <%= if @contact.is_archived do %>
+            <span class="badge badge-warning">Archived</span>
+          <% end %>
+
+          <%!-- Details --%>
+          <div class="w-full mt-4 space-y-2 text-start text-sm">
+            <%= if @contact.gender do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Gender</span>
+                <span>{@contact.gender.name}</span>
+              </div>
+            <% end %>
+
+            <%= if @contact.birthdate do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Birthday</span>
+                <span>
+                  {Calendar.strftime(@contact.birthdate, "%B %d, %Y")}
+                  <%= if age = compute_age(@contact.birthdate) do %>
+                    <span class="text-base-content/60">({age} years old)</span>
+                  <% end %>
+                </span>
+              </div>
+            <% end %>
+
+            <%= if @contact.occupation do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Occupation</span>
+                <span>{@contact.occupation}</span>
+              </div>
+            <% end %>
+
+            <%= if @contact.company do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Company</span>
+                <span>{@contact.company}</span>
+              </div>
+            <% end %>
+
+            <%= if @contact.last_talked_to do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Last Contacted</span>
+                <span>{Calendar.strftime(@contact.last_talked_to, "%b %d, %Y")}</span>
+              </div>
+            <% end %>
+
+            <%= if @contact.deceased do %>
+              <div class="flex justify-between">
+                <span class="text-base-content/60">Deceased</span>
+                <span>
+                  <%= if @contact.deceased_at do %>
+                    {Calendar.strftime(@contact.deceased_at, "%B %d, %Y")}
+                  <% else %>
+                    Yes
+                  <% end %>
+                </span>
+              </div>
+            <% end %>
+
+            <%= if @contact.immich_status == "linked" and @contact.immich_person_url do %>
+              <div class="mt-2">
+                <a href={@contact.immich_person_url} target="_blank" class="btn btn-sm btn-outline w-full">
+                  <.icon name="hero-photo" class="size-4" /> View in Immich
+                </a>
+              </div>
+            <% end %>
+          </div>
+
+          <%!-- Tags --%>
+          <div class="w-full mt-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium">Tags</span>
+              <%= if can?(assigns, :update, :tag) do %>
+                <button phx-click="toggle-tag-dropdown" class="btn btn-ghost btn-xs">
+                  <.icon name="hero-plus" class="size-4" />
+                </button>
+              <% end %>
+            </div>
+
+            <div class="flex flex-wrap gap-1">
+              <%= for tag <- @contact.tags do %>
+                <span class="badge badge-sm gap-1" style={tag_style(tag)}>
+                  {tag.name}
+                  <%= if can?(assigns, :update, :tag) do %>
+                    <button
+                      phx-click="remove-tag"
+                      phx-value-tag_id={tag.id}
+                      class="hover:text-error"
+                      title="Remove tag"
+                    >
+                      &times;
+                    </button>
+                  <% end %>
+                </span>
+              <% end %>
+            </div>
+
+            <%!-- Tag dropdown --%>
+            <%= if @show_tag_dropdown do %>
+              <div class="mt-2 p-2 border rounded-lg bg-base-100 shadow-sm">
+                <input
+                  type="text"
+                  placeholder="Search tags..."
+                  value={@tag_search}
+                  phx-keyup="search-tags"
+                  phx-value-tag_search={@tag_search}
+                  class="input input-bordered input-sm w-full mb-2"
+                  name="tag_search"
+                />
+                <div class="max-h-32 overflow-y-auto">
+                  <%= for tag <- filtered_tags(@tags, @contact.tags, @tag_search) do %>
+                    <button
+                      phx-click="add-tag"
+                      phx-value-tag_id={tag.id}
+                      class="block w-full text-start px-2 py-1 text-sm hover:bg-base-200 rounded"
+                    >
+                      <span class="badge badge-xs" style={tag_style(tag)}>{tag.name}</span>
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+
+          <%!-- Description --%>
+          <%= if @contact.description do %>
+            <div class="w-full mt-4">
+              <span class="text-sm font-medium">About</span>
+              <p class="text-sm text-base-content/70 mt-1">{@contact.description}</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%!-- Action buttons --%>
+      <%= if can?(assigns, :update, :contact) do %>
+        <div class="card bg-base-100 shadow-sm mt-4">
+          <div class="card-body p-4">
+            <.link navigate={~p"/contacts/#{@contact.id}/edit"} class="btn btn-sm btn-outline w-full mb-2">
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
+            </.link>
+
+            <%= if @contact.is_archived do %>
+              <button phx-click="unarchive" class="btn btn-sm btn-outline w-full mb-2">
+                <.icon name="hero-archive-box-arrow-down" class="size-4" /> Unarchive
+              </button>
+            <% else %>
+              <button phx-click="archive" class="btn btn-sm btn-outline w-full mb-2">
+                <.icon name="hero-archive-box" class="size-4" /> Archive
+              </button>
+            <% end %>
+
+            <button
+              phx-click="delete"
+              class="btn btn-sm btn-outline btn-error w-full mb-2"
+              data-confirm={"Move #{@contact.display_name} to trash?"}
+            >
+              <.icon name="hero-trash" class="size-4" /> Delete
+            </button>
+
+            <.link navigate={~p"/contacts/#{@contact.id}/merge"} class="btn btn-sm btn-outline w-full">
+              <.icon name="hero-arrows-right-left" class="size-4" /> Merge
+            </.link>
+          </div>
+        </div>
+      <% end %>
+    </aside>
+
+    <%!-- Main content area --%>
+    <main class="flex-1 min-w-0">
+      <%!-- Tabs --%>
+      <div class="tabs tabs-bordered mb-6">
+        <button
+          class={["tab", @active_tab == :notes && "tab-active"]}
+          phx-click="switch-tab"
+          phx-value-tab="notes"
+        >
+          Notes
+        </button>
+        <button
+          class={["tab", @active_tab == :life_events && "tab-active"]}
+          phx-click="switch-tab"
+          phx-value-tab="life_events"
+        >
+          Life Events
+        </button>
+        <button
+          class={["tab", @active_tab == :photos && "tab-active"]}
+          phx-click="switch-tab"
+          phx-value-tab="photos"
+        >
+          Photos
+        </button>
+      </div>
+
+      <%!-- Tab content --%>
+      <div>
+        <%= case @active_tab do %>
+          <% :notes -> %>
+            <div class="space-y-4">
+              <h2 class="text-lg font-semibold">Notes</h2>
+              <%= if @notes == [] do %>
+                <p class="text-base-content/60">No notes yet.</p>
+              <% end %>
+              <%= for note <- @notes do %>
+                <div class="card bg-base-100 shadow-sm">
+                  <div class="card-body p-4">
+                    <p class="whitespace-pre-wrap">{note.body}</p>
+                    <div class="text-xs text-base-content/50 mt-2">
+                      {Calendar.strftime(note.inserted_at, "%b %d, %Y at %I:%M %p")}
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+
+          <% :life_events -> %>
+            <div>
+              <h2 class="text-lg font-semibold mb-4">Life Events</h2>
+              <p class="text-base-content/60">No life events yet.</p>
+            </div>
+
+          <% :photos -> %>
+            <div>
+              <h2 class="text-lg font-semibold mb-4">Photos</h2>
+              <p class="text-base-content/60">No photos yet.</p>
+            </div>
+        <% end %>
+      </div>
+    </main>
+  </div>
+</div>

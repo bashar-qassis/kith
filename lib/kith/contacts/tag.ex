@@ -4,6 +4,7 @@ defmodule Kith.Contacts.Tag do
 
   schema "tags" do
     field :name, :string
+    field :color, :string
 
     belongs_to :account, Kith.Accounts.Account
     many_to_many :contacts, Kith.Contacts.Contact, join_through: "contact_tags"
@@ -13,8 +14,11 @@ defmodule Kith.Contacts.Tag do
 
   def changeset(tag, attrs) do
     tag
-    |> cast(attrs, [:name, :account_id])
+    |> cast(attrs, [:name, :color, :account_id])
     |> validate_required([:name])
+    |> validate_format(:color, ~r/^#[0-9a-fA-F]{6}$/,
+      message: "must be a hex color (e.g., #FF5733)"
+    )
     |> unique_constraint([:account_id, :name])
   end
 end
