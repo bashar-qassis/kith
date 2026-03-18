@@ -36,3 +36,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Erlang crash dumps
+erl_crash.dump

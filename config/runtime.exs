@@ -21,9 +21,14 @@ config :kith, KithWeb.Endpoint, http: [port: String.to_integer(System.get_env("P
 # Feature flags
 config :kith,
   disable_signup: System.get_env("DISABLE_SIGNUP") == "true",
-  signup_double_optin: System.get_env("SIGNUP_DOUBLE_OPTIN", "true") == "true",
   max_upload_size_kb: String.to_integer(System.get_env("MAX_UPLOAD_SIZE_KB", "5120")),
   max_storage_size_mb: String.to_integer(System.get_env("MAX_STORAGE_SIZE_MB", "1024"))
+
+# Only override signup_double_optin if the env var is explicitly set,
+# so that test.exs / config.exs defaults are preserved.
+if signup_optin = System.get_env("SIGNUP_DOUBLE_OPTIN") do
+  config :kith, signup_double_optin: signup_optin == "true"
+end
 
 # ## Production-only configuration
 
@@ -56,6 +61,44 @@ if config_env() == :prod do
     url: [host: host, port: 443, scheme: "https"],
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
     secret_key_base: secret_key_base
+
+  # WebAuthn — rp_id must match KITH_HOSTNAME exactly
+  config :wax_,
+    origin: "https://#{host}",
+    rp_id: host
+
+  # OAuth providers (optional — only enabled when env vars are set)
+  oauth_providers = %{}
+
+  oauth_providers =
+    case {System.get_env("GITHUB_CLIENT_ID"), System.get_env("GITHUB_CLIENT_SECRET")} do
+      {id, secret} when is_binary(id) and is_binary(secret) ->
+        Map.put(oauth_providers, "github",
+          client_id: id,
+          client_secret: secret,
+          strategy: Assent.Strategy.Github
+        )
+
+      _ ->
+        oauth_providers
+    end
+
+  oauth_providers =
+    case {System.get_env("GOOGLE_CLIENT_ID"), System.get_env("GOOGLE_CLIENT_SECRET")} do
+      {id, secret} when is_binary(id) and is_binary(secret) ->
+        Map.put(oauth_providers, "google",
+          client_id: id,
+          client_secret: secret,
+          strategy: Assent.Strategy.Google
+        )
+
+      _ ->
+        oauth_providers
+    end
+
+  if oauth_providers != %{} do
+    config :kith, :oauth_providers, oauth_providers
+  end
 
   config :kith, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

@@ -7,10 +7,24 @@
 # General application configuration
 import Config
 
+config :kith, :scopes,
+  user: [
+    default: true,
+    module: Kith.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: Kith.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :kith,
   ecto_repos: [Kith.Repo],
   generators: [timestamp_type: :utc_datetime],
-  disable_signup: false
+  disable_signup: false,
+  signup_double_optin: true
 
 # Oban background jobs
 config :kith, Oban,
@@ -71,6 +85,14 @@ config :tailwind,
     ),
     cd: Path.expand("..", __DIR__)
   ]
+
+# OAuth providers — configured per-environment via env vars
+config :kith, :oauth_providers, %{}
+
+# WebAuthn (wax_) — origin/rp_id set per-environment
+config :wax_,
+  origin: "http://localhost:4000",
+  rp_id: :auto
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,

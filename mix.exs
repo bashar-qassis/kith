@@ -79,6 +79,7 @@ defmodule Kith.MixProject do
 
       # Auth
       {:pot, "~> 1.0"},
+      {:eqrcode, "~> 0.1"},
       {:wax_, "~> 0.6"},
       {:assent, "~> 0.2"},
       {:pbkdf2_elixir, "~> 2.2"},

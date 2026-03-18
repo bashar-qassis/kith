@@ -1,5 +1,8 @@
 import Config
 
+# Only in tests, remove the complexity from the password hashing algorithm
+config :pbkdf2_elixir, :rounds, 1
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
@@ -25,6 +28,15 @@ config :kith, Oban, testing: :inline
 
 # Email — test adapter
 config :kith, Kith.Mailer, adapter: Swoosh.Adapters.Test
+
+# Disable Swoosh API client in tests
+config :swoosh, :api_client, false
+
+# Disable Sentry in tests
+config :sentry, client: Sentry.NoopClient, dsn: nil
+
+# Disable email verification by default in tests (override per-test as needed)
+config :kith, signup_double_optin: false
 
 # Print only warnings and errors during test
 config :logger, level: :warning
