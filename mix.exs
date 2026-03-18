@@ -106,6 +106,9 @@ defmodule Kith.MixProject do
       {:plug_content_security_policy, "~> 0.2"},
       {:remote_ip, "~> 1.2"},
 
+      # HTML Sanitization (rich text from Trix editor)
+      {:html_sanitize_ex, "~> 1.4"},
+
       # Dev/Test
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},

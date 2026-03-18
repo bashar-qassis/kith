@@ -210,4 +210,14 @@ rt_entries =
 
 Repo.insert_all("relationship_types", rt_entries, on_conflict: :nothing)
 
+# ── Call Directions (global) ──────────────────────────────────────────
+call_directions =
+  ~w(Inbound Outbound Missed)
+  |> Enum.with_index()
+  |> Enum.map(fn {name, pos} ->
+    %{name: name, position: pos, inserted_at: now, updated_at: now}
+  end)
+
+Repo.insert_all("call_directions", call_directions, on_conflict: :nothing, conflict_target: [:name])
+
 IO.puts("Seeds loaded successfully!")

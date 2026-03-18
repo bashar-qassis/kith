@@ -17,8 +17,19 @@ defmodule Kith.Activities.LifeEvent do
     life_event
     |> cast(attrs, [:occurred_on, :note, :contact_id, :account_id, :life_event_type_id])
     |> validate_required([:occurred_on, :life_event_type_id])
+    |> validate_not_future_date()
     |> foreign_key_constraint(:contact_id)
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:life_event_type_id)
+  end
+
+  defp validate_not_future_date(changeset) do
+    validate_change(changeset, :occurred_on, fn :occurred_on, date ->
+      if Date.compare(date, Date.utc_today()) == :gt do
+        [occurred_on: "cannot be in the future"]
+      else
+        []
+      end
+    end)
   end
 end

@@ -23,7 +23,8 @@ defmodule Kith.Contacts do
     Currency,
     Emotion,
     ActivityTypeCategory,
-    LifeEventType
+    LifeEventType,
+    CallDirection
   }
 
   ## Contacts
@@ -129,6 +130,10 @@ defmodule Kith.Contacts do
     |> Repo.all()
   end
 
+  def get_address!(account_id, id) do
+    Address |> scope_to_account(account_id) |> Repo.get!(id)
+  end
+
   def create_address(%Contact{} = contact, attrs) do
     %Address{contact_id: contact.id, account_id: contact.account_id}
     |> Address.changeset(attrs)
@@ -150,9 +155,14 @@ defmodule Kith.Contacts do
   def list_contact_fields(contact_id) do
     from(cf in ContactField,
       where: cf.contact_id == ^contact_id,
-      preload: [:contact_field_type]
+      preload: [:contact_field_type],
+      order_by: [asc: cf.contact_field_type_id]
     )
     |> Repo.all()
+  end
+
+  def get_contact_field!(account_id, id) do
+    ContactField |> scope_to_account(account_id) |> Repo.get!(id)
   end
 
   def create_contact_field(%Contact{} = contact, attrs) do
@@ -219,12 +229,49 @@ defmodule Kith.Contacts do
 
   ## Relationships
 
+  @doc """
+  Lists all relationships for a contact (both forward and reverse).
+  Returns tuples of {relationship, related_contact, display_name} where
+  display_name is the forward or reverse relationship type name.
+  """
+  def list_relationships_for_contact(contact_id) do
+    forward =
+      from(r in Relationship,
+        where: r.contact_id == ^contact_id,
+        preload: [:related_contact, :relationship_type]
+      )
+      |> Repo.all()
+      |> Enum.map(fn r ->
+        %{relationship: r, related_contact: r.related_contact, label: r.relationship_type.name}
+      end)
+
+    reverse =
+      from(r in Relationship,
+        where: r.related_contact_id == ^contact_id,
+        preload: [:contact, :relationship_type]
+      )
+      |> Repo.all()
+      |> Enum.map(fn r ->
+        %{
+          relationship: r,
+          related_contact: r.contact,
+          label: r.relationship_type.reverse_name
+        }
+      end)
+
+    forward ++ reverse
+  end
+
   def list_relationships(contact_id) do
     from(r in Relationship,
       where: r.contact_id == ^contact_id,
       preload: [:related_contact, :relationship_type]
     )
     |> Repo.all()
+  end
+
+  def get_relationship!(account_id, id) do
+    Relationship |> scope_to_account(account_id) |> Repo.get!(id)
   end
 
   def create_relationship(%Contact{} = contact, attrs) do
@@ -239,13 +286,34 @@ defmodule Kith.Contacts do
 
   ## Notes
 
-  def list_notes(contact_id) do
-    from(n in Note, where: n.contact_id == ^contact_id, order_by: [desc: n.inserted_at])
+  @doc """
+  Lists notes for a contact. Filters out private notes not authored by current_user_id.
+  """
+  def list_notes(contact_id, current_user_id) do
+    from(n in Note,
+      where: n.contact_id == ^contact_id,
+      where: n.is_private == false or n.author_id == ^current_user_id,
+      order_by: [desc: n.inserted_at],
+      preload: [:author]
+    )
     |> Repo.all()
   end
 
-  def create_note(%Contact{} = contact, attrs) do
-    %Note{contact_id: contact.id, account_id: contact.account_id}
+  def get_note!(account_id, id, current_user_id) do
+    note =
+      Note
+      |> scope_to_account(account_id)
+      |> Repo.get!(id)
+
+    if note.is_private and note.author_id != current_user_id do
+      raise Ecto.NoResultsError, queryable: Note
+    end
+
+    note
+  end
+
+  def create_note(%Contact{} = contact, user_id, attrs) do
+    %Note{contact_id: contact.id, account_id: contact.account_id, author_id: user_id}
     |> Note.changeset(attrs)
     |> Repo.insert()
   end
@@ -253,6 +321,12 @@ defmodule Kith.Contacts do
   def update_note(%Note{} = note, attrs) do
     note
     |> Note.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def toggle_note_favorite(%Note{} = note) do
+    note
+    |> Ecto.Changeset.change(favorite: !note.favorite)
     |> Repo.update()
   end
 
@@ -265,6 +339,10 @@ defmodule Kith.Contacts do
   def list_documents(contact_id) do
     from(d in Document, where: d.contact_id == ^contact_id, order_by: [desc: d.inserted_at])
     |> Repo.all()
+  end
+
+  def get_document!(account_id, id) do
+    Document |> scope_to_account(account_id) |> Repo.get!(id)
   end
 
   def create_document(%Contact{} = contact, attrs) do
@@ -284,6 +362,10 @@ defmodule Kith.Contacts do
     |> Repo.all()
   end
 
+  def get_photo!(account_id, id) do
+    Photo |> scope_to_account(account_id) |> Repo.get!(id)
+  end
+
   def create_photo(%Contact{} = contact, attrs) do
     %Photo{contact_id: contact.id, account_id: contact.account_id}
     |> Photo.changeset(attrs)
@@ -292,6 +374,19 @@ defmodule Kith.Contacts do
 
   def delete_photo(%Photo{} = photo) do
     Repo.delete(photo)
+  end
+
+  def set_cover_photo(%Photo{} = photo) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update_all(
+      :unset_cover,
+      from(p in Photo,
+        where: p.contact_id == ^photo.contact_id and p.is_cover == true and p.id != ^photo.id
+      ),
+      set: [is_cover: false]
+    )
+    |> Ecto.Multi.update(:set_cover, Ecto.Changeset.change(photo, is_cover: true))
+    |> Repo.transaction()
   end
 
   ## Reference Data
@@ -341,6 +436,11 @@ defmodule Kith.Contacts do
       where: is_nil(rt.account_id) or rt.account_id == ^account_id,
       order_by: [asc: rt.position, asc: rt.name]
     )
+    |> Repo.all()
+  end
+
+  def list_call_directions do
+    from(cd in CallDirection, order_by: [asc: cd.position])
     |> Repo.all()
   end
 
