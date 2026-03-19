@@ -57,8 +57,12 @@ defmodule Kith.SentryEventHandler do
       {key, value} when is_binary(key) and key in @scrub_keys ->
         {key, "[FILTERED]"}
 
-      {key, value} when is_atom(key) and to_string(key) in @scrub_keys ->
-        {key, "[FILTERED]"}
+      {key, value} when is_atom(key) ->
+        if Atom.to_string(key) in @scrub_keys do
+          {key, "[FILTERED]"}
+        else
+          {key, scrub_params(value)}
+        end
 
       {key, value} when is_map(value) ->
         {key, scrub_params(value)}

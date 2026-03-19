@@ -18,7 +18,8 @@ defmodule KithWeb.Plugs.CSP do
         "img-src 'self' data: blob: #{img_src}; " <>
         "font-src 'self' data:; " <>
         "connect-src 'self' wss:; " <>
-        "frame-src 'none'"
+        "frame-src 'self'; " <>
+        "frame-ancestors 'self'"
 
     put_resp_header(conn, "content-security-policy", String.trim(csp))
   end

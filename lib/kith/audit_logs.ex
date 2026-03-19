@@ -42,7 +42,7 @@ defmodule Kith.AuditLogs do
       event: event,
       contact_id: Keyword.get(opts, :contact_id),
       contact_name: Keyword.get(opts, :contact_name),
-      metadata: Keyword.get(opts, :metadata)
+      metadata: Keyword.get(opts, :metadata, %{})
     }
 
     create_audit_log(account_id, attrs)

@@ -20,7 +20,8 @@ services:
       - "8025:8025"
 
   minio:
-    image: bitnami/minio:latest
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -28,7 +29,7 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - minio_dev_data:/bitnami/minio/data
+      - minio_dev_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
