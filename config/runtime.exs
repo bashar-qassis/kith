@@ -105,18 +105,48 @@ if config_env() == :prod do
   # Force SSL behind reverse proxy
   config :kith, KithWeb.Endpoint, force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
-  # Email (production)
-  config :kith, Kith.Mailer,
-    adapter: Swoosh.Adapters.SMTP,
-    relay: System.get_env("SMTP_HOST") || raise("SMTP_HOST is required in production"),
-    port: String.to_integer(System.get_env("SMTP_PORT", "587")),
-    username: System.get_env("SMTP_USERNAME", ""),
-    password: Kith.ConfigHelpers.read_secret("SMTP_PASSWORD") || "",
-    ssl: System.get_env("SMTP_SSL") == "true",
-    tls: :if_available,
-    auth: :if_available
+  # Email (production) — adapter selected via MAILER_ADAPTER env var
+  mail_from = System.get_env("MAIL_FROM", "noreply@#{host}")
+  config :kith, Kith.Mailer, from: mail_from
 
-  config :kith, Kith.Mailer, from: System.get_env("MAIL_FROM", "noreply@#{host}")
+  case System.get_env("MAILER_ADAPTER", "smtp") do
+    "smtp" ->
+      config :kith, Kith.Mailer,
+        adapter: Swoosh.Adapters.SMTP,
+        relay:
+          System.get_env("SMTP_HOST") || raise("SMTP_HOST is required when MAILER_ADAPTER=smtp"),
+        port: String.to_integer(System.get_env("SMTP_PORT", "587")),
+        username: System.get_env("SMTP_USERNAME", ""),
+        password: Kith.ConfigHelpers.read_secret("SMTP_PASSWORD") || "",
+        ssl: System.get_env("SMTP_SSL") == "true",
+        tls: :if_available,
+        auth: :if_available
+
+    "mailgun" ->
+      config :kith, Kith.Mailer,
+        adapter: Swoosh.Adapters.Mailgun,
+        api_key: System.get_env("MAILGUN_API_KEY") || raise("MAILGUN_API_KEY required"),
+        domain: System.get_env("MAILGUN_DOMAIN") || raise("MAILGUN_DOMAIN required")
+
+    "ses" ->
+      config :kith, Kith.Mailer,
+        adapter: Swoosh.Adapters.AmazonSES,
+        region: System.get_env("AWS_REGION", "us-east-1"),
+        access_key:
+          Kith.ConfigHelpers.read_secret("AWS_ACCESS_KEY_ID") ||
+            raise("AWS_ACCESS_KEY_ID required for SES"),
+        secret:
+          Kith.ConfigHelpers.read_secret("AWS_SECRET_ACCESS_KEY") ||
+            raise("AWS_SECRET_ACCESS_KEY required for SES")
+
+    "postmark" ->
+      config :kith, Kith.Mailer,
+        adapter: Swoosh.Adapters.Postmark,
+        api_key: System.get_env("POSTMARK_API_KEY") || raise("POSTMARK_API_KEY required")
+
+    invalid ->
+      raise "Invalid MAILER_ADAPTER: #{inspect(invalid)}. Must be smtp, mailgun, ses, or postmark."
+  end
 
   # S3 storage (optional — falls back to local disk)
   if bucket = System.get_env("AWS_S3_BUCKET") do
