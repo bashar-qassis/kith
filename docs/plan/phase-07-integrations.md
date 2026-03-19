@@ -1,8 +1,21 @@
 # Phase 07: Integrations
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 01 (Foundation), Phase 03 (Core Domain Models)
 > **Blocks:** Phase 11 (Frontend Screens — Immich Review UI, Settings > Integrations, Storage-dependent screens)
+>
+> ### Implementation Decisions
+>
+> - **A:** Kept existing `immich_photo_id` column name (vs plan's `immich_asset_id`) — same semantics, avoids migration
+> - **B:** Kept existing `immich_base_url` column name (vs plan's `immich_server_url`) — same semantics, avoids migration
+> - **C:** Circuit breaker threshold: 3 consecutive failures (per plan), state persisted in DB (survives restarts)
+> - **D:** Vault encryption key via `CLOAK_KEY` env var (base64 AES-256-GCM), dev fallback in config.exs
+> - **E:** Immich Review implemented as dedicated route `/contacts/:id/immich-review` (not modal overlay)
+> - **F:** CSP implemented as custom `KithWeb.Plugs.CSP` plug (not `plug_content_security_policy`) for dynamic `img-src`
+> - **G:** TASK-07-14 (jsonb candidates) superseded by TASK-07-22 (normalized table) — already existed in schema
+> - **H:** TASK-07-19 (IP geolocation stub) superseded by TASK-07-NEW-A (geolix + MaxMind GeoLite2)
+> - **I:** Swoosh multi-adapter via `MAILER_ADAPTER` case/match in runtime.exs (smtp/mailgun/ses/postmark)
+> - **J:** LocationIQ circuit breaker uses `:fuse` library (Erlang) — 5 failures in 60s window, 60s cooldown
 
 ## Overview
 
