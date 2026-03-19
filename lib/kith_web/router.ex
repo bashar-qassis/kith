@@ -115,6 +115,7 @@ defmodule KithWeb.Router do
       # Settings
       live "/settings/tags", SettingsLive.Tags, :index
       live "/settings/integrations", SettingsLive.Integrations, :index
+      live "/settings/account", SettingsLive.Account, :index
 
       # Immich review
       live "/contacts/:id/immich-review", ContactLive.ImmichReview, :index
