@@ -1220,7 +1220,7 @@ defmodule Kith.Contacts do
       # (e) Soft-delete non-survivor
       |> Ecto.Multi.run(:soft_delete_non_survivor, fn repo, _changes ->
         non_survivor
-        |> Ecto.Changeset.change(%{deleted_at: DateTime.utc_now()})
+        |> Ecto.Changeset.change(%{deleted_at: DateTime.utc_now(:second)})
         |> repo.update()
       end)
       |> Repo.transaction()
@@ -1338,8 +1338,6 @@ defmodule Kith.Contacts do
     with {:ok, survivor} <- fetch_active_contact(survivor_id),
          {:ok, non_survivor} <- fetch_active_contact(non_survivor_id),
          :ok <- validate_merge(survivor, non_survivor) do
-      account_id = survivor.account_id
-
       alias Kith.Activities.{Call, LifeEvent}
 
       notes_count =

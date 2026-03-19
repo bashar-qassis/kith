@@ -117,6 +117,28 @@ defmodule KithWeb.CoreComponents do
   end
 
   @doc """
+  Renders a simple form wrapper with standard styling.
+  """
+  attr :for, :any, required: true, doc: "the form data structure"
+  attr :as, :any, default: nil, doc: "the server side parameter to collect all input under"
+  attr :rest, :global, include: ~w(autocomplete name rel action enctype method novalidate target)
+  slot :inner_block, required: true
+  slot :actions, doc: "the slot for form actions, such as a submit button"
+
+  def simple_form(assigns) do
+    ~H"""
+    <.form :let={f} for={@for} as={@as} {@rest}>
+      <div class="space-y-4">
+        {render_slot(@inner_block, f)}
+        <div :for={action <- @actions} class="mt-4 flex items-center justify-between gap-6">
+          {render_slot(action, f)}
+        </div>
+      </div>
+    </.form>
+    """
+  end
+
+  @doc """
   Renders an input with label and error messages.
 
   A `Phoenix.HTML.FormField` may be passed as argument,
