@@ -191,11 +191,27 @@ if config_env() == :prod do
       backend: {Hammer.Backend.Redis, [expiry_ms: 60_000 * 60, redis_url: redis_url]}
   end
 
-  # Sentry error tracking (optional)
+  # Sentry error tracking (optional — only when SENTRY_DSN is set)
   if sentry_dsn = System.get_env("SENTRY_DSN") do
     config :sentry,
       dsn: sentry_dsn,
-      environment_name: System.get_env("SENTRY_ENVIRONMENT", "production")
+      environment_name: System.get_env("SENTRY_ENVIRONMENT", "production"),
+      included_environments: [:prod],
+      tags: %{
+        app_version: to_string(Application.spec(:kith, :vsn) || "dev"),
+        kith_mode: System.get_env("KITH_MODE", "web")
+      },
+      filter: Kith.SentryFilter,
+      before_send: {Kith.SentryEventHandler, :before_send},
+      enable_source_code_context: true
+  end
+
+  # Geolix — local MaxMind GeoLite2 database (optional)
+  if geoip_path = System.get_env("GEOIP_DB_PATH") do
+    config :geolix,
+      databases: [
+        %{id: :city, adapter: Geolix.Adapter.MMDB2, source: geoip_path}
+      ]
   end
 
   # Trusted proxies for real IP extraction
