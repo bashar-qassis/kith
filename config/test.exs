@@ -38,6 +38,9 @@ config :sentry, client: Sentry.NoopClient, dsn: nil
 # Disable email verification by default in tests (override per-test as needed)
 config :kith, signup_double_optin: false
 
+# Storage — local backend for tests
+config :kith, Kith.Storage, backend: :local, path: "priv/uploads/test"
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

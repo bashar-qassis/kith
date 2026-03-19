@@ -79,6 +79,13 @@ defmodule KithWeb.Router do
     end
   end
 
+  # Authenticated file serving (local storage backend)
+  scope "/", KithWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/uploads/*path", UploadsController, :show
+  end
+
   # Authenticated routes — require logged-in + confirmed user
   scope "/", KithWeb do
     pipe_through [:browser, :require_authenticated_user, :require_confirmed_user]
@@ -106,6 +113,10 @@ defmodule KithWeb.Router do
 
       # Settings
       live "/settings/tags", SettingsLive.Tags, :index
+      live "/settings/integrations", SettingsLive.Integrations, :index
+
+      # Immich review
+      live "/contacts/:id/immich-review", ContactLive.ImmichReview, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password
