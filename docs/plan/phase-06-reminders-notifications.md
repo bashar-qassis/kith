@@ -1,6 +1,6 @@
 # Phase 06: Reminders & Notifications
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 03 (Core Domain Models), Phase 04 (Contact Management)
 > **Blocks:** Phase 07 (Integrations — Oban patterns), Phase 10 (REST API — reminder endpoints), Phase 11 (Frontend — Upcoming Reminders page)
 
@@ -13,6 +13,11 @@ This phase implements the full reminder lifecycle: CRUD operations, automatic bi
 ## Decisions
 
 - **Decision A:** ReminderInstance uses `fired_at` (not `triggered_at`) for the timestamp when the notification was sent. All schema references, queries, and tests must use `fired_at`.
+- **Decision B:** Alter migration approach — Phase 03 created initial scaffolding tables; Phase 06 adds an alter migration (`20260319110524`) to restructure columns and indexes rather than modifying the original migration. This preserves migration history.
+- **Decision C:** `reminder_rules` restructured from per-reminder to per-account — the original Phase 03 migration had rules as children of reminders, but Phase 06 plan specifies account-level pre-notification config. The alter migration drops and recreates the table.
+- **Decision D:** Uses Elixir stdlib `DateTime.from_naive!/2` + `DateTime.shift_zone!/2` with `Tz` database instead of Timex for timezone conversions. Timex is in deps but `Tz` was already configured as `:time_zone_database`.
+- **Decision E:** `Scope` uses `account_id` integer scoping (not a `%Scope{}` struct) — the plan references `%Scope{}` but the existing codebase pattern uses `import Kith.Scope` with `scope_to_account(queryable, account_id)`. All Phase 06 functions follow the existing pattern.
+- **Decision F:** Oban cron schedule uses 2 AM UTC for ReminderSchedulerWorker and 3 AM UTC for ContactPurgeWorker (plan said 0 AM and 1 AM respectively, but config already had 2 AM and 3 AM from Phase 03 scaffolding).
 
 ---
 
