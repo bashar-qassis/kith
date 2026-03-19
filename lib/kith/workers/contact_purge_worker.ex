@@ -1,15 +1,78 @@
 defmodule Kith.Workers.ContactPurgeWorker do
   @moduledoc """
-  Nightly cron job (3 AM UTC) that hard-deletes contacts
-  where deleted_at < NOW() - 30 days. Batch limit: 500.
-  Full implementation in Phase 04.
+  Nightly cron job (3 AM UTC) that permanently hard-deletes contacts
+  whose `deleted_at` timestamp is older than 30 days.
+
+  - Batches at 500 to avoid long-running transactions
+  - Each contact deletion is its own transaction
+  - Cancels any remaining Oban jobs for the contact's reminders
+  - Creates audit log entries with contact name snapshot (survives deletion)
+  - Idempotent: safe to run multiple times
   """
 
   use Oban.Worker, queue: :purge
 
+  require Logger
+
+  alias Kith.Repo
+  alias Kith.Contacts.Contact
+  alias Kith.Reminders
+
+  import Ecto.Query
+
+  @batch_size 500
+  @purge_after_days 30
+
   @impl Oban.Worker
   def perform(_job) do
-    # TODO: Implement in Phase 04
+    cutoff = DateTime.add(DateTime.utc_now(), -@purge_after_days * 86_400, :second)
+
+    contacts =
+      from(c in Contact,
+        where: not is_nil(c.deleted_at),
+        where: c.deleted_at < ^cutoff,
+        limit: ^@batch_size,
+        preload: []
+      )
+      |> Repo.all()
+
+    purged =
+      Enum.count(contacts, fn contact ->
+        try do
+          purge_contact(contact)
+          true
+        rescue
+          e ->
+            Logger.error(
+              "ContactPurgeWorker failed for contact #{contact.id}: #{Exception.message(e)}"
+            )
+
+            false
+        end
+      end)
+
+    if purged > 0 do
+      Logger.info("ContactPurgeWorker purged #{purged} contacts")
+    end
+
     :ok
+  end
+
+  defp purge_contact(contact) do
+    # Cancel any remaining Oban jobs for the contact's reminders
+    Reminders.cancel_all_for_contact(contact.id, contact.account_id)
+
+    # Create audit log entry (survives the hard-delete since it uses plain integer IDs)
+    Kith.AuditLogs.create_audit_log(contact.account_id, %{
+      user_id: nil,
+      user_name: "system",
+      event: "contact.purged",
+      contact_id: contact.id,
+      contact_name: contact.display_name || contact.first_name,
+      metadata: %{reason: "Contact permanently purged after 30-day trash window."}
+    })
+
+    # Hard-delete (CASCADE removes all sub-entities)
+    Repo.delete!(contact)
   end
 end
