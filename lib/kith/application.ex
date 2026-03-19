@@ -16,6 +16,7 @@ defmodule Kith.Application do
     Kith.Geocoding.install_fuse()
 
     [
+      Kith.Vault,
       Kith.Repo,
       {Oban, Application.fetch_env!(:kith, Oban)},
       {Cachex, name: :kith_cache, expiration: expiration(default: :timer.hours(24))},

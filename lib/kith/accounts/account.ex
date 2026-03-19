@@ -15,7 +15,8 @@ defmodule Kith.Accounts.Account do
 
     # Immich integration
     field :immich_base_url, :string
-    field :immich_api_key, :string
+    field :immich_api_key, Kith.Vault.EncryptedBinary
+    field :immich_enabled, :boolean, default: false
     field :immich_status, :string, default: "disabled"
     field :immich_consecutive_failures, :integer, default: 0
     field :immich_last_synced_at, :utc_datetime
@@ -44,5 +45,33 @@ defmodule Kith.Accounts.Account do
     |> validate_required([:name])
     |> validate_length(:name, max: 255)
     |> validate_number(:send_hour, greater_than_or_equal_to: 0, less_than_or_equal_to: 23)
+  end
+
+  @doc "Changeset for updating Immich integration settings."
+  def immich_changeset(account, attrs) do
+    account
+    |> cast(attrs, [:immich_base_url, :immich_api_key, :immich_enabled])
+    |> validate_immich_url()
+  end
+
+  @doc "Changeset for updating Immich sync state (status, failures, last synced)."
+  def immich_sync_changeset(account, attrs) do
+    account
+    |> cast(attrs, [:immich_status, :immich_consecutive_failures, :immich_last_synced_at])
+  end
+
+  defp validate_immich_url(changeset) do
+    case get_field(changeset, :immich_base_url) do
+      nil -> changeset
+      "" -> changeset
+      url ->
+        uri = URI.parse(url)
+
+        if uri.scheme in ["http", "https"] && uri.host not in [nil, ""] do
+          changeset
+        else
+          add_error(changeset, :immich_base_url, "must be a valid HTTP/HTTPS URL")
+        end
+    end
   end
 end

@@ -62,6 +62,16 @@ if config_env() == :prod do
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
     secret_key_base: secret_key_base
 
+  # Cloak encryption vault — production key from env
+  cloak_key =
+    Kith.ConfigHelpers.read_secret("CLOAK_KEY") ||
+      raise "CLOAK_KEY is required in production (base64-encoded 32-byte key)"
+
+  config :kith, Kith.Vault,
+    ciphers: [
+      default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!(cloak_key)}
+    ]
+
   # WebAuthn — rp_id must match KITH_HOSTNAME exactly
   config :wax_,
     origin: "https://#{host}",

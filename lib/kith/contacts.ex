@@ -13,6 +13,7 @@ defmodule Kith.Contacts do
     Address,
     ContactField,
     ContactFieldType,
+    ImmichCandidate,
     Tag,
     Relationship,
     RelationshipType,
@@ -466,6 +467,111 @@ defmodule Kith.Contacts do
 
   def list_currencies do
     from(c in Currency, order_by: [asc: c.code])
+    |> Repo.all()
+  end
+
+  ## Immich Review
+
+  @doc "Lists contacts needing Immich review for an account."
+  def list_needs_review(account_id) do
+    Contact
+    |> where([c], c.account_id == ^account_id)
+    |> where([c], c.immich_status == "needs_review")
+    |> where([c], is_nil(c.deleted_at))
+    |> order_by([c], asc: c.display_name)
+    |> preload(:immich_candidates)
+    |> Repo.all()
+  end
+
+  @doc "Returns count of contacts needing Immich review."
+  def count_needs_review(account_id) do
+    Contact
+    |> where([c], c.account_id == ^account_id)
+    |> where([c], c.immich_status == "needs_review")
+    |> where([c], is_nil(c.deleted_at))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Confirms a link between a contact and an Immich person.
+  Sets status to linked, stores person ID/URL, clears candidates.
+  """
+  def confirm_immich_link(%Contact{} = contact, immich_person_id, immich_person_url) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:contact, Contact.update_changeset(contact, %{
+      immich_status: "linked",
+      immich_person_id: immich_person_id,
+      immich_person_url: immich_person_url
+    }))
+    |> Ecto.Multi.update_all(:clear_candidates, fn _ ->
+      from(ic in ImmichCandidate,
+        where: ic.contact_id == ^contact.id and ic.account_id == ^contact.account_id
+      )
+    end, set: [status: "accepted"])
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{contact: contact}} -> {:ok, contact}
+      {:error, :contact, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc "Rejects a specific Immich candidate."
+  def reject_immich_candidate(%ImmichCandidate{} = candidate) do
+    candidate
+    |> ImmichCandidate.changeset(%{status: "rejected"})
+    |> Repo.update()
+    |> case do
+      {:ok, _} ->
+        # If no pending candidates remain, set contact to unlinked
+        pending_count =
+          ImmichCandidate
+          |> where([ic], ic.contact_id == ^candidate.contact_id)
+          |> where([ic], ic.account_id == ^candidate.account_id)
+          |> where([ic], ic.status == "pending")
+          |> Repo.aggregate(:count)
+
+        if pending_count == 0 do
+          contact = Repo.get!(Contact, candidate.contact_id)
+
+          contact
+          |> Contact.update_changeset(%{immich_status: "unlinked"})
+          |> Repo.update()
+        else
+          {:ok, candidate}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  @doc "Unlinks a confirmed Immich connection from a contact."
+  def unlink_immich(%Contact{} = contact) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:contact, Contact.update_changeset(contact, %{
+      immich_status: "unlinked",
+      immich_person_id: nil,
+      immich_person_url: nil
+    }))
+    |> Ecto.Multi.delete_all(:clear_candidates,
+      from(ic in ImmichCandidate,
+        where: ic.contact_id == ^contact.id and ic.account_id == ^contact.account_id
+      )
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{contact: contact}} -> {:ok, contact}
+      {:error, :contact, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc "Lists pending Immich candidates for a contact."
+  def list_pending_candidates(account_id, contact_id) do
+    ImmichCandidate
+    |> where([ic], ic.account_id == ^account_id)
+    |> where([ic], ic.contact_id == ^contact_id)
+    |> where([ic], ic.status == "pending")
+    |> order_by([ic], desc: ic.suggested_at)
     |> Repo.all()
   end
 
