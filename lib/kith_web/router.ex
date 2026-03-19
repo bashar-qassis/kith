@@ -55,6 +55,14 @@ defmodule KithWeb.Router do
 
     delete "/auth/token", AuthController, :delete_current
     delete "/auth/token/:id", AuthController, :delete
+
+    # Export endpoints
+    get "/contacts/export.vcf", ContactExportController, :bulk
+    get "/contacts/:id/export.vcf", ContactExportController, :show
+    get "/export", ExportController, :create
+
+    # Import endpoint
+    post "/contacts/import", ContactImportController, :create
   end
 
   # Enable LiveDashboard in development
@@ -110,12 +118,14 @@ defmodule KithWeb.Router do
       live "/contacts/new", ContactLive.New, :new
       live "/contacts/:id", ContactLive.Show, :show
       live "/contacts/:id/edit", ContactLive.Edit, :edit
-      live "/contacts/:id/merge", ContactLive.Show, :merge
+      live "/contacts/:id/merge", ContactLive.Merge, :index
 
       # Settings
       live "/settings/tags", SettingsLive.Tags, :index
       live "/settings/integrations", SettingsLive.Integrations, :index
       live "/settings/account", SettingsLive.Account, :index
+      live "/settings/import", SettingsLive.Import, :index
+      live "/settings/export", SettingsLive.Export, :index
 
       # Immich review
       live "/contacts/:id/immich-review", ContactLive.ImmichReview, :index

@@ -36,6 +36,8 @@ defmodule Kith.Policy do
           | :call
           | :reminder
           | :audit_log
+          | :export
+          | :import
 
   @doc """
   Returns true if the user is authorized to perform the given action on the resource.
