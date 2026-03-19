@@ -1,22 +1,3 @@
-// If you want to use Phoenix channels, run `mix help phx.gen.channel`
-// to get started and then uncomment the line below.
-// import "./user_socket.js"
-
-// You can include dependencies in two ways.
-//
-// The simplest option is to put them in assets/vendor and
-// import them using relative paths:
-//
-//     import "../vendor/some-package.js"
-//
-// Alternatively, you can `npm install some-package --prefix assets` and import
-// them using a path starting with the package name:
-//
-//     import "some-package"
-//
-// If you have dependencies that try to import CSS, esbuild will generate a separate `app.css` file.
-// To load it, simply add a second `<link>` to your `root.html.heex` file.
-
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
@@ -25,11 +6,32 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/kith"
 import topbar from "../vendor/topbar"
 
+// Custom hooks
+import TrixEditor from "./hooks/trix_editor"
+
+// Alpine.js for lightbox
+import Alpine from "alpinejs"
+window.Alpine = Alpine
+Alpine.start()
+
+const Hooks = {
+  ...colocatedHooks,
+  TrixEditor,
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: Hooks,
+  dom: {
+    onBeforeElUpdated(from, to) {
+      // Preserve Alpine.js state during LiveView patches
+      if (from._x_dataStack) {
+        window.Alpine.clone(from, to)
+      }
+    }
+  }
 })
 
 // Show progress bar on live navigation and form submits
@@ -48,20 +50,10 @@ window.liveSocket = liveSocket
 
 // The lines below enable quality of life phoenix_live_reload
 // development features:
-//
-//     1. stream server logs to the browser console
-//     2. click on elements to jump to their definitions in your code editor
-//
 if (process.env.NODE_ENV === "development") {
   window.addEventListener("phx:live_reload:attached", ({detail: reloader}) => {
-    // Enable server log streaming to client.
-    // Disable with reloader.disableServerLogs()
     reloader.enableServerLogs()
 
-    // Open configured PLUG_EDITOR at file:line of the clicked element's HEEx component
-    //
-    //   * click with "c" key pressed to open at caller location
-    //   * click with "d" key pressed to open at function component definition location
     let keyDown
     window.addEventListener("keydown", e => keyDown = e.key)
     window.addEventListener("keyup", _e => keyDown = null)
@@ -80,4 +72,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

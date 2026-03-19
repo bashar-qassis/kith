@@ -167,6 +167,18 @@
         </div>
       </div>
 
+      <%!-- Reminders sidebar widget --%>
+      <div class="card bg-base-100 shadow-sm mt-4">
+        <div class="card-body p-4">
+          <.live_component
+            module={KithWeb.ContactLive.RemindersComponent}
+            id={"reminders-#{@contact.id}"}
+            contact_id={@contact.id}
+            account_id={@account_id}
+          />
+        </div>
+      </div>
+
       <%!-- Action buttons --%>
       <%= if can?(assigns, :update, :contact) do %>
         <div class="card bg-base-100 shadow-sm mt-4">
@@ -204,62 +216,120 @@
     <%!-- Main content area --%>
     <main class="flex-1 min-w-0">
       <%!-- Tabs --%>
-      <div class="tabs tabs-bordered mb-6">
-        <button
-          class={["tab", @active_tab == :notes && "tab-active"]}
-          phx-click="switch-tab"
-          phx-value-tab="notes"
-        >
+      <div class="tabs tabs-bordered mb-6 flex-wrap">
+        <button class={["tab", @active_tab == :notes && "tab-active"]} phx-click="switch-tab" phx-value-tab="notes">
           Notes
         </button>
-        <button
-          class={["tab", @active_tab == :life_events && "tab-active"]}
-          phx-click="switch-tab"
-          phx-value-tab="life_events"
-        >
+        <button class={["tab", @active_tab == :activities && "tab-active"]} phx-click="switch-tab" phx-value-tab="activities">
+          Activities
+        </button>
+        <button class={["tab", @active_tab == :calls && "tab-active"]} phx-click="switch-tab" phx-value-tab="calls">
+          Calls
+        </button>
+        <button class={["tab", @active_tab == :life_events && "tab-active"]} phx-click="switch-tab" phx-value-tab="life_events">
           Life Events
         </button>
-        <button
-          class={["tab", @active_tab == :photos && "tab-active"]}
-          phx-click="switch-tab"
-          phx-value-tab="photos"
-        >
+        <button class={["tab", @active_tab == :photos && "tab-active"]} phx-click="switch-tab" phx-value-tab="photos">
           Photos
+        </button>
+        <button class={["tab", @active_tab == :documents && "tab-active"]} phx-click="switch-tab" phx-value-tab="documents">
+          Documents
+        </button>
+        <button class={["tab", @active_tab == :addresses && "tab-active"]} phx-click="switch-tab" phx-value-tab="addresses">
+          Addresses
+        </button>
+        <button class={["tab", @active_tab == :contact_fields && "tab-active"]} phx-click="switch-tab" phx-value-tab="contact_fields">
+          Contact Info
+        </button>
+        <button class={["tab", @active_tab == :relationships && "tab-active"]} phx-click="switch-tab" phx-value-tab="relationships">
+          Relationships
         </button>
       </div>
 
-      <%!-- Tab content --%>
+      <%!-- Tab content — each tab renders a LiveComponent --%>
       <div>
         <%= case @active_tab do %>
           <% :notes -> %>
-            <div class="space-y-4">
-              <h2 class="text-lg font-semibold">Notes</h2>
-              <%= if @notes == [] do %>
-                <p class="text-base-content/60">No notes yet.</p>
-              <% end %>
-              <%= for note <- @notes do %>
-                <div class="card bg-base-100 shadow-sm">
-                  <div class="card-body p-4">
-                    <p class="whitespace-pre-wrap">{note.body}</p>
-                    <div class="text-xs text-base-content/50 mt-2">
-                      {Calendar.strftime(note.inserted_at, "%b %d, %Y at %I:%M %p")}
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
+            <.live_component
+              module={KithWeb.ContactLive.NotesListComponent}
+              id={"notes-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              current_user_id={@current_user_id}
+              can_edit={can?(assigns, :create, :note)}
+            />
+
+          <% :activities -> %>
+            <.live_component
+              module={KithWeb.ContactLive.ActivitiesListComponent}
+              id={"activities-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :activity)}
+            />
+
+          <% :calls -> %>
+            <.live_component
+              module={KithWeb.ContactLive.CallsListComponent}
+              id={"calls-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :call)}
+            />
 
           <% :life_events -> %>
-            <div>
-              <h2 class="text-lg font-semibold mb-4">Life Events</h2>
-              <p class="text-base-content/60">No life events yet.</p>
-            </div>
+            <.live_component
+              module={KithWeb.ContactLive.LifeEventsListComponent}
+              id={"life-events-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :life_event)}
+            />
 
           <% :photos -> %>
-            <div>
-              <h2 class="text-lg font-semibold mb-4">Photos</h2>
-              <p class="text-base-content/60">No photos yet.</p>
-            </div>
+            <.live_component
+              module={KithWeb.ContactLive.PhotosGalleryComponent}
+              id={"photos-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :photo)}
+            />
+
+          <% :documents -> %>
+            <.live_component
+              module={KithWeb.ContactLive.DocumentsListComponent}
+              id={"documents-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :document)}
+            />
+
+          <% :addresses -> %>
+            <.live_component
+              module={KithWeb.ContactLive.AddressesComponent}
+              id={"addresses-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :address)}
+            />
+
+          <% :contact_fields -> %>
+            <.live_component
+              module={KithWeb.ContactLive.ContactFieldsComponent}
+              id={"contact-fields-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :contact_field)}
+            />
+
+          <% :relationships -> %>
+            <.live_component
+              module={KithWeb.ContactLive.RelationshipsComponent}
+              id={"relationships-#{@contact.id}"}
+              contact_id={@contact.id}
+              account_id={@account_id}
+              can_edit={can?(assigns, :create, :relationship)}
+            />
         <% end %>
       </div>
     </main>

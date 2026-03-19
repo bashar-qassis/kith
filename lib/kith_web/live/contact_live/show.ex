@@ -4,9 +4,12 @@ defmodule KithWeb.ContactLive.Show do
   alias Kith.Contacts
   alias Kith.AuditLogs
 
+  @tabs ~w(notes activities calls life_events photos documents addresses contact_fields relationships)a
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     account_id = socket.assigns.current_scope.account.id
+    user_id = socket.assigns.current_scope.user.id
 
     contact =
       Contacts.get_contact!(account_id, String.to_integer(id))
@@ -16,11 +19,11 @@ defmodule KithWeb.ContactLive.Show do
      socket
      |> assign(:page_title, contact.display_name)
      |> assign(:account_id, account_id)
+     |> assign(:current_user_id, user_id)
      |> assign(:contact, contact)
      |> assign(:active_tab, :notes)
      |> assign(:tags, Contacts.list_tags(account_id))
      |> assign(:tag_search, "")
-     |> assign(:notes, Contacts.list_notes(contact.id))
      |> assign(:show_tag_dropdown, false)}
   end
 
@@ -87,7 +90,13 @@ defmodule KithWeb.ContactLive.Show do
   end
 
   def handle_event("switch-tab", %{"tab" => tab}, socket) do
-    {:noreply, assign(socket, :active_tab, String.to_existing_atom(tab))}
+    tab_atom = String.to_existing_atom(tab)
+
+    if tab_atom in @tabs do
+      {:noreply, assign(socket, :active_tab, tab_atom)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("toggle-tag-dropdown", _params, socket) do
