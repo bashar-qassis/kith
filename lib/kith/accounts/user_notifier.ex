@@ -75,4 +75,37 @@ defmodule Kith.Accounts.UserNotifier do
     ==============================
     """)
   end
+
+  @doc """
+  Deliver an invitation to join an account.
+  """
+  def deliver_invitation(email, %{
+        account_name: account_name,
+        invited_by_name: invited_by_name,
+        role: role,
+        url: url
+      }) do
+    deliver(email, "You've been invited to join #{account_name} on Kith", """
+
+    ==============================
+
+    Hi,
+
+    #{invited_by_name} has invited you to join "#{account_name}" on Kith
+    as #{a_or_an(role)} #{role}.
+
+    You can accept the invitation by visiting the URL below:
+
+    #{url}
+
+    This invitation expires in 7 days.
+
+    If you weren't expecting this invitation, you can ignore this email.
+
+    ==============================
+    """)
+  end
+
+  defp a_or_an(word) when word in ["admin", "editor"], do: "an"
+  defp a_or_an(_word), do: "a"
 end

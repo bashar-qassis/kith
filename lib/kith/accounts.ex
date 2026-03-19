@@ -8,6 +8,7 @@ defmodule Kith.Accounts do
 
   alias Kith.Accounts.{
     Account,
+    AccountInvitation,
     User,
     UserToken,
     UserNotifier,
@@ -914,5 +915,359 @@ defmodule Kith.Accounts do
         {:ok, {user, tokens_to_expire}}
       end
     end)
+  end
+
+  ## Invitations ────────────────────────────────────────────────────────────
+
+  @doc """
+  Creates an invitation and sends the invitation email.
+  Validates email is not already a user in the account and not already invited (pending).
+  """
+  def create_invitation(account_id, invited_by_id, attrs, invitation_url_fun)
+      when is_function(invitation_url_fun, 1) do
+    email = attrs[:email] || attrs["email"]
+
+    with :ok <- validate_not_existing_user(account_id, email),
+         :ok <- validate_not_pending_invitation(account_id, email) do
+      {raw_token, token_hash} = AccountInvitation.build_token()
+
+      invitation_attrs =
+        Map.merge(attrs, %{
+          account_id: account_id,
+          invited_by_id: invited_by_id
+        })
+
+      changeset = AccountInvitation.changeset(%AccountInvitation{}, invitation_attrs)
+
+      changeset =
+        changeset
+        |> Ecto.Changeset.put_change(:token_hash, token_hash)
+        |> Ecto.Changeset.put_change(:expires_at, AccountInvitation.token_expiry())
+
+      case Repo.insert(changeset) do
+        {:ok, invitation} ->
+          account = get_account!(account_id)
+          invited_by = get_user!(invited_by_id)
+
+          UserNotifier.deliver_invitation(email, %{
+            account_name: account.name,
+            invited_by_name: invited_by.display_name || invited_by.email,
+            role: invitation.role,
+            url: invitation_url_fun.(raw_token)
+          })
+
+          {:ok, invitation}
+
+        {:error, changeset} ->
+          {:error, changeset}
+      end
+    end
+  end
+
+  @doc """
+  Accepts an invitation: validates token, creates user, marks invitation accepted.
+  """
+  def accept_invitation(raw_token, user_params) do
+    with {:ok, invitation} <- get_valid_invitation_by_token(raw_token) do
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:user, fn _changes ->
+        %User{account_id: invitation.account_id}
+        |> User.registration_changeset(user_params)
+        |> Ecto.Changeset.put_change(:role, invitation.role)
+        |> Ecto.Changeset.put_change(:confirmed_at, DateTime.utc_now(:second))
+      end)
+      |> Ecto.Multi.update(:invitation, fn _changes ->
+        Ecto.Changeset.change(invitation, %{accepted_at: DateTime.utc_now(:second)})
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{user: user}} -> {:ok, Repo.preload(user, :account)}
+        {:error, :user, changeset, _} -> {:error, changeset}
+        {:error, :invitation, changeset, _} -> {:error, changeset}
+      end
+    end
+  end
+
+  @doc "Revokes a pending invitation by deleting it."
+  def revoke_invitation(account_id, invitation_id) do
+    case Repo.get_by(AccountInvitation, id: invitation_id, account_id: account_id) do
+      nil ->
+        {:error, :not_found}
+
+      %AccountInvitation{accepted_at: accepted_at} when not is_nil(accepted_at) ->
+        {:error, :already_accepted}
+
+      invitation ->
+        Repo.delete(invitation)
+    end
+  end
+
+  @doc "Resends the invitation email with the same token."
+  def resend_invitation(account_id, invitation_id, invitation_url_fun) do
+    case Repo.get_by(AccountInvitation, id: invitation_id, account_id: account_id) do
+      nil ->
+        {:error, :not_found}
+
+      %AccountInvitation{accepted_at: accepted_at} when not is_nil(accepted_at) ->
+        {:error, :already_accepted}
+
+      invitation ->
+        # We can't reconstruct the raw token from the hash, so we generate a new one
+        {raw_token, token_hash} = AccountInvitation.build_token()
+
+        invitation
+        |> Ecto.Changeset.change(%{
+          token_hash: token_hash,
+          expires_at: AccountInvitation.token_expiry()
+        })
+        |> Repo.update()
+        |> case do
+          {:ok, updated} ->
+            account = get_account!(account_id)
+
+            UserNotifier.deliver_invitation(updated.email, %{
+              account_name: account.name,
+              invited_by_name: "The account admin",
+              role: updated.role,
+              url: invitation_url_fun.(raw_token)
+            })
+
+            {:ok, updated}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  @doc "Lists all invitations for the account."
+  def list_invitations(account_id) do
+    from(i in AccountInvitation,
+      where: i.account_id == ^account_id,
+      order_by: [desc: i.inserted_at],
+      preload: [:invited_by]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Gets a pending invitation by token (public, no scope needed)."
+  def get_invitation_by_token(raw_token) do
+    with {:ok, token_hash} <- AccountInvitation.hash_token(raw_token) do
+      invitation =
+        from(i in AccountInvitation,
+          where: i.token_hash == ^token_hash,
+          preload: [:account]
+        )
+        |> Repo.one()
+
+      case invitation do
+        nil -> {:error, :not_found}
+        inv -> {:ok, inv}
+      end
+    else
+      :error -> {:error, :invalid_token}
+    end
+  end
+
+  defp get_valid_invitation_by_token(raw_token) do
+    with {:ok, invitation} <- get_invitation_by_token(raw_token) do
+      cond do
+        AccountInvitation.accepted?(invitation) -> {:error, :already_accepted}
+        AccountInvitation.expired?(invitation) -> {:error, :expired}
+        true -> {:ok, invitation}
+      end
+    end
+  end
+
+  defp validate_not_existing_user(account_id, email) do
+    exists? =
+      Repo.exists?(from(u in User, where: u.account_id == ^account_id and u.email == ^email))
+
+    if exists?, do: {:error, :already_a_member}, else: :ok
+  end
+
+  defp validate_not_pending_invitation(account_id, email) do
+    exists? =
+      Repo.exists?(
+        from(i in AccountInvitation,
+          where: i.account_id == ^account_id and i.email == ^email and is_nil(i.accepted_at)
+        )
+      )
+
+    if exists?, do: {:error, :already_invited}, else: :ok
+  end
+
+  ## Role Management ────────────────────────────────────────────────────────
+
+  @doc """
+  Changes a user's role. Admin cannot change their own role.
+  Cannot demote the last admin.
+  """
+  def change_user_role(actor_id, target_user_id, new_role)
+      when is_binary(new_role) and new_role in ~w(admin editor viewer) do
+    if actor_id == target_user_id do
+      {:error, :cannot_change_own_role}
+    else
+      target = get_user!(target_user_id)
+
+      if target.role == "admin" and new_role != "admin" do
+        # Check if this is the last admin
+        admin_count =
+          Repo.aggregate(
+            from(u in User,
+              where: u.account_id == ^target.account_id and u.role == "admin"
+            ),
+            :count
+          )
+
+        if admin_count <= 1 do
+          {:error, :last_admin}
+        else
+          do_update_role(target, new_role)
+        end
+      else
+        do_update_role(target, new_role)
+      end
+    end
+  end
+
+  defp do_update_role(user, new_role) do
+    user
+    |> User.role_changeset(%{role: new_role})
+    |> Repo.update()
+  end
+
+  @doc """
+  Removes a user from the account. Cannot remove self or last admin.
+  Invalidates all sessions within the same transaction.
+  """
+  def remove_user(actor_id, target_user_id) do
+    if actor_id == target_user_id do
+      {:error, :cannot_remove_self}
+    else
+      target = get_user!(target_user_id)
+
+      if target.role == "admin" do
+        admin_count =
+          Repo.aggregate(
+            from(u in User,
+              where: u.account_id == ^target.account_id and u.role == "admin"
+            ),
+            :count
+          )
+
+        if admin_count <= 1 do
+          {:error, :last_admin}
+        else
+          do_remove_user(target)
+        end
+      else
+        do_remove_user(target)
+      end
+    end
+  end
+
+  defp do_remove_user(user) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.delete_all(
+      :delete_tokens,
+      from(t in UserToken, where: t.user_id == ^user.id)
+    )
+    |> Ecto.Multi.delete(:delete_user, user)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{delete_user: user}} -> {:ok, user}
+      {:error, _step, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  ## Feature Modules ────────────────────────────────────────────────────────
+
+  @known_modules ~w(immich)
+
+  @doc "Returns true if a feature module is enabled for the account."
+  def module_enabled?(%Account{feature_flags: flags}, module_name)
+      when is_binary(module_name) do
+    Map.get(flags || %{}, module_name, false) == true
+  end
+
+  def module_enabled?(%Account{}, _module_name), do: false
+
+  @doc "Enables a feature module for the account."
+  def enable_module(%Account{} = account, module_name) when module_name in @known_modules do
+    new_flags = Map.put(account.feature_flags || %{}, module_name, true)
+
+    account
+    |> Ecto.Changeset.change(%{feature_flags: new_flags})
+    |> Repo.update()
+  end
+
+  def enable_module(_account, _module_name), do: {:error, :unknown_module}
+
+  @doc "Disables a feature module for the account."
+  def disable_module(%Account{} = account, module_name) when module_name in @known_modules do
+    new_flags = Map.put(account.feature_flags || %{}, module_name, false)
+
+    account
+    |> Ecto.Changeset.change(%{feature_flags: new_flags})
+    |> Repo.update()
+  end
+
+  def disable_module(_account, _module_name), do: {:error, :unknown_module}
+
+  @doc "Returns all known modules with their enabled/disabled status."
+  def list_modules(%Account{} = account) do
+    Enum.map(@known_modules, fn name ->
+      %{name: name, enabled: module_enabled?(account, name)}
+    end)
+  end
+
+  ## Account Reset & Deletion ──────────────────────────────────────────────
+
+  @doc """
+  Requests an account data reset. Admin must type "RESET" exactly.
+  Queues an Oban job to perform the actual reset.
+  """
+  def request_account_reset(account_id, "RESET") do
+    %{account_id: account_id}
+    |> Kith.Workers.AccountResetWorker.new()
+    |> Oban.insert()
+
+    {:ok, :queued}
+  end
+
+  def request_account_reset(_account_id, _confirmation), do: {:error, :invalid_confirmation}
+
+  @doc """
+  Requests full account deletion. Admin must type the exact account name.
+  Immediately invalidates all sessions, then queues Oban job for deletion.
+  """
+  def request_account_deletion(account_id, confirmation_name) do
+    account = get_account!(account_id)
+
+    if account.name == confirmation_name do
+      # Immediately invalidate all sessions for all users in the account
+      user_ids = from(u in User, where: u.account_id == ^account_id, select: u.id) |> Repo.all()
+
+      from(t in UserToken, where: t.user_id in ^user_ids)
+      |> Repo.delete_all()
+
+      # Queue the deletion job
+      %{account_id: account_id}
+      |> Kith.Workers.AccountDeletionWorker.new()
+      |> Oban.insert()
+
+      {:ok, :queued}
+    else
+      {:error, :invalid_confirmation}
+    end
+  end
+
+  @doc "Invalidates all sessions for all users in an account."
+  def invalidate_all_sessions(account_id) do
+    user_ids = from(u in User, where: u.account_id == ^account_id, select: u.id) |> Repo.all()
+
+    from(t in UserToken, where: t.user_id in ^user_ids)
+    |> Repo.delete_all()
   end
 end

@@ -34,7 +34,7 @@ defmodule Kith.Immich.Settings do
   @doc """
   Tests the connection to the configured Immich instance.
   Decrypts the API key and performs a live API call.
-  Returns `:ok` or `{:error, reason}`.
+  Returns `{:ok, person_count}` or `{:error, reason}`.
   """
   def test_connection(%Account{} = account) do
     base_url = account.immich_base_url
@@ -49,9 +49,51 @@ defmodule Kith.Immich.Settings do
 
       true ->
         case Kith.Immich.Client.list_people(base_url, api_key) do
-          {:ok, _people} -> :ok
+          {:ok, people} -> {:ok, length(people)}
           {:error, reason} -> {:error, reason}
         end
     end
+  end
+
+  @doc "Enables the Immich integration for an account."
+  def enable(%Account{} = account) do
+    account
+    |> Ecto.Changeset.change(%{immich_enabled: true, immich_status: "ok"})
+    |> Kith.Repo.update()
+  end
+
+  @doc "Disables the Immich integration for an account."
+  def disable(%Account{} = account) do
+    account
+    |> Ecto.Changeset.change(%{immich_enabled: false, immich_status: "disabled"})
+    |> Kith.Repo.update()
+  end
+
+  @doc "Triggers an immediate Immich sync by enqueuing the worker."
+  def trigger_manual_sync(%Account{} = account) do
+    %{account_id: account.id}
+    |> Kith.Workers.ImmichSyncWorker.new()
+    |> Oban.insert()
+  end
+
+  @doc "Returns sync status information for the account."
+  def get_sync_status(%Account{} = account) do
+    import Ecto.Query
+
+    needs_review_count =
+      from(c in Kith.Contacts.Contact,
+        where: c.account_id == ^account.id,
+        where: c.immich_status == "needs_review",
+        where: is_nil(c.deleted_at)
+      )
+      |> Kith.Repo.aggregate(:count)
+
+    %{
+      enabled: account.immich_enabled,
+      status: account.immich_status,
+      last_synced_at: account.immich_last_synced_at,
+      consecutive_failures: account.immich_consecutive_failures,
+      needs_review_count: needs_review_count
+    }
   end
 end

@@ -390,6 +390,42 @@ defmodule Kith.Reminders do
     |> Repo.update()
   end
 
+  @doc "Gets a reminder rule by ID, scoped to account."
+  def get_reminder_rule!(account_id, id) do
+    ReminderRule
+    |> scope_to_account(account_id)
+    |> Repo.get!(id)
+  end
+
+  @doc "Creates a new reminder rule for an account."
+  def create_reminder_rule(account_id, attrs) do
+    %ReminderRule{account_id: account_id}
+    |> ReminderRule.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a reminder rule. The on-day rule (days_before: 0) cannot be deactivated.
+  """
+  def update_reminder_rule(%ReminderRule{days_before: 0} = rule, %{active: false}) do
+    {:error, :cannot_deactivate_on_day_rule}
+  end
+
+  def update_reminder_rule(%ReminderRule{days_before: 0} = rule, %{"active" => false}) do
+    {:error, :cannot_deactivate_on_day_rule}
+  end
+
+  def update_reminder_rule(%ReminderRule{} = rule, attrs) do
+    rule
+    |> ReminderRule.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a reminder rule."
+  def delete_reminder_rule(%ReminderRule{} = rule) do
+    Repo.delete(rule)
+  end
+
   @doc """
   Seeds default reminder rules for a new account.
   """
