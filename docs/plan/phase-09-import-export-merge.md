@@ -1,6 +1,6 @@
 # Phase 09: Import / Export / Contact Merge
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 04 (Contact Management), Phase 05 (Sub-entities)
 > **Blocks:** Phase 14 (QA & E2E Testing)
 
@@ -12,7 +12,12 @@ Phase 09 implements data portability (vCard import/export, JSON export) and the 
 
 ## Decisions
 
+- **Decision A:** Custom vCard serializer/parser (`Kith.VCard.Serializer` / `Kith.VCard.Parser`) built instead of using `ex_vcard` — the package is unmaintained and insufficient for our field mapping needs. The custom parser handles both v3.0 and v4.0, line folding, and both CRLF/LF endings.
 - **Decision B:** Export produces vCard 3.0 (maximum client compatibility). Import accepts both vCard 3.0 and 4.0 (RFC 6350). Any references to vCard 4.0 in export tasks are incorrect and must be treated as 3.0.
+- **Decision C:** TASK-09-NEW-A (bulk all-contacts export) and TASK-09-02 (export by IDs) combined into a single controller action (`ContactExportController.bulk/2`) — the `ids[]` parameter is optional, making one endpoint serve both use cases.
+- **Decision D:** Merge audit log entry is created in the LiveView handler (not in the Ecto.Multi) to keep the transaction focused on data operations. The audit log captures snapshot names at merge time.
+- **Decision E:** `simple_form` component added to CoreComponents to fix pre-existing compilation error in Account settings page.
+- **Decision F:** Contact import duplicate detection uses case-insensitive name matching AND email matching. Both checked — if either matches, the contact is skipped.
 
 ---
 
