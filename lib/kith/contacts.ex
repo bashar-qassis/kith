@@ -135,15 +135,35 @@ defmodule Kith.Contacts do
   end
 
   def create_address(%Contact{} = contact, attrs) do
-    %Address{contact_id: contact.id, account_id: contact.account_id}
-    |> Address.changeset(attrs)
-    |> Repo.insert()
+    result =
+      %Address{contact_id: contact.id, account_id: contact.account_id}
+      |> Address.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, address} ->
+        maybe_geocode_address(address)
+        {:ok, address}
+
+      error ->
+        error
+    end
   end
 
   def update_address(%Address{} = address, attrs) do
-    address
-    |> Address.changeset(attrs)
-    |> Repo.update()
+    result =
+      address
+      |> Address.changeset(attrs)
+      |> Repo.update()
+
+    case result do
+      {:ok, updated} ->
+        maybe_geocode_address(updated)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   def delete_address(%Address{} = address) do
@@ -447,5 +467,36 @@ defmodule Kith.Contacts do
   def list_currencies do
     from(c in Currency, order_by: [asc: c.code])
     |> Repo.all()
+  end
+
+  # -- Geocoding integration --
+
+  require Logger
+
+  defp maybe_geocode_address(%Address{} = address) do
+    if Kith.Geocoding.enabled?() do
+      address_string = format_address_for_geocoding(address)
+
+      if address_string != "" do
+        Task.Supervisor.start_child(Kith.TaskSupervisor, fn ->
+          case Kith.Geocoding.geocode(address_string) do
+            {:ok, %{lat: lat, lng: lng}} ->
+              address
+              |> Address.changeset(%{latitude: lat, longitude: lng})
+              |> Repo.update()
+
+            {:error, reason} ->
+              Logger.warning("Geocoding failed for address #{address.id}: #{inspect(reason)}")
+          end
+        end)
+      end
+    end
+  end
+
+  defp format_address_for_geocoding(%Address{} = addr) do
+    [addr.line1, addr.line2, addr.city, addr.province, addr.postal_code, addr.country]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(", ")
   end
 end

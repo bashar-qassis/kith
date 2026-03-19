@@ -102,6 +102,16 @@ defmodule Kith.MixProject do
       {:sentry, "~> 10.8"},
       {:prom_ex, "~> 1.9"},
 
+      # Circuit Breaker
+      {:fuse, "~> 2.5"},
+
+      # Encryption
+      {:cloak_ecto, "~> 1.3"},
+
+      # IP Geolocation
+      {:geolix, "~> 2.0"},
+      {:geolix_adapter_mmdb2, "~> 0.6"},
+
       # Security
       {:plug_content_security_policy, "~> 0.2"},
       {:remote_ip, "~> 1.2"},

@@ -12,10 +12,14 @@ defmodule Kith.Application do
   end
 
   defp base_children do
+    # Install fuse circuit breakers before starting supervised children
+    Kith.Geocoding.install_fuse()
+
     [
       Kith.Repo,
       {Oban, Application.fetch_env!(:kith, Oban)},
-      {Cachex, name: :kith_cache, expiration: expiration(default: :timer.hours(24))}
+      {Cachex, name: :kith_cache, expiration: expiration(default: :timer.hours(24))},
+      {Task.Supervisor, name: Kith.TaskSupervisor}
     ]
   end
 
