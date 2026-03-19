@@ -498,16 +498,23 @@ defmodule Kith.Contacts do
   """
   def confirm_immich_link(%Contact{} = contact, immich_person_id, immich_person_url) do
     Ecto.Multi.new()
-    |> Ecto.Multi.update(:contact, Contact.update_changeset(contact, %{
-      immich_status: "linked",
-      immich_person_id: immich_person_id,
-      immich_person_url: immich_person_url
-    }))
-    |> Ecto.Multi.update_all(:clear_candidates, fn _ ->
-      from(ic in ImmichCandidate,
-        where: ic.contact_id == ^contact.id and ic.account_id == ^contact.account_id
-      )
-    end, set: [status: "accepted"])
+    |> Ecto.Multi.update(
+      :contact,
+      Contact.update_changeset(contact, %{
+        immich_status: "linked",
+        immich_person_id: immich_person_id,
+        immich_person_url: immich_person_url
+      })
+    )
+    |> Ecto.Multi.update_all(
+      :clear_candidates,
+      fn _ ->
+        from(ic in ImmichCandidate,
+          where: ic.contact_id == ^contact.id and ic.account_id == ^contact.account_id
+        )
+      end,
+      set: [status: "accepted"]
+    )
     |> Repo.transaction()
     |> case do
       {:ok, %{contact: contact}} -> {:ok, contact}
@@ -548,12 +555,16 @@ defmodule Kith.Contacts do
   @doc "Unlinks a confirmed Immich connection from a contact."
   def unlink_immich(%Contact{} = contact) do
     Ecto.Multi.new()
-    |> Ecto.Multi.update(:contact, Contact.update_changeset(contact, %{
-      immich_status: "unlinked",
-      immich_person_id: nil,
-      immich_person_url: nil
-    }))
-    |> Ecto.Multi.delete_all(:clear_candidates,
+    |> Ecto.Multi.update(
+      :contact,
+      Contact.update_changeset(contact, %{
+        immich_status: "unlinked",
+        immich_person_id: nil,
+        immich_person_url: nil
+      })
+    )
+    |> Ecto.Multi.delete_all(
+      :clear_candidates,
       from(ic in ImmichCandidate,
         where: ic.contact_id == ^contact.id and ic.account_id == ^contact.account_id
       )
@@ -573,6 +584,254 @@ defmodule Kith.Contacts do
     |> where([ic], ic.status == "pending")
     |> order_by([ic], desc: ic.suggested_at)
     |> Repo.all()
+  end
+
+  ## Genders CRUD
+
+  @doc "Gets a gender by ID, scoped to account (includes global genders)."
+  def get_gender!(account_id, id) do
+    from(g in Gender,
+      where: g.id == ^id,
+      where: is_nil(g.account_id) or g.account_id == ^account_id
+    )
+    |> Repo.one!()
+  end
+
+  @doc "Creates a custom gender for the account."
+  def create_gender(account_id, attrs) do
+    %Gender{account_id: account_id}
+    |> Gender.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a custom gender. Cannot modify global genders (account_id IS NULL)."
+  def update_gender(%Gender{account_id: nil}, _attrs), do: {:error, :global_read_only}
+
+  def update_gender(%Gender{} = gender, attrs) do
+    gender
+    |> Gender.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a custom gender. Cannot delete global genders.
+  Cannot delete if any contact in the account has this gender assigned.
+  """
+  def delete_gender(%Gender{account_id: nil}), do: {:error, :global_read_only}
+
+  def delete_gender(%Gender{} = gender) do
+    in_use? =
+      Repo.exists?(
+        from(c in Contact,
+          where: c.gender_id == ^gender.id and c.account_id == ^gender.account_id
+        )
+      )
+
+    if in_use? do
+      {:error, :in_use}
+    else
+      Repo.delete(gender)
+    end
+  end
+
+  @doc "Bulk updates position values for account-specific genders."
+  def reorder_genders(account_id, ordered_ids) when is_list(ordered_ids) do
+    Repo.transaction(fn ->
+      ordered_ids
+      |> Enum.with_index()
+      |> Enum.each(fn {id, position} ->
+        from(g in Gender,
+          where: g.id == ^id and g.account_id == ^account_id
+        )
+        |> Repo.update_all(set: [position: position])
+      end)
+    end)
+  end
+
+  ## Relationship Types CRUD
+
+  @doc "Gets a relationship type by ID, scoped to account (includes global)."
+  def get_relationship_type!(account_id, id) do
+    from(rt in RelationshipType,
+      where: rt.id == ^id,
+      where: is_nil(rt.account_id) or rt.account_id == ^account_id
+    )
+    |> Repo.one!()
+  end
+
+  @doc "Creates a custom relationship type for the account."
+  def create_relationship_type(account_id, attrs) do
+    %RelationshipType{account_id: account_id}
+    |> RelationshipType.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a custom relationship type. Cannot modify global types."
+  def update_relationship_type(%RelationshipType{account_id: nil}, _attrs),
+    do: {:error, :global_read_only}
+
+  def update_relationship_type(%RelationshipType{} = rt, attrs) do
+    rt
+    |> RelationshipType.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a custom relationship type. Cannot delete global types or types in use."
+  def delete_relationship_type(%RelationshipType{account_id: nil}),
+    do: {:error, :global_read_only}
+
+  def delete_relationship_type(%RelationshipType{} = rt) do
+    in_use? =
+      Repo.exists?(
+        from(r in Relationship,
+          where: r.relationship_type_id == ^rt.id and r.account_id == ^rt.account_id
+        )
+      )
+
+    if in_use? do
+      {:error, :in_use}
+    else
+      Repo.delete(rt)
+    end
+  end
+
+  ## Contact Field Types CRUD
+
+  @doc "Gets a contact field type by ID, scoped to account (includes global)."
+  def get_contact_field_type!(account_id, id) do
+    from(cft in ContactFieldType,
+      where: cft.id == ^id,
+      where: is_nil(cft.account_id) or cft.account_id == ^account_id
+    )
+    |> Repo.one!()
+  end
+
+  @doc "Creates a custom contact field type for the account."
+  def create_contact_field_type(account_id, attrs) do
+    %ContactFieldType{account_id: account_id}
+    |> ContactFieldType.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a custom contact field type. Cannot modify global types."
+  def update_contact_field_type(%ContactFieldType{account_id: nil}, _attrs),
+    do: {:error, :global_read_only}
+
+  def update_contact_field_type(%ContactFieldType{} = cft, attrs) do
+    cft
+    |> ContactFieldType.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a custom contact field type. Cannot delete global types or types in use."
+  def delete_contact_field_type(%ContactFieldType{account_id: nil}),
+    do: {:error, :global_read_only}
+
+  def delete_contact_field_type(%ContactFieldType{} = cft) do
+    in_use? =
+      Repo.exists?(
+        from(cf in ContactField,
+          where: cf.contact_field_type_id == ^cft.id,
+          join: c in Contact,
+          on: cf.contact_id == c.id,
+          where: c.account_id == ^cft.account_id
+        )
+      )
+
+    if in_use? do
+      {:error, :in_use}
+    else
+      Repo.delete(cft)
+    end
+  end
+
+  @doc "Bulk updates position values for account-specific contact field types."
+  def reorder_contact_field_types(account_id, ordered_ids) when is_list(ordered_ids) do
+    Repo.transaction(fn ->
+      ordered_ids
+      |> Enum.with_index()
+      |> Enum.each(fn {id, position} ->
+        from(cft in ContactFieldType,
+          where: cft.id == ^id and cft.account_id == ^account_id
+        )
+        |> Repo.update_all(set: [position: position])
+      end)
+    end)
+  end
+
+  ## Tags Management (Settings)
+
+  @doc "Returns tags with contact counts, ordered by name."
+  def list_tags_with_counts(account_id) do
+    from(t in Tag,
+      where: t.account_id == ^account_id,
+      left_join: ct in "contact_tags",
+      on: ct.tag_id == t.id,
+      group_by: t.id,
+      select: %{tag: t, count: count(ct.contact_id)},
+      order_by: [asc: t.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Returns the count of contacts with this tag."
+  def tag_usage_count(%Tag{} = tag) do
+    from(ct in "contact_tags", where: ct.tag_id == ^tag.id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Renames a tag. Validates new name is unique per account (case-insensitive)."
+  def rename_tag(%Tag{} = tag, new_name) do
+    tag
+    |> Tag.changeset(%{name: new_name})
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a tag and removes it from all contacts (CASCADE handles join table).
+  """
+  def delete_tag_with_removal(%Tag{} = tag) do
+    Repo.delete(tag)
+  end
+
+  @doc """
+  Merges source tag into target tag: moves all contact associations from
+  source to target, then deletes source. Handles duplicates via ON CONFLICT.
+  Uses Ecto.Multi for atomicity.
+  """
+  def merge_tags(account_id, %Tag{} = source, %Tag{} = target) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:move_associations, fn repo, _changes ->
+      # Get all contact_ids associated with source tag
+      source_contact_ids =
+        from(ct in "contact_tags",
+          where: ct.tag_id == ^source.id,
+          select: ct.contact_id
+        )
+        |> repo.all()
+
+      # Insert associations to target, ignoring duplicates
+      entries = Enum.map(source_contact_ids, fn cid -> %{contact_id: cid, tag_id: target.id} end)
+
+      if entries != [] do
+        repo.insert_all("contact_tags", entries, on_conflict: :nothing)
+      end
+
+      {:ok, length(source_contact_ids)}
+    end)
+    |> Ecto.Multi.run(:delete_source_associations, fn repo, _changes ->
+      {count, _} =
+        from(ct in "contact_tags", where: ct.tag_id == ^source.id)
+        |> repo.delete_all()
+
+      {:ok, count}
+    end)
+    |> Ecto.Multi.delete(:delete_source, source)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{delete_source: _tag}} -> {:ok, target}
+      {:error, step, reason, _changes} -> {:error, {step, reason}}
+    end
   end
 
   # -- Geocoding integration --

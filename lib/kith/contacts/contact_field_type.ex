@@ -14,10 +14,13 @@ defmodule Kith.Contacts.ContactFieldType do
     timestamps(type: :utc_datetime)
   end
 
+  @allowed_protocols ~w(mailto tel https http)
+
   def changeset(contact_field_type, attrs) do
     contact_field_type
     |> cast(attrs, [:name, :protocol, :icon, :vcard_label, :position, :account_id])
     |> validate_required([:name])
+    |> validate_inclusion(:protocol, @allowed_protocols ++ [nil])
     |> maybe_assoc_constraint_account()
   end
 

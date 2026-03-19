@@ -45,6 +45,21 @@ defmodule Kith.Accounts.Account do
     |> validate_required([:name])
     |> validate_length(:name, max: 255)
     |> validate_number(:send_hour, greater_than_or_equal_to: 0, less_than_or_equal_to: 23)
+    |> validate_timezone()
+  end
+
+  defp validate_timezone(changeset) do
+    case get_change(changeset, :timezone) do
+      nil ->
+        changeset
+
+      tz ->
+        if Tzdata.zone_exists?(tz) do
+          changeset
+        else
+          add_error(changeset, :timezone, "is not a valid IANA timezone")
+        end
+    end
   end
 
   @doc "Changeset for updating Immich integration settings."
@@ -62,8 +77,12 @@ defmodule Kith.Accounts.Account do
 
   defp validate_immich_url(changeset) do
     case get_field(changeset, :immich_base_url) do
-      nil -> changeset
-      "" -> changeset
+      nil ->
+        changeset
+
+      "" ->
+        changeset
+
       url ->
         uri = URI.parse(url)
 

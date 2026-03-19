@@ -133,13 +133,76 @@ defmodule Kith.Accounts.User do
     end
   end
 
+  @valid_display_name_formats ~w(first_last last_first first_only last_first_comma)
+  @valid_temperature_units ~w(celsius fahrenheit)
+  @valid_profile_tabs ~w(notes life_events photos)
+
   @doc """
   A user changeset for updating profile settings.
+  Validates locale, timezone, currency, temperature_unit, display_name_format,
+  and default_profile_tab against known-good values.
   """
   def profile_changeset(user, attrs) do
     user
-    |> cast(attrs, [:display_name, :timezone, :locale, :currency, :temperature_unit])
+    |> cast(attrs, [
+      :display_name,
+      :display_name_format,
+      :timezone,
+      :locale,
+      :currency,
+      :temperature_unit,
+      :default_profile_tab
+    ])
     |> validate_length(:display_name, max: 255)
+    |> validate_inclusion(:display_name_format, @valid_display_name_formats)
+    |> validate_inclusion(:temperature_unit, @valid_temperature_units)
+    |> validate_inclusion(:default_profile_tab, @valid_profile_tabs)
+    |> validate_timezone()
+    |> validate_locale()
+    |> validate_currency()
+  end
+
+  defp validate_timezone(changeset) do
+    case get_change(changeset, :timezone) do
+      nil ->
+        changeset
+
+      tz ->
+        if Tzdata.zone_exists?(tz) do
+          changeset
+        else
+          add_error(changeset, :timezone, "is not a valid IANA timezone")
+        end
+    end
+  end
+
+  defp validate_locale(changeset) do
+    case get_change(changeset, :locale) do
+      nil ->
+        changeset
+
+      locale ->
+        known = Kith.Cldr.known_locale_names()
+
+        if locale in Enum.map(known, &to_string/1) do
+          changeset
+        else
+          add_error(changeset, :locale, "is not a supported locale")
+        end
+    end
+  end
+
+  defp validate_currency(changeset) do
+    case get_change(changeset, :currency) do
+      nil ->
+        changeset
+
+      code ->
+        case Kith.Cldr.Currency.currency_for_code(code) do
+          {:ok, _} -> changeset
+          {:error, _} -> add_error(changeset, :currency, "is not a valid ISO 4217 currency code")
+        end
+    end
   end
 
   @doc """

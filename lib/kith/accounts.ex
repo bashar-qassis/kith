@@ -804,10 +804,67 @@ defmodule Kith.Accounts do
 
   @doc """
   Updates a user's profile settings.
+
+  If display_name_format changes, enqueues an Oban job to recompute
+  display_name on all contacts in the account.
   """
   def update_user_profile(%User{} = user, attrs) do
+    changeset = User.profile_changeset(user, attrs)
+    format_changed? = Ecto.Changeset.get_change(changeset, :display_name_format) != nil
+
+    case Repo.update(changeset) do
+      {:ok, updated_user} = result ->
+        if format_changed? do
+          %{account_id: user.account_id, display_name_format: updated_user.display_name_format}
+          |> Kith.Workers.DisplayNameRecomputeWorker.new()
+          |> Oban.insert()
+        end
+
+        result
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Returns user settings fields as a map.
+  """
+  def get_user_settings(%User{} = user) do
+    Map.take(user, [
+      :display_name,
+      :display_name_format,
+      :timezone,
+      :locale,
+      :currency,
+      :temperature_unit,
+      :default_profile_tab,
+      :me_contact_id
+    ])
+  end
+
+  @doc """
+  Links the user to their own contact card.
+  Validates that the contact belongs to the user's account.
+  """
+  def link_me_contact(%User{} = user, contact_id) do
+    contact = Kith.Contacts.get_contact!(user.account_id, contact_id)
+
+    if contact.account_id == user.account_id do
+      user
+      |> Ecto.Changeset.change(%{me_contact_id: contact.id})
+      |> Repo.update()
+    else
+      {:error, :contact_not_in_account}
+    end
+  end
+
+  @doc """
+  Unlinks the user's me_contact.
+  """
+  def unlink_me_contact(%User{} = user) do
     user
-    |> User.profile_changeset(attrs)
+    |> Ecto.Changeset.change(%{me_contact_id: nil})
     |> Repo.update()
   end
 
