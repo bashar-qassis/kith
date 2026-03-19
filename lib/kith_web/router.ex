@@ -89,6 +89,12 @@ defmodule KithWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/totp-setup", UserLive.TotpSetup, :new
 
+      # Dashboard
+      live "/dashboard", DashboardLive.Index, :index
+
+      # Reminders
+      live "/reminders/upcoming", ReminderLive.Upcoming, :index
+
       # Contact management
       live "/contacts", ContactLive.Index, :index
       live "/contacts/archived", ContactLive.Index, :archived
