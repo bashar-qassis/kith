@@ -1,6 +1,6 @@
 # Phase 05: Sub-entities
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 04 (Contact Management)
 > **Blocks:** Phase 09 (Import/Export/Merge), Phase 10 (REST API), Phase 11 (Frontend Screens)
 
