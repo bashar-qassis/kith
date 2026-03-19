@@ -125,7 +125,7 @@ defmodule Kith.ActivitiesTest do
       assert updated_contact.last_talked_to != nil
     end
 
-    test "CRUD for calls", %{contact: contact, account_id: account_id} do
+    test "CRUD for calls", %{contact: contact} do
       {:ok, call} =
         Activities.create_call(contact, %{
           "occurred_at" => "2026-03-15T10:00",

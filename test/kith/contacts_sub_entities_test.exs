@@ -90,7 +90,7 @@ defmodule Kith.ContactsSubEntitiesTest do
   ## Addresses
 
   describe "addresses" do
-    test "CRUD for addresses", %{contact: contact, account_id: account_id} do
+    test "CRUD for addresses", %{contact: contact} do
       address = address_fixture(contact)
       assert address.city == "Springfield"
 
@@ -201,7 +201,7 @@ defmodule Kith.ContactsSubEntitiesTest do
   ## Documents
 
   describe "documents" do
-    test "CRUD for documents", %{contact: contact, account_id: account_id} do
+    test "CRUD for documents", %{contact: contact} do
       doc = document_fixture(contact)
       assert doc.file_name == "doc.pdf"
 
