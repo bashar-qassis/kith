@@ -10,7 +10,7 @@ defmodule KithWeb.ContactLive.RemindersComponent do
 
   @impl true
   def update(assigns, socket) do
-    reminders = Reminders.list_reminders(assigns.contact_id)
+    reminders = Reminders.list_reminders(assigns.account_id, assigns.contact_id)
 
     {:ok,
      socket
@@ -18,15 +18,20 @@ defmodule KithWeb.ContactLive.RemindersComponent do
      |> assign(:reminders, reminders)}
   end
 
-  defp frequency_label(rule) do
-    case rule.frequency do
-      "daily" -> "Daily"
-      "weekly" -> "Weekly"
-      "monthly" -> "Monthly"
-      "yearly" -> "Yearly"
-      _ -> rule.frequency
-    end
-  end
+  defp type_label("birthday"), do: "Birthday"
+  defp type_label("stay_in_touch"), do: "Stay in touch"
+  defp type_label("one_time"), do: "One-time"
+  defp type_label("recurring"), do: "Recurring"
+  defp type_label(_), do: "Reminder"
+
+  defp frequency_label(nil), do: nil
+  defp frequency_label("weekly"), do: "Weekly"
+  defp frequency_label("biweekly"), do: "Every 2 weeks"
+  defp frequency_label("monthly"), do: "Monthly"
+  defp frequency_label("3months"), do: "Every 3 months"
+  defp frequency_label("6months"), do: "Every 6 months"
+  defp frequency_label("annually"), do: "Annually"
+  defp frequency_label(other), do: other
 
   @impl true
   def render(assigns) do
@@ -49,11 +54,15 @@ defmodule KithWeb.ContactLive.RemindersComponent do
               />
               <div>
                 <div class={[!reminder.active && "text-base-content/50"]}>
-                  {reminder.title}
+                  {reminder.title || type_label(reminder.type)}
                 </div>
-                <%= for rule <- reminder.reminder_rules do %>
-                  <div class="text-xs text-base-content/50">{frequency_label(rule)}</div>
-                <% end %>
+                <div class="text-xs text-base-content/50">
+                  {type_label(reminder.type)}
+                  <span :if={reminder.frequency}> ·  {frequency_label(reminder.frequency)}</span>
+                </div>
+                <div class="text-xs text-base-content/50">
+                  Next: {Calendar.strftime(reminder.next_reminder_date, "%b %d, %Y")}
+                </div>
               </div>
             </div>
           <% end %>

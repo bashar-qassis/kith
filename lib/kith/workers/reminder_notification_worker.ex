@@ -15,7 +15,6 @@ defmodule Kith.Workers.ReminderNotificationWorker do
     max_attempts: 3
 
   alias Kith.Repo
-  alias Kith.Reminders
   alias Kith.Reminders.{Reminder, ReminderInstance}
 
   @impl Oban.Worker
