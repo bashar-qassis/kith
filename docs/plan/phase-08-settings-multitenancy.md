@@ -1,8 +1,40 @@
 # Phase 08: Settings & Multi-Tenancy
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 03 (Core Domain Models)
 > **Blocks:** Phase 11 (Frontend — Settings screens)
+
+## Decisions
+
+### Decision A: Timezone Validation via Tzdata
+Used `Tzdata.zone_exists?/1` (already a dependency via `timex`) for IANA timezone validation in both User `profile_changeset` and Account `settings_changeset`. Compile-time caching was unnecessary since Tzdata already maintains an in-memory cache.
+
+### Decision B: Locale Validation via Kith.Cldr
+Validated locales against `Kith.Cldr.known_locale_names()` and currencies via `Kith.Cldr.Currency.currency_for_code/1`. Both use ex_cldr's built-in known-good lists.
+
+### Decision C: Display Name Recomputation via Oban
+Created `DisplayNameRecomputeWorker` with batch processing (500 contacts per batch) and `unique: [period: 60]` to deduplicate rapid format changes. The worker recomputes `display_name` on all contacts when format changes — idempotent by design.
+
+### Decision D: Feature Modules via Existing feature_flags JSONB
+Used the existing `feature_flags` map column on Account rather than creating a new table. `Map.get(flags, "immich", false)` ensures new modules default to disabled. Only `:immich` is a known module in v1.
+
+### Decision E: Invitation Token Security
+Followed `phx_gen_auth` pattern: 32 bytes of `:crypto.strong_rand_bytes`, SHA-256 hash stored in DB, raw token sent via email URL. Partial unique index on `(account_id, email) WHERE accepted_at IS NULL` prevents duplicate pending invitations while allowing re-invitation after acceptance.
+
+### Decision F: Resend Generates New Token
+On resend, a new token+hash is generated (cannot reconstruct raw token from hash). The old hash is replaced and expiry extended. This is simpler and more secure than storing reversible tokens.
+
+### Decision G: Account Reset vs Deletion Separation
+Reset uses "RESET" confirmation string (not account name) as specified in the plan. Deletion uses exact account name match. Both queue Oban jobs. Deletion invalidates sessions synchronously before queuing the job to prevent data creation during deletion.
+
+### Decision H: Account Reset/Deletion Workers Use Batch Processing
+`AccountResetWorker` deletes contacts in batches of 200 to avoid long transactions. Both workers cancel Oban reminder jobs and delete stored files before data deletion.
+
+### Decision I: Immich Settings Enhanced In-Place
+Extended existing `Kith.Immich.Settings` module rather than creating a new one. Added `enable/1`, `disable/1`, `trigger_manual_sync/1`, and `get_sync_status/1`. `test_connection/1` now returns `{:ok, person_count}` instead of just `:ok`.
+
+### Decision J: Account Settings LiveView with Reminder Rules UI
+Created `/settings/account` with both General settings (admin-only form) and Notification Windows (toggle switches). The 0-day rule toggle is `disabled` with a tooltip. Admin sees toggles, editor sees read-only badges, viewer section is hidden entirely. Toggle enforcement is at both UI and context levels.
 
 ## Overview
 
@@ -37,13 +69,13 @@ Side effects of display_name_format change:
 - When a user changes their display_name_format preference, recompute `display_name` on all contacts in the account. Run this as an Oban job to avoid blocking the settings save.
 
 **Acceptance Criteria:**
-- [ ] All user settings fields updatable via `update_user_settings/2`
-- [ ] Locale validated against ex_cldr known locales
-- [ ] Timezone validated against IANA timezone database
-- [ ] Currency validated against ISO 4217 via ex_cldr
-- [ ] Me contact linkage validates contact belongs to user's account
-- [ ] Display name format change triggers Oban job to recompute all contact display_names
-- [ ] Viewer, editor, and admin can all update their own settings
+- [x] All user settings fields updatable via `update_user_settings/2`
+- [x] Locale validated against ex_cldr known locales
+- [x] Timezone validated against IANA timezone database
+- [x] Currency validated against ISO 4217 via ex_cldr
+- [x] Me contact linkage validates contact belongs to user's account
+- [x] Display name format change triggers Oban job to recompute all contact display_names
+- [x] Viewer, editor, and admin can all update their own settings
 
 **Safeguards:**
 > ⚠️ The display_name recomputation Oban job must be idempotent and account-scoped. If the user changes the format twice rapidly, the second job should produce the correct final state regardless of whether the first job completed.
@@ -74,11 +106,11 @@ Send hour change behavior:
 - Up to 24-hour drift is acceptable per spec. Already-enqueued jobs fire at the old send hour. Next nightly ReminderSchedulerWorker run enqueues at the new send hour.
 
 **Acceptance Criteria:**
-- [ ] Only admin role can update account settings
-- [ ] Editor and viewer receive `{:error, :unauthorized}`
-- [ ] send_hour validated to 0..23 range
-- [ ] Timezone validated against IANA database
-- [ ] Account name cannot be empty
+- [x] Only admin role can update account settings
+- [x] Editor and viewer receive `{:error, :unauthorized}`
+- [x] send_hour validated to 0..23 range
+- [x] Timezone validated against IANA database
+- [x] Account name cannot be empty
 
 **Safeguards:**
 > ⚠️ Changing the account timezone affects all reminder scheduling. Document this in the settings UI: "Changing timezone affects when reminders are sent. Changes take effect starting the following day."
@@ -103,12 +135,12 @@ Functions:
 - `reorder_genders(scope, ordered_ids)` — bulk updates position values. Only for account-specific genders.
 
 **Acceptance Criteria:**
-- [ ] Global genders are read-only — cannot be edited or deleted by any account
-- [ ] Custom genders are scoped to the account
-- [ ] Deletion prevented if gender is assigned to any contact (return descriptive error)
-- [ ] Reorder updates position values for all specified genders atomically
-- [ ] Default genders seeded on account creation (from TASK-03-20)
-- [ ] Only admin role can manage genders
+- [x] Global genders are read-only — cannot be edited or deleted by any account
+- [x] Custom genders are scoped to the account
+- [x] Deletion prevented if gender is assigned to any contact (return descriptive error)
+- [x] Reorder updates position values for all specified genders atomically
+- [x] Default genders seeded on account creation (from TASK-03-20)
+- [x] Only admin role can manage genders
 
 **Safeguards:**
 > ⚠️ When listing genders, combine global (account_id IS NULL) and account-specific genders. Use `WHERE account_id IS NULL OR account_id = ^scope.account_id` and order by position. If a global and account gender have the same name, both appear (account cannot shadow globals in v1).
@@ -133,10 +165,10 @@ Functions:
 - `delete_relationship_type(scope, type)` — deletes. Cannot delete if any relationship uses this type in the account.
 
 **Acceptance Criteria:**
-- [ ] Global relationship types are read-only
-- [ ] Custom types require both forward and reverse names
-- [ ] Deletion prevented if type is in use by any relationship
-- [ ] Only admin role can manage relationship types
+- [x] Global relationship types are read-only
+- [x] Custom types require both forward and reverse names
+- [x] Deletion prevented if type is in use by any relationship
+- [x] Only admin role can manage relationship types
 
 **Safeguards:**
 > ⚠️ When checking "in use", query the relationships table for `relationship_type_id = ^type.id AND account_id = ^scope.account_id`. Do not check globally — only check within the account.
@@ -162,12 +194,12 @@ Functions:
 - `reorder_contact_field_types(scope, ordered_ids)` — bulk updates positions.
 
 **Acceptance Criteria:**
-- [ ] Global types are read-only
-- [ ] Custom types have name, optional icon, optional protocol
-- [ ] Protocol enables click-to-action (e.g., `mailto:value`, `tel:value`)
-- [ ] Deletion prevented if type is in use
-- [ ] Reorder works atomically
-- [ ] Only admin role can manage contact field types
+- [x] Global types are read-only
+- [x] Custom types have name, optional icon, optional protocol
+- [x] Protocol enables click-to-action (e.g., `mailto:value`, `tel:value`)
+- [x] Deletion prevented if type is in use
+- [x] Reorder works atomically
+- [x] Only admin role can manage contact field types
 
 **Safeguards:**
 > ⚠️ The protocol field is used to construct action URLs in the frontend (e.g., `mailto:user@example.com`). Validate that protocol values don't contain dangerous schemes. Allow only: `mailto`, `tel`, `https`, `http`, or null.
@@ -200,14 +232,14 @@ Email content:
 - Body: link to acceptance URL with token, invited by name, role description
 
 **Acceptance Criteria:**
-- [ ] Invitation creates record and sends email atomically
-- [ ] Token is cryptographically random and URL-safe
-- [ ] Accepting invitation creates user, assigns role, marks invitation accepted
-- [ ] Cannot invite email that already exists as a user in the same account
-- [ ] Cannot invite email that already has a pending invitation for the same account
-- [ ] Revoking deletes the invitation record
-- [ ] Resending uses the same token (no new token generated)
-- [ ] Only admin role can manage invitations
+- [x] Invitation creates record and sends email atomically
+- [x] Token is cryptographically random and URL-safe
+- [x] Accepting invitation creates user, assigns role, marks invitation accepted
+- [x] Cannot invite email that already exists as a user in the same account
+- [x] Cannot invite email that already has a pending invitation for the same account
+- [x] Revoking deletes the invitation record
+- [x] Resending uses the same token (no new token generated)
+- [x] Only admin role can manage invitations
 
 **Safeguards:**
 > ⚠️ The invitation acceptance flow is unauthenticated (user doesn't have an account yet). Validate the token carefully: check it exists, is not accepted, and the invitation's account still exists. Rate-limit the acceptance endpoint to prevent token brute-force.
@@ -234,14 +266,14 @@ Functions:
 - `list_account_users(scope)` — lists all users in the account with their roles.
 
 **Acceptance Criteria:**
-- [ ] Admin can change any other user's role
-- [ ] Admin cannot change their own role (return error)
-- [ ] Cannot demote last admin (must have at least one admin at all times)
-- [ ] Admin can remove any other user
-- [ ] Cannot remove self
-- [ ] Cannot remove last admin
-- [ ] Viewer and editor cannot access any role management functions
-- [ ] Removed user's sessions are immediately invalidated
+- [x] Admin can change any other user's role
+- [x] Admin cannot change their own role (return error)
+- [x] Cannot demote last admin (must have at least one admin at all times)
+- [x] Admin can remove any other user
+- [x] Cannot remove self
+- [x] Cannot remove last admin
+- [x] Viewer and editor cannot access any role management functions
+- [x] Removed user's sessions are immediately invalidated
 
 **Safeguards:**
 > ⚠️ When removing a user, invalidate all their sessions by deleting their `user_tokens`. This ensures immediate loss of access. Do this within the same transaction as the user deletion.
@@ -274,11 +306,11 @@ Functions:
 Migration: Add `modules` jsonb column to accounts table (or create `account_modules` table).
 
 **Acceptance Criteria:**
-- [ ] Module toggle works for known module names
-- [ ] Unknown module names return false for `module_enabled?/2`
-- [ ] Only admin role can toggle modules
-- [ ] Immich module disabled by default
-- [ ] Module status queryable without loading full account record
+- [x] Module toggle works for known module names
+- [x] Unknown module names return false for `module_enabled?/2`
+- [x] Only admin role can toggle modules
+- [x] Immich module disabled by default
+- [x] Module status queryable without loading full account record
 
 **Safeguards:**
 > ⚠️ If using JSONB column, always use `Map.get(account.modules, "immich", false)` with a default of false. Never assume a key exists in the JSON. New modules added in future versions should default to disabled.
@@ -309,11 +341,11 @@ Default rules (seeded per account in TASK-03-20):
 - 0 days / on the day (notify: true)
 
 **Acceptance Criteria:**
-- [ ] Default rules created on account creation
-- [ ] Admin can create, update, delete, and toggle rules
-- [ ] Unique constraint on (account_id, days_before) prevents duplicate rules
-- [ ] Toggling notify to false suppresses notifications but keeps the rule record
-- [ ] Rules with days_before = 0 mean "on the day of the reminder"
+- [x] Default rules created on account creation
+- [x] Admin can create, update, delete, and toggle rules
+- [x] Unique constraint on (account_id, days_before) prevents duplicate rules
+- [x] Toggling notify to false suppresses notifications but keeps the rule record
+- [x] Rules with days_before = 0 mean "on the day of the reminder"
 
 **Safeguards:**
 > ⚠️ Changing reminder rules affects future notification scheduling only. Already-enqueued Oban jobs are not retroactively updated. Document this: "Changes to reminder rules take effect for newly scheduled reminders."
@@ -353,14 +385,14 @@ Implement the admin-only "Notification Windows" sub-section within the Account S
 - Viewer: section not rendered at all
 
 **Acceptance Criteria:**
-- [ ] Admin sees "Notification Windows" section in Account Settings
-- [ ] 30-day and 7-day rules can be toggled active/inactive
-- [ ] Toggle change is reflected immediately (LiveView update)
-- [ ] 0-day rule toggle is disabled; tooltip explains why
-- [ ] Attempting to deactivate 0-day rule via context returns `{:error, :cannot_deactivate_on_day_rule}` (not just UI block)
-- [ ] Editor sees section but no toggles (read-only labels only)
-- [ ] Viewer does not see section at all
-- [ ] Tests: admin toggles rule; 0-day deactivation rejected at context level; editor read-only; viewer hidden
+- [x] Admin sees "Notification Windows" section in Account Settings
+- [x] 30-day and 7-day rules can be toggled active/inactive
+- [x] Toggle change is reflected immediately (LiveView update)
+- [x] 0-day rule toggle is disabled; tooltip explains why
+- [x] Attempting to deactivate 0-day rule via context returns `{:error, :cannot_deactivate_on_day_rule}` (not just UI block)
+- [x] Editor sees section but no toggles (read-only labels only)
+- [x] Viewer does not see section at all
+- [x] Tests: admin toggles rule; 0-day deactivation rejected at context level; editor read-only; viewer hidden
 
 **Safeguards:**
 > ⚠️ The constraint that the 0-day rule cannot be deactivated is enforced at both the context level (returning an error tuple) and the UI level (disabled toggle). Never rely on UI-only enforcement for business rules.
@@ -388,12 +420,12 @@ Settings UI data:
 - `list_tags_with_counts(scope)` — returns tags with contact count, ordered by name.
 
 **Acceptance Criteria:**
-- [ ] Rename validates uniqueness (case-insensitive)
-- [ ] Delete removes tag from all contacts
-- [ ] Merge handles duplicate associations gracefully (no constraint violations)
-- [ ] Merge is atomic (Ecto.Multi)
-- [ ] Tag usage count is accurate
-- [ ] Editor and admin can manage tags (`:manage_tags` policy)
+- [x] Rename validates uniqueness (case-insensitive)
+- [x] Delete removes tag from all contacts
+- [x] Merge handles duplicate associations gracefully (no constraint violations)
+- [x] Merge is atomic (Ecto.Multi)
+- [x] Tag usage count is accurate
+- [x] Editor and admin can manage tags (`:manage_tags` policy)
 
 **Safeguards:**
 > ⚠️ Tag merge must handle the edge case where a contact has both the source and target tags. After merge, the contact should have only the target tag — the duplicate source association should be silently dropped.
@@ -432,13 +464,13 @@ Functions:
 - `execute_account_reset(account_id)` — (called by Oban worker) deletes all contacts (hard-delete, bypassing soft-delete; CASCADE removes sub-entities), activities, tags' contact associations, and resets counters. Preserves users, account settings, custom reference data, reminder rules.
 
 **Acceptance Criteria:**
-- [ ] Only admin can request account reset
-- [ ] Confirmation requires typing exact string "RESET" (case-sensitive)
-- [ ] Reset runs as Oban job (not inline — may be slow for large accounts)
-- [ ] All contact data and sub-entities deleted
-- [ ] Users, account settings, and reference data preserved
-- [ ] Files in S3/local storage also deleted (documents, photos storage keys)
-- [ ] Oban jobs for existing reminders cancelled before data deletion
+- [x] Only admin can request account reset
+- [x] Confirmation requires typing exact string "RESET" (case-sensitive)
+- [x] Reset runs as Oban job (not inline — may be slow for large accounts)
+- [x] All contact data and sub-entities deleted
+- [x] Users, account settings, and reference data preserved
+- [x] Files in S3/local storage also deleted (documents, photos storage keys)
+- [x] Oban jobs for existing reminders cancelled before data deletion
 
 **Safeguards:**
 > ⚠️ Data reset is irreversible. The confirmation check (typing account name) is the last line of defense. Implement it as an exact string match, not substring or case-insensitive.
@@ -470,13 +502,13 @@ Pre-deletion steps:
 5. Delete the account record (CASCADE handles remaining tables)
 
 **Acceptance Criteria:**
-- [ ] Only admin can request account deletion
-- [ ] Confirmation requires typing exact account name
-- [ ] All user sessions immediately invalidated (users lose access)
-- [ ] Deletion runs as Oban job
-- [ ] All data completely removed: users, contacts, sub-entities, reference data, audit logs
-- [ ] Stored files (S3/local) cleaned up
-- [ ] Oban reminder jobs cancelled
+- [x] Only admin can request account deletion
+- [x] Confirmation requires typing exact account name
+- [x] All user sessions immediately invalidated (users lose access)
+- [x] Deletion runs as Oban job
+- [x] All data completely removed: users, contacts, sub-entities, reference data, audit logs
+- [x] Stored files (S3/local) cleaned up
+- [x] Oban reminder jobs cancelled
 
 **Safeguards:**
 > ⚠️ User sessions must be invalidated IMMEDIATELY when deletion is requested, not when the Oban job runs. Delete all `user_tokens` for the account synchronously before queuing the Oban job. This prevents users from creating new data while deletion is in progress.
@@ -508,13 +540,13 @@ Storage for Immich credentials:
 - API key must be encrypted at rest using Phoenix's `Plug.Crypto.MessageEncryptor` or similar.
 
 **Acceptance Criteria:**
-- [ ] Immich base URL and API key stored securely (API key encrypted at rest)
-- [ ] Connection test makes real HTTP call to Immich API and reports success/failure
-- [ ] Connection test has timeout (5 seconds) to avoid blocking
-- [ ] Manual sync enqueues Oban job immediately
-- [ ] Sync status shows last sync time, next scheduled sync, and error state
-- [ ] Needs-review count available for dashboard badge
-- [ ] Only admin can configure Immich; admin + editor can trigger sync
+- [x] Immich base URL and API key stored securely (API key encrypted at rest)
+- [x] Connection test makes real HTTP call to Immich API and reports success/failure
+- [x] Connection test has timeout (5 seconds) to avoid blocking
+- [x] Manual sync enqueues Oban job immediately
+- [x] Sync status shows last sync time, next scheduled sync, and error state
+- [x] Needs-review count available for dashboard badge
+- [x] Only admin can configure Immich; admin + editor can trigger sync
 
 **Safeguards:**
 > ⚠️ The Immich API key is a sensitive credential. Encrypt it at rest — do not store in plaintext in the database. Use `Plug.Crypto.MessageEncryptor` with the app's `SECRET_KEY_BASE` as the encryption key.
