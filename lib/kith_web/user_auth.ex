@@ -256,7 +256,18 @@ defmodule KithWeb.UserAuth do
         Scope.for_user(user)
       end)
 
-    assign_locale(socket)
+    socket
+    |> assign_locale()
+    |> assign_current_path()
+  end
+
+  defp assign_current_path(socket) do
+    socket
+    |> Phoenix.Component.assign(:current_path, "/")
+    |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+      path = URI.parse(uri).path || "/"
+      {:cont, Phoenix.Component.assign(socket, :current_path, path)}
+    end)
   end
 
   defp assign_locale(socket) do
