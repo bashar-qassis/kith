@@ -86,6 +86,8 @@ defmodule KithWeb do
       import Phoenix.HTML
       # Core UI components
       import KithWeb.CoreComponents
+      import KithWeb.KithComponents
+      import KithWeb.PolicyHelper
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

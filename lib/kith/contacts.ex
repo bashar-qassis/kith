@@ -1463,4 +1463,84 @@ defmodule Kith.Contacts do
     other = normalize_rel_contact(rel, non_survivor_id)
     if other == survivor_id, do: survivor_id, else: other
   end
+
+  # ── Dashboard helpers ──────────────────────────────────────────────────
+
+  @doc "Returns the last N contacts modified (by updated_at), preloading tags."
+  def recent_contacts(account_id, limit \\ 5) do
+    Contact
+    |> scope_active(account_id)
+    |> where([c], c.is_archived == false)
+    |> order_by([c], desc: c.updated_at)
+    |> limit(^limit)
+    |> preload(:tags)
+    |> Repo.all()
+  end
+
+  @doc "Returns total active (non-archived, non-trashed) contact count."
+  def contact_count(account_id) do
+    Contact
+    |> scope_active(account_id)
+    |> where([c], c.is_archived == false)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Returns total note count for an account."
+  def note_count(account_id) do
+    Note
+    |> where([n], n.account_id == ^account_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Returns recent notes/activities/calls across all contacts for the activity feed."
+  def recent_activity(account_id, limit \\ 10) do
+    notes_query =
+      from n in Note,
+        where: n.account_id == ^account_id,
+        select: %{
+          id: n.id,
+          type: "note",
+          contact_id: n.contact_id,
+          title: fragment("substring(? from 1 for 100)", n.body),
+          occurred_at: n.created_at,
+          inserted_at: n.inserted_at
+        }
+
+    activities_query =
+      from a in Activity,
+        join: ac in "activity_contacts",
+        on: ac.activity_id == a.id,
+        where: a.account_id == ^account_id,
+        select: %{
+          id: a.id,
+          type: "activity",
+          contact_id: ac.contact_id,
+          title: a.title,
+          occurred_at: a.occurred_at,
+          inserted_at: a.inserted_at
+        }
+
+    calls_query =
+      from c in Call,
+        where: c.account_id == ^account_id,
+        select: %{
+          id: c.id,
+          type: "call",
+          contact_id: c.contact_id,
+          title: fragment("'Call'"),
+          occurred_at: c.called_at,
+          inserted_at: c.inserted_at
+        }
+
+    union_query =
+      notes_query
+      |> union_all(^activities_query)
+      |> union_all(^calls_query)
+
+    from(sub in subquery(union_query),
+      order_by: [desc: sub.inserted_at],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
 end

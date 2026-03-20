@@ -6,6 +6,10 @@ defmodule KithWeb.ReminderLive.Upcoming do
 
   use KithWeb, :live_view
 
+  # Exclude reminder_row/1 from the blanket KithComponents import
+  # since this module defines its own private reminder_row/1.
+  import KithWeb.KithComponents, only: []
+
   alias Kith.Reminders
 
   @windows [30, 60, 90]
@@ -83,6 +87,7 @@ defmodule KithWeb.ReminderLive.Upcoming do
     <div class="max-w-4xl mx-auto">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">Upcoming Reminders</h1>
+
         <div class="flex gap-2">
           <button
             :for={w <- [30, 60, 90]}
@@ -120,9 +125,7 @@ defmodule KithWeb.ReminderLive.Upcoming do
     ~H"""
     <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
       <div class="flex items-center gap-4">
-        <span class={["text-lg", type_color(@reminder.type)]}>
-          {type_icon(@reminder.type)}
-        </span>
+        <span class={["text-lg", type_color(@reminder.type)]}>{type_icon(@reminder.type)}</span>
         <div>
           <.link
             navigate={~p"/contacts/#{@reminder.contact_id}"}
@@ -131,11 +134,11 @@ defmodule KithWeb.ReminderLive.Upcoming do
             {@reminder.contact.display_name || @reminder.contact.first_name}
           </.link>
           <p class="text-sm text-gray-500">
-            {type_label(@reminder.type)}
-            <span :if={@reminder.title}> —  {@reminder.title}</span>
+            {type_label(@reminder.type)} <span :if={@reminder.title}> —    {@reminder.title}</span>
           </p>
         </div>
       </div>
+
       <div class="flex items-center gap-4">
         <span class="text-sm text-gray-600">
           {Calendar.strftime(@reminder.next_reminder_date, "%b %d, %Y")}

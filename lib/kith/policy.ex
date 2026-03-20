@@ -92,3 +92,8 @@ defmodule Kith.NotAuthorizedError do
     }
   end
 end
+
+defimpl Plug.Exception, for: Kith.NotAuthorizedError do
+  def status(_exception), do: 403
+  def actions(_exception), do: []
+end
