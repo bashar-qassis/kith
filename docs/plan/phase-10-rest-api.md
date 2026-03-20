@@ -1,6 +1,6 @@
 # Phase 10: REST API
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 01 (Foundation), Phase 02 (Authentication), Phase 03 (Core Domain Models), Phase 04 (Contact Management), Phase 05 (Sub-entities), Phase 06 (Reminders & Notifications), Phase 07 (Integrations)
 > **Blocks:** Phase 14 (QA & E2E Testing)
 
@@ -1701,3 +1701,40 @@ Only archived contacts in the response.
 - Consider extracting a base API controller module (`KithWeb.API.BaseController`) with shared helpers for parsing params, checking authorization, and building responses.
 - The API surface closely mirrors the LiveView feature set. Any feature added to LiveView should have a corresponding API endpoint added.
 - All API controllers should include `Kith.Policy.can?/3` checks before performing operations. Use the FallbackController to render 403 when policy check fails.
+
+---
+
+## Implementation Decisions
+
+> Documented during implementation on 2026-03-21.
+
+### Decision A: FallbackController uses tuple pattern matching, not exceptions
+The `KithWeb.API.FallbackController` matches on `{:error, :not_found}`, `{:error, :forbidden}`, `{:error, %Ecto.Changeset{}}`, `{:error, :bad_request, detail}`, `{:error, :conflict, detail}`, and `{:error, :not_implemented, detail}`. Controllers return these tuples instead of raising exceptions. This keeps error handling explicit and avoids coupling to Phoenix's exception-based error rendering.
+
+### Decision B: Cursor pagination encodes only record ID
+Cursors are `Base.url_encode64(Jason.encode!(%{"id" => last_id}))`. We omit the `ts` (timestamp) field mentioned in the plan because ordering is always by `id ASC`, making timestamps redundant. This simplifies cursor handling without losing functionality.
+
+### Decision C: ?include= uses String.to_existing_atom for safety
+Include values are validated against a whitelist per resource type, then converted to atoms via `String.to_existing_atom/1`. This prevents atom table exhaustion from arbitrary client input while keeping the API ergonomic.
+
+### Decision D: Contact filtering builds inline Ecto queries
+Rather than delegating to `Contacts.list_contacts/2` (which calls `Repo.all`), the API controller builds composable Ecto queries inline for cursor pagination compatibility. This is necessary because `Pagination.paginate/2` needs an unevaluated query, not a result list.
+
+### Decision E: Reference data controllers use rescue for NoResultsError
+`GenderController`, `RelationshipTypeController`, and `ContactFieldTypeController` use `rescue Ecto.NoResultsError -> {:error, :not_found}` instead of nil-checking. This follows the pattern of the existing context functions (`get_*!/2`) which raise on missing records.
+
+### Decision F: Tag bulk operations validate all contact_ids upfront
+`POST /api/tags/bulk_assign` and `POST /api/tags/bulk_remove` validate that ALL provided `contact_ids` exist in the current account before performing any operations. If any ID is invalid, the entire request is rejected with a 400 listing the missing IDs.
+
+### Decision G: Route ordering prevents conflicts
+Specific routes (e.g., `/contacts/merge`, `/contacts/export.vcf`, `/reminders/upcoming`) are placed before parameterized routes (`/contacts/:id`, `/reminders/:id`) to prevent Phoenix from matching the specific path segment as an `:id` parameter.
+
+### Pre-existing Implementation (from prior phases)
+The following tasks were already implemented before Phase 10 execution:
+- TASK-10-01 (partial): API router scope and pipelines existed; X-Kith-Version header plug added
+- TASK-10-02: `KithWeb.Plugs.FetchApiUser` (Bearer token auth plug)
+- TASK-10-07: `KithWeb.Plugs.ApiRateLimiter` (1000 req/hr per account)
+- TASK-10-34: `ContactImportController` (vCard import via multipart)
+- TASK-10-35: `ContactExportController` (vCard export, single + bulk streaming)
+- TASK-10-36: `ExportController` (full JSON export with Oban for large accounts)
+- TASK-10-37: `AuthController` (token create/revoke with TOTP + recovery codes)
