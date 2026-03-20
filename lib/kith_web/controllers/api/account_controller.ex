@@ -53,7 +53,7 @@ defmodule KithWeb.API.AccountController do
     end
   end
 
-  def update(conn, _params) do
+  def update(_conn, _params) do
     {:error, :bad_request, "Missing 'account' key in request body."}
   end
 

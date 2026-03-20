@@ -115,7 +115,7 @@ defmodule KithWeb.API.RelationshipController do
 
   defp unique_constraint_violation?(%Ecto.Changeset{errors: errors}) do
     Enum.any?(errors, fn
-      {_field, {_msg, [constraint: :unique | _]}} -> true
+      {_field, {_msg, opts}} -> Keyword.get(opts, :constraint) == :unique
       _ -> false
     end)
   end
