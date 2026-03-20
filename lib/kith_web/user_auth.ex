@@ -246,14 +246,38 @@ defmodule KithWeb.UserAuth do
   end
 
   defp mount_current_scope(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      {user, _} =
-        if user_token = session["user_token"] do
-          Accounts.get_user_by_session_token(user_token)
-        end || {nil, nil}
+    socket =
+      Phoenix.Component.assign_new(socket, :current_scope, fn ->
+        {user, _} =
+          if user_token = session["user_token"] do
+            Accounts.get_user_by_session_token(user_token)
+          end || {nil, nil}
 
-      Scope.for_user(user)
-    end)
+        Scope.for_user(user)
+      end)
+
+    assign_locale(socket)
+  end
+
+  defp assign_locale(socket) do
+    locale =
+      case socket.assigns do
+        %{current_scope: %{user: %{locale: locale}}} when is_binary(locale) and locale != "" ->
+          locale
+
+        %{current_scope: %{account: %{locale: locale}}} when is_binary(locale) and locale != "" ->
+          locale
+
+        _ ->
+          "en"
+      end
+
+    Gettext.put_locale(KithWeb.Gettext, locale)
+    Kith.Cldr.put_locale(locale)
+
+    socket
+    |> Phoenix.Component.assign(:locale, locale)
+    |> Phoenix.Component.assign(:html_dir, KithWeb.Plugs.AssignLocale.html_dir(locale))
   end
 
   @doc "Returns the path to redirect to after log in."

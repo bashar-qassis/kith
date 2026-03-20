@@ -1,7 +1,10 @@
 defmodule KithWeb.Plugs.CSP do
   @moduledoc """
-  Plug that sets a Content-Security-Policy header with dynamic `img-src`
-  for Immich thumbnails when IMMICH_BASE_URL is configured.
+  Plug that sets a Content-Security-Policy header with a per-request nonce
+  and dynamic `img-src` for Immich thumbnails when IMMICH_BASE_URL is configured.
+
+  The nonce is assigned to `conn.assigns.csp_nonce` for use on inline
+  `<script>` and `<style>` tags in templates.
   """
 
   import Plug.Conn
@@ -9,11 +12,12 @@ defmodule KithWeb.Plugs.CSP do
   def init(opts), do: opts
 
   def call(conn, _opts) do
+    nonce = Base.encode64(:crypto.strong_rand_bytes(16))
     img_src = build_img_src()
 
     csp =
       "default-src 'self'; " <>
-        "script-src 'self' 'unsafe-inline'; " <>
+        "script-src 'self' 'nonce-#{nonce}'; " <>
         "style-src 'self' 'unsafe-inline'; " <>
         "img-src 'self' data: blob: #{img_src}; " <>
         "font-src 'self' data:; " <>
@@ -21,7 +25,9 @@ defmodule KithWeb.Plugs.CSP do
         "frame-src 'self'; " <>
         "frame-ancestors 'self'"
 
-    put_resp_header(conn, "content-security-policy", String.trim(csp))
+    conn
+    |> assign(:csp_nonce, nonce)
+    |> put_resp_header("content-security-policy", String.trim(csp))
   end
 
   defp build_img_src do

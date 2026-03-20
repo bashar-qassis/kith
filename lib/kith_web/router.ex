@@ -12,6 +12,7 @@ defmodule KithWeb.Router do
     plug :put_secure_browser_headers
     plug KithWeb.Plugs.CSP
     plug :fetch_current_scope_for_user
+    plug KithWeb.Plugs.AssignLocale
   end
 
   # REST API pipeline — JSON only, no CSRF, no session.
