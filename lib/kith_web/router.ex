@@ -61,6 +61,126 @@ defmodule KithWeb.Router do
     delete "/auth/token", AuthController, :delete_current
     delete "/auth/token/:id", AuthController, :delete
 
+    # Current user profile
+    get "/me", MeController, :show
+    patch "/me", MeController, :update
+
+    # Account
+    get "/account", AccountController, :show
+    patch "/account", AccountController, :update
+
+    # Statistics
+    get "/statistics", StatisticsController, :index
+
+    # Contacts CRUD
+    get "/contacts", ContactController, :index
+    post "/contacts", ContactController, :create
+    post "/contacts/merge", ContactController, :merge
+    get "/contacts/:id", ContactController, :show
+    patch "/contacts/:id", ContactController, :update
+    put "/contacts/:id", ContactController, :update
+    delete "/contacts/:id", ContactController, :delete
+
+    # Contact actions
+    post "/contacts/:contact_id/archive", ContactController, :archive
+    delete "/contacts/:contact_id/archive", ContactController, :unarchive
+    post "/contacts/:contact_id/favorite", ContactController, :favorite
+    delete "/contacts/:contact_id/favorite", ContactController, :unfavorite
+    post "/contacts/:contact_id/restore", ContactController, :restore
+
+    # Notes (nested under contact for list/create, flat for show/update/delete)
+    get "/contacts/:contact_id/notes", NoteController, :index
+    post "/contacts/:contact_id/notes", NoteController, :create
+    get "/notes/:id", NoteController, :show
+    patch "/notes/:id", NoteController, :update
+    delete "/notes/:id", NoteController, :delete
+    post "/notes/:id/favorite", NoteController, :favorite
+    delete "/notes/:id/favorite", NoteController, :unfavorite
+
+    # Life Events
+    get "/contacts/:contact_id/life_events", LifeEventController, :index
+    post "/contacts/:contact_id/life_events", LifeEventController, :create
+    get "/life_events/:id", LifeEventController, :show
+    patch "/life_events/:id", LifeEventController, :update
+    delete "/life_events/:id", LifeEventController, :delete
+
+    # Activities
+    get "/contacts/:contact_id/activities", ActivityController, :index
+    post "/activities", ActivityController, :create
+    get "/activities/:id", ActivityController, :show
+    patch "/activities/:id", ActivityController, :update
+    delete "/activities/:id", ActivityController, :delete
+
+    # Calls
+    get "/contacts/:contact_id/calls", CallController, :index
+    post "/contacts/:contact_id/calls", CallController, :create
+    get "/calls/:id", CallController, :show
+    patch "/calls/:id", CallController, :update
+    delete "/calls/:id", CallController, :delete
+
+    # Relationships
+    get "/contacts/:contact_id/relationships", RelationshipController, :index
+    post "/contacts/:contact_id/relationships", RelationshipController, :create
+    delete "/relationships/:id", RelationshipController, :delete
+
+    # Addresses
+    get "/contacts/:contact_id/addresses", AddressController, :index
+    post "/contacts/:contact_id/addresses", AddressController, :create
+    patch "/addresses/:id", AddressController, :update
+    delete "/addresses/:id", AddressController, :delete
+
+    # Contact Fields
+    get "/contacts/:contact_id/contact_fields", ContactFieldController, :index
+    post "/contacts/:contact_id/contact_fields", ContactFieldController, :create
+    patch "/contact_fields/:id", ContactFieldController, :update
+    delete "/contact_fields/:id", ContactFieldController, :delete
+
+    # Documents
+    get "/contacts/:contact_id/documents", DocumentController, :index
+    post "/contacts/:contact_id/documents", DocumentController, :create
+    delete "/documents/:id", DocumentController, :delete
+
+    # Photos
+    get "/contacts/:contact_id/photos", PhotoController, :index
+    post "/contacts/:contact_id/photos", PhotoController, :create
+    delete "/photos/:id", PhotoController, :delete
+
+    # Reminders
+    get "/reminders/upcoming", ReminderController, :upcoming
+    get "/contacts/:contact_id/reminders", ReminderController, :index
+    post "/contacts/:contact_id/reminders", ReminderController, :create
+    get "/reminders/:id", ReminderController, :show
+    patch "/reminders/:id", ReminderController, :update
+    delete "/reminders/:id", ReminderController, :delete
+    post "/reminder_instances/:id/resolve", ReminderController, :resolve_instance
+    post "/reminder_instances/:id/dismiss", ReminderController, :dismiss_instance
+
+    # Tags
+    get "/tags", TagController, :index
+    post "/tags", TagController, :create
+    patch "/tags/:id", TagController, :update
+    delete "/tags/:id", TagController, :delete
+    post "/contacts/:contact_id/tags", TagController, :assign
+    delete "/contacts/:contact_id/tags/:tag_id", TagController, :remove
+    post "/tags/bulk_assign", TagController, :bulk_assign
+    post "/tags/bulk_remove", TagController, :bulk_remove
+
+    # Reference Data
+    get "/genders", GenderController, :index
+    post "/genders", GenderController, :create
+    patch "/genders/:id", GenderController, :update
+    delete "/genders/:id", GenderController, :delete
+
+    get "/relationship_types", RelationshipTypeController, :index
+    post "/relationship_types", RelationshipTypeController, :create
+    patch "/relationship_types/:id", RelationshipTypeController, :update
+    delete "/relationship_types/:id", RelationshipTypeController, :delete
+
+    get "/contact_field_types", ContactFieldTypeController, :index
+    post "/contact_field_types", ContactFieldTypeController, :create
+    patch "/contact_field_types/:id", ContactFieldTypeController, :update
+    delete "/contact_field_types/:id", ContactFieldTypeController, :delete
+
     # Export endpoints
     get "/contacts/export.vcf", ContactExportController, :bulk
     get "/contacts/:id/export.vcf", ContactExportController, :show
@@ -68,6 +188,9 @@ defmodule KithWeb.Router do
 
     # Import endpoint
     post "/contacts/import", ContactImportController, :create
+
+    # Mobile push integration point — implement in v2
+    post "/devices", DeviceController, :create
   end
 
   # Enable LiveDashboard in development
