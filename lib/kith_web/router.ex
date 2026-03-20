@@ -14,8 +14,13 @@ defmodule KithWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
+  # REST API pipeline — JSON only, no CSRF, no session.
+  # Versioning strategy: v1 lives at /api (no version prefix in URL).
+  # Future breaking changes will use /api/v2 with a new router scope.
+  # v1 will remain available during a deprecation period.
   pipeline :api do
     plug :accepts, ["json"]
+    plug KithWeb.Plugs.ApiVersionHeader
   end
 
   # Browser-based JSON API (needs session for challenge storage, but returns JSON)
