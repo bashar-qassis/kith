@@ -11,6 +11,10 @@ defmodule KithWeb.Plugs.CSP do
 
   def init(opts), do: opts
 
+  def call(%{request_path: "/dev/" <> _} = conn, _opts) do
+    assign(conn, :csp_nonce, "dev")
+  end
+
   def call(conn, _opts) do
     nonce = Base.encode64(:crypto.strong_rand_bytes(16))
     img_src = build_img_src()

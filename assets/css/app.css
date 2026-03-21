@@ -4,92 +4,14 @@
 @import "tailwindcss" source(none);
 @source "../css";
 @source "../js";
-@source "../../lib/kith_scaffold_web";
+@source "../../lib/kith_web";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
 
-/* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:
-   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
-   Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
-@plugin "../vendor/daisyui" {
-  themes: false;
-}
-
-/* daisyUI theme plugin. You can update this file by fetching the latest version with:
-  curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
-@plugin "../vendor/daisyui-theme" {
-  name: "dark";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
-}
-
-@plugin "../vendor/daisyui-theme" {
-  name: "light";
-  default: true;
-  prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
-}
+/* tailwindcss-animate plugin for premium micro-interactions */
+@plugin "tailwindcss-animate";
 
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
@@ -101,5 +23,146 @@
 
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* Hide Alpine.js x-cloak elements until Alpine initializes */
+[x-cloak] { display: none !important; }
+
+/* ============================================================================
+   Self-hosted fonts
+   ============================================================================ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans Variable';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/PlusJakartaSans-Variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans Variable';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/PlusJakartaSans-Italic-Variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/geist-mono/GeistMono-Variable.woff2') format('woff2');
+}
+
+/* ============================================================================
+   Kith Design System — "Warm Precision" tokens
+   ============================================================================
+   Semantic OKLCH tokens for the new design system.
+   Light mode is the default. Dark mode overrides via [data-theme=dark].
+   All components use these tokens directly via Tailwind utility classes.
+   ============================================================================ */
+
+@theme {
+  /* -- Typography --------------------------------------------------------- */
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'Cascadia Code', 'Fira Code', monospace;
+
+  /* -- Border radius ------------------------------------------------------ */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  /* -- Easing ------------------------------------------------------------- */
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+
+  /* -- Shadows (warm-tinted) ---------------------------------------------- */
+  --shadow-card: 0 1px 3px oklch(0% 0 0 / 0.04), 0 1px 2px oklch(0% 0 0 / 0.06);
+  --shadow-dropdown: 0 4px 12px oklch(0% 0 0 / 0.08), 0 2px 4px oklch(0% 0 0 / 0.04);
+  --shadow-modal: 0 16px 48px oklch(0% 0 0 / 0.12), 0 4px 12px oklch(0% 0 0 / 0.06);
+
+  /* -- Surfaces (light mode — warm stone tones) --------------------------- */
+  --color-surface: oklch(98.5% 0.004 80);             /* stone-50 cream */
+  --color-surface-elevated: oklch(100% 0 0);           /* white cards */
+  --color-surface-sunken: oklch(96.7% 0.005 80);       /* sidebar, footers */
+  --color-surface-overlay: oklch(100% 0 0);             /* modals, dropdowns */
+
+  /* -- Text --------------------------------------------------------------- */
+  --color-text-primary: oklch(21.6% 0.006 56);         /* stone-900 */
+  --color-text-secondary: oklch(44.4% 0.011 73);       /* stone-600 */
+  --color-text-tertiary: oklch(55.3% 0.013 58);        /* stone-500 */
+  --color-text-disabled: oklch(70.9% 0.01 56);         /* stone-400 */
+
+  /* -- Borders ------------------------------------------------------------ */
+  --color-border: oklch(86.9% 0.006 80);               /* stone-200 */
+  --color-border-subtle: oklch(91.7% 0.004 80);        /* stone-100 */
+  --color-border-focus: oklch(66.6% 0.179 58);         /* amber-500 */
+
+  /* -- Accent (amber/copper — warm, personal, distinctive) ---------------- */
+  --color-accent: oklch(60.9% 0.176 49);               /* amber-600 */
+  --color-accent-hover: oklch(55.3% 0.175 44);         /* amber-700 */
+  --color-accent-foreground: oklch(100% 0 0);           /* white */
+  --color-accent-subtle: oklch(97.8% 0.026 92);        /* amber-50 */
+
+  /* -- Semantic status ---------------------------------------------------- */
+  --color-success: oklch(64.8% 0.15 160);              /* green-600 */
+  --color-success-foreground: oklch(100% 0 0);
+  --color-success-subtle: oklch(96.2% 0.044 156);      /* green-50 */
+
+  --color-warning: oklch(66.6% 0.179 58);              /* amber-500 */
+  --color-warning-foreground: oklch(21.6% 0.006 56);   /* dark text on amber */
+  --color-warning-subtle: oklch(97.8% 0.026 92);       /* amber-50 */
+
+  --color-error: oklch(57.7% 0.245 27);                /* red-600 */
+  --color-error-foreground: oklch(100% 0 0);
+  --color-error-subtle: oklch(96.9% 0.015 12);         /* red-50 */
+
+  --color-info: oklch(54.6% 0.245 262);                /* blue-600 */
+  --color-info-foreground: oklch(100% 0 0);
+  --color-info-subtle: oklch(97% 0.014 254);            /* blue-50 */
+}
+
+/* -- Dark mode surface/text/border overrides ------------------------------ */
+:root[data-theme="dark"] {
+  --color-surface: oklch(16.3% 0.004 56);              /* stone-950 */
+  --color-surface-elevated: oklch(21.6% 0.006 56);     /* stone-900 */
+  --color-surface-sunken: oklch(12.9% 0.003 56);       /* darker than 950 */
+  --color-surface-overlay: oklch(25% 0.007 56);         /* stone-850ish */
+
+  --color-text-primary: oklch(96.8% 0.004 80);         /* stone-50 */
+  --color-text-secondary: oklch(70.9% 0.01 56);        /* stone-400 */
+  --color-text-tertiary: oklch(55.3% 0.013 58);        /* stone-500 */
+  --color-text-disabled: oklch(44.4% 0.011 73);        /* stone-600 */
+
+  --color-border: oklch(28.7% 0.007 56);               /* stone-800 */
+  --color-border-subtle: oklch(21.6% 0.006 56);        /* stone-900 */
+  --color-border-focus: oklch(66.6% 0.179 58);         /* amber-500 (same) */
+
+  --color-accent: oklch(66.6% 0.179 58);               /* amber-500 (lighter in dark) */
+  --color-accent-hover: oklch(60.9% 0.176 49);         /* amber-600 */
+  --color-accent-foreground: oklch(16.3% 0.004 56);    /* dark text on amber */
+  --color-accent-subtle: oklch(25% 0.02 58);           /* dark amber tint */
+
+  --color-success: oklch(72.3% 0.15 160);
+  --color-success-foreground: oklch(16.3% 0.004 56);
+  --color-success-subtle: oklch(22% 0.04 160);
+
+  --color-warning: oklch(72.1% 0.179 58);
+  --color-warning-foreground: oklch(16.3% 0.004 56);
+  --color-warning-subtle: oklch(25% 0.04 58);
+
+  --color-error: oklch(63.7% 0.245 27);
+  --color-error-foreground: oklch(100% 0 0);
+  --color-error-subtle: oklch(22% 0.06 27);
+
+  --color-info: oklch(62.3% 0.245 262);
+  --color-info-foreground: oklch(100% 0 0);
+  --color-info-subtle: oklch(22% 0.06 262);
+
+  --shadow-card: 0 1px 3px oklch(0% 0 0 / 0.2), 0 1px 2px oklch(0% 0 0 / 0.15);
+  --shadow-dropdown: 0 4px 12px oklch(0% 0 0 / 0.3), 0 2px 4px oklch(0% 0 0 / 0.2);
+  --shadow-modal: 0 16px 48px oklch(0% 0 0 / 0.4), 0 4px 12px oklch(0% 0 0 / 0.25);
+}
 
 /* This file is for your main application CSS */

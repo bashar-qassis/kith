@@ -4,57 +4,33 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Forbidden — Kith</title>
-    <script src="https://cdn.tailwindcss.com">
-    </script>
+    <link rel="stylesheet" href="/assets/css/app.css" />
+    <style>
+      /* Fallback if compiled CSS fails to load */
+      body { font-family: 'Plus Jakarta Sans Variable', system-ui, sans-serif; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f5f3f0; color: #1c1917; }
+      .error-card { max-width: 28rem; width: 100%; padding: 2.5rem; text-align: center; background: white; border-radius: 8px; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); }
+      .error-icon { width: 4rem; height: 4rem; margin: 0 auto 1.5rem; color: #d97706; }
+      h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+      .desc { color: #57534e; font-size: 0.875rem; line-height: 1.5; margin: 0 0 0.5rem; }
+      .hint { color: #78716c; font-size: 0.8125rem; margin: 0 0 2rem; }
+      .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 500; color: white; background: #d97706; border-radius: 6px; text-decoration: none; transition: background 0.15s; }
+      .btn:hover { background: #b45309; }
+    </style>
   </head>
-  <body class="bg-gray-50 antialiased">
-    <div class="flex min-h-screen items-center justify-center px-4">
-      <div class="w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-lg">
-        <!-- Heroicon: shield-exclamation (outline) -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="mx-auto mb-6 h-16 w-16 text-amber-500"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285zm0 13.036h.008v.008H12v-.008z"
-          />
+  <body>
+    <div class="error-card">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="error-icon">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285zm0 13.036h.008v.008H12v-.008z" />
+      </svg>
+      <h1>Access denied</h1>
+      <p class="desc">You don't have permission to access this page.</p>
+      <p class="hint">Your current role does not allow this action. If you believe this is a mistake, please ask an administrator to update your permissions.</p>
+      <a href="/" class="btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:1rem;height:1rem">
+          <path fill-rule="evenodd" d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.707-1.707l7-7z" clip-rule="evenodd" />
         </svg>
-
-        <h1 class="mb-2 text-3xl font-bold text-gray-900">Access denied</h1>
-        <p class="mb-4 text-gray-600">
-          You don't have permission to access this page.
-        </p>
-        <p class="mb-8 text-sm text-gray-500">
-          Your current role does not allow this action. If you believe this is a
-          mistake, please ask an administrator to update your permissions.
-        </p>
-
-        <a
-          href="/"
-          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-        >
-          <!-- Heroicon: home (mini) -->
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            class="h-4 w-4"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.707-1.707l7-7z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          Go to Home
-        </a>
-      </div>
+        Go to Home
+      </a>
     </div>
   </body>
 </html>

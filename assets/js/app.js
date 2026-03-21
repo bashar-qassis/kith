@@ -8,6 +8,7 @@ import topbar from "../vendor/topbar"
 
 // Custom hooks
 import TrixEditor from "./hooks/trix_editor"
+import CommandPalette from "./hooks/command_palette"
 
 // Alpine.js (CSP build -- no runtime code generation, compatible with strict Content-Security-Policy)
 import Alpine from "@alpinejs/csp"
@@ -17,12 +18,14 @@ import "./alpine/totp_challenge"
 import "./alpine/recovery_codes"
 import "./alpine/lightbox"
 import "./alpine/dismissible"
+import "./alpine/command_palette"
 window.Alpine = Alpine
 Alpine.start()
 
 const Hooks = {
   ...colocatedHooks,
   TrixEditor,
+  CommandPalette,
 }
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -41,8 +44,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
 })
 
 // Show progress bar on live navigation and form submits
-topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
-window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
+// Amber-colored bar with 200ms delay to prevent flash on fast loads
+topbar.config({barColors: {0: "#d97706"}, shadowColor: "rgba(0, 0, 0, .1)"})
+window.addEventListener("phx:page-loading-start", _info => topbar.show(200))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
 // connect if there are any LiveViews on the page

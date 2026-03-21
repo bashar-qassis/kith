@@ -84,9 +84,15 @@ defmodule KithWeb do
 
       # HTML escaping functionality
       import Phoenix.HTML
-      # Core UI components
-      import KithWeb.CoreComponents
-      import KithWeb.KithComponents
+
+      # Core UI components ("Warm Precision" design system)
+      import KithWeb.UI
+      import KithWeb.KithUI
+
+      # Aliases for module-qualified syntax in templates
+      alias KithWeb.UI
+      alias KithWeb.KithUI
+
       import KithWeb.PolicyHelper
 
       # Common modules used in templates
