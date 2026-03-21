@@ -1,7 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./e2e",
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: true,
@@ -13,7 +12,14 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      name: "smoke",
+      testDir: "./e2e",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "e2e",
+      testDir: "./test/playwright",
+      testMatch: "**/*.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
   ],

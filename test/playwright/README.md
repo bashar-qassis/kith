@@ -1,71 +1,86 @@
 # Playwright E2E Tests
 
-Playwright tests supplement the primary Wallaby test suite with capabilities that Wallaby does not cover:
+Browser-based end-to-end tests for Kith. These tests run against a live Phoenix
+server using real Chromium, covering authentication flows, contact management,
+settings, and integrations.
 
-- **Visual regression testing** — screenshot comparison against baselines
-- **Multi-tab flows** — session invalidation across tabs
-- **Mobile viewport testing** — responsive layout verification
-- **Network interception** — simulating disconnects for LiveView reconnect
-- **WebAuthn simulation** — Playwright's built-in CDP WebAuthn support
+## Prerequisites
+
+```bash
+# Install Playwright browsers (one-time)
+npx playwright install chromium
+```
 
 ## Running Tests
 
-Playwright tests run via the Claude Code MCP plugin (`@playwright`):
-
 ```bash
-# Start the app in test mode
-MIX_ENV=test mix phx.server
+# 1. Start the Phoenix server (dev or test mode)
+mix phx.server
+# or: MIX_ENV=test mix phx.server
 
-# Run a specific spec via Playwright MCP
-# (executed interactively through Claude Code)
-```
+# 2. (Optional) Seed test data for pre-populated tests
+MIX_ENV=test mix run test/playwright/seed.exs
 
-Or with the Playwright CLI directly:
+# 3. Run the E2E test suite
+npx playwright test --project=e2e
 
-```bash
-npx playwright test test/playwright/
+# Run a single spec file
+npx playwright test --project=e2e test/playwright/auth.spec.ts
+
+# Run with headed browser (visible)
+npx playwright test --project=e2e --headed
+
+# Run the separate smoke tests (e2e/ directory)
+npx playwright test --project=smoke
 ```
 
 ## Test Data Setup
 
 Playwright tests run outside the Elixir test harness — they hit the running
-application over HTTP. Test data must be set up via one of:
+application over HTTP. Most tests self-provision by registering a fresh user
+via the registration form (see `helpers/auth.ts`). For tests that need
+pre-existing data:
 
-1. **API calls** — Use the REST API with a test admin token to seed data
-2. **Mix task** — `mix kith.seed_test_data` (test environment only)
-3. **Factory + seed script** — `MIX_ENV=test mix run test/playwright/seed.exs`
+- **Seed script** — `MIX_ENV=test mix run test/playwright/seed.exs`
+  Creates a known user (`playwright@test.local` / `ValidP@ssword123!`)
+  with sample contacts, notes, and reference data.
 
-## Conventions
+## Architecture
 
-- One `.spec.ts` file per feature area
-- File naming: `<feature>.spec.ts` (e.g., `contacts.spec.ts`, `auth.spec.ts`)
-- Screenshot baselines stored in `test/playwright/screenshots/`
-- Tests are tagged by area: `@auth`, `@contacts`, `@reminders`, `@settings`
+Tests are self-isolating: each test registers a unique user with a timestamped
+email address, so tests can run in parallel without cross-contamination. The
+shared `helpers/auth.ts` module provides `registerUser()`, `loginUser()`, and
+`logoutUser()` helpers.
 
 ## Directory Structure
 
 ```
 test/playwright/
 ├── README.md              # This file
+├── helpers/
+│   └── auth.ts            # Shared auth helpers (register, login, logout)
+├── auth.spec.ts           # Authentication flows (21 tests)
+├── contacts.spec.ts       # Contact CRUD, search, notes (10 tests)
+├── reminders.spec.ts      # Reminder management (3 tests)
+├── settings.spec.ts       # Account/user settings, tags (10 tests)
+├── immich.spec.ts         # Immich photo integration (4 tests)
+├── import-export.spec.ts  # vCard import/export (4 tests)
 ├── screenshots/           # Screenshot baselines for visual regression
-├── auth.spec.ts           # Authentication flows
-├── contacts.spec.ts       # Contact CRUD and lifecycle
-├── reminders.spec.ts      # Reminder management
-├── settings.spec.ts       # Account/user settings
-├── immich.spec.ts         # Immich integration
-├── import-export.spec.ts  # vCard import/export
-└── seed.exs               # Test data seeding script
+└── seed.exs               # Elixir script to seed test data
 ```
 
-## Relationship to Wallaby Tests
+## Conventions
 
-- **Wallaby** handles the majority of browser E2E within the ExUnit ecosystem.
-  These tests run in-process with Ecto sandbox, making them fast and isolated.
-- **Playwright** is for scenarios that need real browser capabilities beyond
-  what Wallaby provides (visual regression, multi-tab, network interception).
+- One `.spec.ts` file per feature area
+- Tests use resilient selectors: `getByRole`, `getByLabel`, `getByPlaceholder`
+- Optional UI elements are guarded with `count() > 0` checks to avoid
+  flakiness when features are toggled off
+- Each `beforeEach` registers a fresh user to avoid state leakage
 
-## E2E Test Scenarios
+## Relationship to Other Test Suites
 
-All E2E test scenarios in phase plan files are written in Playwright-compatible
-step-by-step format. See `docs/plan/phase-14-qa-testing.md` for the full
-catalogue (TEST-14-01 through TEST-14-25).
+| Suite | Runner | Scope | Isolation |
+|-------|--------|-------|-----------|
+| ExUnit (`mix test`) | ExUnit | Unit + integration | Ecto sandbox |
+| Smoke (`e2e/`) | Playwright | Unauthenticated pages | None (stateless) |
+| **E2E** (`test/playwright/`) | Playwright | Full user flows | Per-user registration |
