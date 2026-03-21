@@ -20,34 +20,25 @@ defmodule KithWeb.UserLive.TotpSetup do
           
           <div
             class="bg-base-200 rounded-lg p-4 font-mono text-sm grid grid-cols-2 gap-2"
-            x-data={"{ codes: #{Jason.encode!(@recovery_codes)}, copied: false }"}
           >
             <div :for={code <- @recovery_codes} class="text-center py-1">{code}</div>
           </div>
           
           <div
             class="flex gap-2"
-            x-data={"{ codes: #{Jason.encode!(@recovery_codes)}, copied: false }"}
+            x-data={"recoveryCodes(#{Jason.encode!(@recovery_codes)})"}
           >
             <button
               type="button"
               class="btn btn-outline flex-1 gap-2"
-              x-on:click="navigator.clipboard.writeText(codes.join('\\n')); copied = true; setTimeout(() => copied = false, 2000)"
+              x-on:click="copyAll"
             >
               <span x-show="!copied">Copy all</span> <span x-show="copied" x-cloak>Copied!</span>
             </button>
             <button
               type="button"
               class="btn btn-outline flex-1 gap-2"
-              x-on:click="
-                const blob = new Blob([codes.join('\\n')], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'kith-recovery-codes.txt';
-                a.click();
-                URL.revokeObjectURL(url);
-              "
+              x-on:click="downloadTxt"
             >
               Download as .txt
             </button>

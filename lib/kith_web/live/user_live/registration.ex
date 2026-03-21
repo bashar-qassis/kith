@@ -41,7 +41,7 @@ defmodule KithWeb.UserLive.Registration do
             phx-mounted={JS.focus()}
           />
           <div
-            x-data="{ pw: '' }"
+            x-data="passwordStrength"
             class="space-y-1"
           >
             <div class="fieldset mb-2">
@@ -61,22 +61,22 @@ defmodule KithWeb.UserLive.Registration do
             </div>
             <div
               class="h-1.5 w-full rounded-full bg-base-200 overflow-hidden"
-              x-show="pw.length > 0"
+              x-show="visible"
               x-cloak
             >
               <div
                 class="h-full rounded-full transition-all duration-300"
-                x-bind:class="pw.length < 8 ? 'bg-error w-1/4' : pw.length < 12 ? 'bg-warning w-1/2' : pw.length < 16 ? 'bg-info w-3/4' : 'bg-success w-full'"
+                x-bind:class="barClass"
               >
               </div>
             </div>
 
             <p
               class="text-xs"
-              x-show="pw.length > 0"
+              x-show="visible"
               x-cloak
-              x-bind:class="pw.length < 8 ? 'text-error' : pw.length < 12 ? 'text-warning' : pw.length < 16 ? 'text-info' : 'text-success'"
-              x-text="pw.length < 8 ? 'Too short' : pw.length < 12 ? 'Fair' : pw.length < 16 ? 'Good' : 'Strong'"
+              x-bind:class="textClass"
+              x-text="label"
             >
             </p>
           </div>

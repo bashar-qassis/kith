@@ -3,6 +3,6 @@
   "private": true,
   "dependencies": {
     "trix": "^2.1.0",
-    "alpinejs": "^3.14.0"
+    "@alpinejs/csp": "^3.14.0"
   }
 }

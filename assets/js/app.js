@@ -9,8 +9,14 @@ import topbar from "../vendor/topbar"
 // Custom hooks
 import TrixEditor from "./hooks/trix_editor"
 
-// Alpine.js for lightbox
-import Alpine from "alpinejs"
+// Alpine.js (CSP build -- no runtime code generation, compatible with strict Content-Security-Policy)
+import Alpine from "@alpinejs/csp"
+import "./alpine/sidebar"
+import "./alpine/password_strength"
+import "./alpine/totp_challenge"
+import "./alpine/recovery_codes"
+import "./alpine/lightbox"
+import "./alpine/dismissible"
 window.Alpine = Alpine
 Alpine.start()
 

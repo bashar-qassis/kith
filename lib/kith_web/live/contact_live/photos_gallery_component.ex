@@ -148,8 +148,8 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
 
       <%!-- Photo grid with Alpine.js lightbox --%>
       <div
-        x-data="{lightbox: false, currentSrc: '', currentName: ''}"
-        x-on:keydown.escape.window="lightbox = false"
+        x-data="lightbox"
+        x-on:keydown.escape.window="close"
       >
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           <%= for photo <- @photos do %>
@@ -158,7 +158,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                 src={photo_url(photo)}
                 alt={photo.file_name}
                 class="w-full aspect-square object-cover rounded-lg cursor-pointer"
-                x-on:click={"lightbox = true; currentSrc = '#{photo_url(photo)}'; currentName = '#{photo.file_name}'"}
+                x-on:click={"show('#{photo_url(photo)}', '#{photo.file_name}')"}
               />
               <%= if photo.is_cover do %>
                 <span class="absolute top-1 left-1 badge badge-sm badge-primary">Cover</span>
@@ -194,11 +194,11 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
 
         <%!-- Lightbox overlay --%>
         <div
-          x-show="lightbox"
+          x-show="open"
           x-transition.opacity
           x-cloak
           class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          x-on:click.self="lightbox = false"
+          x-on:click.self="close"
         >
           <div class="relative max-w-4xl max-h-[90vh]">
             <img
@@ -207,7 +207,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
               class="max-w-full max-h-[85vh] object-contain rounded-lg"
             />
             <button
-              x-on:click="lightbox = false"
+              x-on:click="close"
               class="absolute -top-3 -right-3 btn btn-circle btn-sm"
             >
               &times;

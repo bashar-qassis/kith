@@ -7,7 +7,7 @@ defmodule KithWeb.UserLive.TotpChallenge do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div
         class="mx-auto max-w-sm space-y-4"
-        x-data="{ recoveryMode: false }"
+        x-data="totpChallenge"
       >
         <div class="text-center">
           <.header>
@@ -45,7 +45,7 @@ defmodule KithWeb.UserLive.TotpChallenge do
                   required
                   phx-mounted={JS.focus()}
                   class="w-full input"
-                  x-on:input="if ($event.target.value.length === 6 && /^\d{6}$/.test($event.target.value)) { $nextTick(() => $refs.totpForm.submit()) }"
+                  x-on:input="autoSubmit"
                 />
               </label>
             </div>
@@ -71,8 +71,8 @@ defmodule KithWeb.UserLive.TotpChallenge do
           <button
             type="button"
             class="text-brand hover:underline"
-            x-on:click="recoveryMode = !recoveryMode"
-            x-text="recoveryMode ? 'Use authenticator code instead' : 'Use a recovery code instead'"
+            x-on:click="toggleMode"
+            x-text="modeLabel"
           >
           </button>
         </p>

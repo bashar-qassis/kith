@@ -27,13 +27,7 @@ defmodule KithWeb.Layouts do
     ~H"""
     <div
       class="flex h-screen bg-base-100"
-      x-data="{
-        sidebarOpen: localStorage.getItem('kith:sidebar') !== 'collapsed',
-        toggle() {
-          this.sidebarOpen = !this.sidebarOpen;
-          localStorage.setItem('kith:sidebar', this.sidebarOpen ? 'expanded' : 'collapsed');
-        }
-      }"
+      x-data="sidebar"
     >
       <%!-- Desktop sidebar --%>
       <aside
@@ -85,10 +79,10 @@ defmodule KithWeb.Layouts do
 
         <%!-- User footer --%>
         <%= if @current_scope && @current_scope.user do %>
-          <div class="border-t border-base-300 p-3" x-data="{ userMenu: false }">
+          <div class="border-t border-base-300 p-3" x-data="userMenu">
             <button
               class="flex items-center gap-2 w-full rounded-lg p-2 hover:bg-base-300 transition-colors"
-              x-on:click="userMenu = !userMenu"
+              x-on:click="toggle"
             >
               <div class="w-8 h-8 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-medium shrink-0">
                 {user_initials(@current_scope.user)}
@@ -99,7 +93,7 @@ defmodule KithWeb.Layouts do
             </button>
             <div
               x-show="userMenu"
-              x-on:click.outside="userMenu = false"
+              x-on:click.outside="close"
               x-transition
               class="mt-1 py-1 rounded-lg bg-base-100 border border-base-300 shadow-lg"
             >

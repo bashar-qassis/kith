@@ -70,7 +70,7 @@ defmodule KithWeb.DashboardLive.Index do
         <%= if @immich_review_count > 0 and not @immich_dismissed do %>
           <div
             class="flex items-center justify-between p-4 rounded-lg bg-warning/10 border border-warning/30"
-            x-data="{ visible: true }"
+            x-data="dismissible"
             x-show="visible"
           >
             <div class="flex items-center gap-3">
