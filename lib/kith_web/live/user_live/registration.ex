@@ -40,13 +40,42 @@ defmodule KithWeb.UserLive.Registration do
             required
             phx-mounted={JS.focus()}
           />
-          <.input
-            field={@form[:password]}
-            type="password"
-            label="Password"
-            autocomplete="new-password"
-            required
-          />
+          <div
+            x-data="{ pw: '' }"
+            class="space-y-1"
+          >
+            <input
+              type="password"
+              name={@form[:password].name}
+              id={@form[:password].id}
+              value={Phoenix.HTML.Form.normalize_value("password", @form[:password].value)}
+              class="input input-bordered w-full"
+              autocomplete="new-password"
+              required
+              x-model="pw"
+            />
+            <.error :for={msg <- Enum.map(@form[:password].errors, &translate_error/1)}>{msg}</.error>
+            <div
+              class="h-1.5 w-full rounded-full bg-base-200 overflow-hidden"
+              x-show="pw.length > 0"
+              x-cloak
+            >
+              <div
+                class="h-full rounded-full transition-all duration-300"
+                x-bind:class="pw.length < 8 ? 'bg-error w-1/4' : pw.length < 12 ? 'bg-warning w-1/2' : pw.length < 16 ? 'bg-info w-3/4' : 'bg-success w-full'"
+              >
+              </div>
+            </div>
+
+            <p
+              class="text-xs"
+              x-show="pw.length > 0"
+              x-cloak
+              x-bind:class="pw.length < 8 ? 'text-error' : pw.length < 12 ? 'text-warning' : pw.length < 16 ? 'text-info' : 'text-success'"
+              x-text="pw.length < 8 ? 'Too short' : pw.length < 12 ? 'Fair' : pw.length < 16 ? 'Good' : 'Strong'"
+            >
+            </p>
+          </div>
 
           <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
             Create an account

@@ -5,37 +5,72 @@ defmodule KithWeb.UserLive.TotpChallenge do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
+      <div
+        class="mx-auto max-w-sm space-y-4"
+        x-data="{ recoveryMode: false }"
+      >
         <div class="text-center">
           <.header>
             Two-factor authentication
-            <:subtitle>Enter the 6-digit code from your authenticator app.</:subtitle>
+            <:subtitle>
+              <span x-show="!recoveryMode">Enter the 6-digit code from your authenticator app.</span>
+              <span x-show="recoveryMode" x-cloak>
+                Enter one of your recovery codes (format: XXXX-XXXX).
+              </span>
+            </:subtitle>
           </.header>
         </div>
-
-        <.form for={@form} id="totp_challenge_form" action={~p"/users/totp-verify"} method="post">
+        
+        <.form
+          for={@form}
+          id="totp_challenge_form"
+          action={~p"/users/totp-verify"}
+          method="post"
+          x-ref="totpForm"
+        >
           <input type="hidden" name="totp_token" value={@totp_token} />
           <input type="hidden" name="remember_me" value={to_string(@remember_me)} />
-          <.input
-            field={@form[:code]}
-            type="text"
-            label="Authentication code"
-            inputmode="numeric"
-            pattern="[0-9a-zA-Z\-]{6,9}"
-            autocomplete="one-time-code"
-            maxlength="9"
-            required
-            phx-mounted={JS.focus()}
-          />
-          <.button class="btn btn-primary w-full" phx-disable-with="Verifying...">
-            Verify
-          </.button>
+          <div x-show="!recoveryMode">
+            <.input
+              field={@form[:code]}
+              type="text"
+              label="Authentication code"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              autocomplete="one-time-code"
+              maxlength="6"
+              required
+              phx-mounted={JS.focus()}
+              x-on:input="if ($event.target.value.length === 6 && /^\d{6}$/.test($event.target.value)) { $nextTick(() => $refs.totpForm.submit()) }"
+            />
+          </div>
+          
+          <div x-show="recoveryMode" x-cloak>
+            <.input
+              field={@form[:code]}
+              name="totp[code]"
+              type="text"
+              label="Recovery code"
+              pattern="[0-9a-zA-Z\-]{9}"
+              autocomplete="off"
+              maxlength="9"
+              placeholder="XXXX-XXXX"
+              required
+            />
+          </div>
+           <.button class="btn btn-primary w-full" phx-disable-with="Verifying...">Verify</.button>
         </.form>
-
+        
         <p class="text-center text-sm text-zinc-500">
-          Use a recovery code instead (enter it in the code field above, format: XXXX-XXXX)
+          <button
+            type="button"
+            class="text-brand hover:underline"
+            x-on:click="recoveryMode = !recoveryMode"
+            x-text="recoveryMode ? 'Use authenticator code instead' : 'Use a recovery code instead'"
+          >
+          </button>
         </p>
-
+        
         <p class="text-center text-sm text-zinc-500">
           <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
             Back to log in

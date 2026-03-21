@@ -17,11 +17,42 @@ defmodule KithWeb.UserLive.TotpSetup do
               </:subtitle>
             </.header>
           </div>
-
-          <div class="bg-base-200 rounded-lg p-4 font-mono text-sm grid grid-cols-2 gap-2">
+          
+          <div
+            class="bg-base-200 rounded-lg p-4 font-mono text-sm grid grid-cols-2 gap-2"
+            x-data={"{ codes: #{Jason.encode!(@recovery_codes)}, copied: false }"}
+          >
             <div :for={code <- @recovery_codes} class="text-center py-1">{code}</div>
           </div>
-
+          
+          <div
+            class="flex gap-2"
+            x-data={"{ codes: #{Jason.encode!(@recovery_codes)}, copied: false }"}
+          >
+            <button
+              type="button"
+              class="btn btn-outline flex-1 gap-2"
+              x-on:click="navigator.clipboard.writeText(codes.join('\\n')); copied = true; setTimeout(() => copied = false, 2000)"
+            >
+              <span x-show="!copied">Copy all</span> <span x-show="copied" x-cloak>Copied!</span>
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline flex-1 gap-2"
+              x-on:click="
+                const blob = new Blob([codes.join('\\n')], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'kith-recovery-codes.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+              "
+            >
+              Download as .txt
+            </button>
+          </div>
+          
           <.link navigate={~p"/users/settings"} class="btn btn-primary w-full">
             I've saved my recovery codes
           </.link>
@@ -34,20 +65,21 @@ defmodule KithWeb.UserLive.TotpSetup do
               </:subtitle>
             </.header>
           </div>
-
+          
           <div class="flex justify-center">
             <img src={@qr_data_url} alt="TOTP QR Code" class="rounded-lg" />
           </div>
-
+          
           <details class="text-sm text-zinc-600">
             <summary class="cursor-pointer text-brand hover:underline">
               Can't scan? Enter this code manually
             </summary>
+            
             <code class="block mt-2 p-2 bg-base-200 rounded text-center font-mono tracking-widest">
               {@secret}
             </code>
           </details>
-
+          
           <.form for={@form} id="totp_confirm_form" phx-submit="confirm">
             <.input
               field={@form[:code]}
@@ -64,7 +96,7 @@ defmodule KithWeb.UserLive.TotpSetup do
               Enable two-factor authentication
             </.button>
           </.form>
-
+          
           <p class="text-center text-sm text-zinc-500">
             <.link navigate={~p"/users/settings"} class="text-brand hover:underline">Cancel</.link>
           </p>

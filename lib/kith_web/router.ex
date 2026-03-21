@@ -301,6 +301,9 @@ defmodule KithWeb.Router do
       live "/users/reset-password", UserLive.ForgotPassword, :new
       live "/users/reset-password/:token", UserLive.ResetPassword, :new
       live "/users/two-factor", UserLive.TotpChallenge, :new
+
+      # Team invitation acceptance (unauthenticated)
+      live "/invitations/:token", UserLive.InvitationAcceptance, :new
     end
 
     post "/users/log-in", UserSessionController, :create
