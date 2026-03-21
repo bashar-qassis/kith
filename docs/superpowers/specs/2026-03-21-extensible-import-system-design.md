@@ -179,12 +179,12 @@ Replaces the existing `ImportWorker` for new imports.
 | is_active: false | is_archived: true | inverted |
 | is_dead | deceased | rename |
 | description | description | direct |
-| first_met_date (from special_dates) | first_met_at | same extraction logic as birthdate — use `first_met_special_date_id` to find the special_date |
-| first_met_where | first_met_where | direct (from SQL; available in JSON via contact properties) |
-| first_met_additional_info | first_met_additional_info | direct |
+| first_met_date (nested special_date object) | first_met_at | extract `.date` from the nested object; handle `is_year_unknown` and `is_age_based` |
 | first_met_through (UUID) | first_met_through_id | resolve via import_records after all contacts imported (Phase 4, alongside relationships) |
+| first_met_where | first_met_where | NOT in JSON export — only in SQL dump. Left null on import. |
+| first_met_additional_info | first_met_additional_info | NOT in JSON export — only in SQL dump. Left null on import. |
 | gender (UUID) | gender_id | via import_records lookup |
-| birthdate (from special_dates) | birthdate | Monica nests special_dates in contact data; identify birthday by matching the contact's `birthday_special_date_id` property. Extract the `date` field, handling `is_year_unknown` (set year to nil/default) and `is_age_based` (approximate). |
+| birthdate (nested special_date object) | birthdate | Same structure as `first_met_date` — extract `.date`, handle `is_year_unknown` and `is_age_based` |
 | tags (UUID array) | tags | find-or-create tags by name (account-scoped), then insert join table rows |
 
 **Phase 3 — Contact children** (depends on: contacts, reference data):
