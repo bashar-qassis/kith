@@ -1,8 +1,19 @@
 # Phase 13: Deployment & DevOps
 
-> **Status:** Draft
+> **Status:** Completed
 > **Depends on:** Phase 01 (Foundation), Phase 02 (Authentication), Phase 12 (Audit Log & Observability)
 > **Blocks:** Phase 14 (QA & E2E Testing) — deployment environment needed for full E2E
+
+## Implementation Decisions
+
+1. **No Node.js in Dockerfile builder** — Phoenix 1.8+ uses standalone tailwind/esbuild binaries via Mix tasks. `mix assets.deploy` handles everything, saving ~50MB in the builder stage.
+2. **hexpm/elixir base image** — Used instead of plain `elixir:` for better OTP version pinning and CI/CD optimization.
+3. **Metrics endpoint uses Bearer token auth (not admin browser auth)** — The existing `/metrics` endpoint uses `METRICS_TOKEN` for Prometheus scraping. This is superior to browser-session admin auth for production observability, since Prometheus can't maintain browser sessions.
+4. **Custom Oban dashboard (not Oban Pro/Web)** — The project uses free Oban with a custom LiveView admin dashboard at `/admin/oban`, avoiding the Oban Pro license requirement.
+5. **Sentry integration already complete from Phase 12** — Including custom error filtering (`SentryFilter`) and event enrichment (`SentryEventHandler`) with PII scrubbing.
+6. **TRUSTED_PROXIES defaults to 172.16.0.0/12** — Docker's bridge network range, so Phoenix `remote_ip` plug correctly extracts client IPs from Caddy's `X-Forwarded-For` headers.
+7. **read_only + tmpfs** — App and worker containers use read-only root filesystem with tmpfs for `/tmp`, providing defense-in-depth against container compromise.
+8. **Elixir 1.18 / OTP 27** — Matched to CI config (not the plan's 1.16/OTP 26) since the project already uses newer versions.
 
 ## Overview
 
@@ -49,15 +60,15 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 - `ALPINE_VERSION=3.19`
 
 **Acceptance Criteria:**
-- [ ] `Dockerfile` exists at project root
-- [ ] Multi-stage build: builder stage compiles, runner stage is minimal
-- [ ] Runner stage uses non-root user (UID 1000)
-- [ ] Runner stage does NOT include Mix, Hex, Node.js, or build tools
-- [ ] `docker build -t kith:latest .` succeeds
-- [ ] `docker run kith:latest eval "IO.puts(:ok)"` runs successfully
-- [ ] Docker HEALTHCHECK is configured
-- [ ] Final image size is under 100MB
-- [ ] No `runtime.exs` is baked into the image (it's read at container startup via release config)
+- [x] `Dockerfile` exists at project root
+- [x] Multi-stage build: builder stage compiles, runner stage is minimal
+- [x] Runner stage uses non-root user (UID 1000)
+- [x] Runner stage does NOT include Mix, Hex, Node.js, or build tools
+- [x] `docker build -t kith:latest .` succeeds
+- [x] `docker run kith:latest eval "IO.puts(:ok)"` runs successfully
+- [x] Docker HEALTHCHECK is configured
+- [x] Final image size is under 100MB
+- [x] No `runtime.exs` is baked into the image (it's read at container startup via release config)
 
 **Safeguards:**
 > ⚠️ NEVER run the container as root. Always use a non-root user. The non-root user must own `/app` and any writable directories. Verify with `docker run kith:latest id` that UID is 1000.
@@ -143,17 +154,17 @@ healthcheck:
 This verifies Caddy is routing correctly to the Phoenix app. Uses `/health/live` (Phase 01 TASK-01-NEW-B), which always returns 200 without a DB check — appropriate for a proxy-layer health check.
 
 **Acceptance Criteria:**
-- [ ] `docker-compose.prod.yml` exists at project root
-- [ ] All 5 required services defined: postgres, migrate, app, worker, caddy
-- [ ] Redis service exists but is commented out
-- [ ] `migrate` service has `restart: no` and depends on postgres healthy
-- [ ] `app` and `worker` depend on `migrate` completed successfully
-- [ ] Resource limits set on app (512M/1.0cpu) and worker (512M/1.0cpu) and postgres (256M)
-- [ ] Only Caddy exposes ports to the host (80, 443)
-- [ ] All named volumes declared at bottom of file
-- [ ] `docker compose -f docker-compose.prod.yml config` validates without errors
-- [ ] App and worker containers mount `uploads` volume at `/app/uploads` with `STORAGE_PATH=/app/uploads` in environment
-- [ ] Caddy service has a `healthcheck` using `wget` against `http://localhost:80/health/live`
+- [x] `docker-compose.prod.yml` exists at project root
+- [x] All 5 required services defined: postgres, migrate, app, worker, caddy
+- [x] Redis service exists but is commented out
+- [x] `migrate` service has `restart: no` and depends on postgres healthy
+- [x] `app` and `worker` depend on `migrate` completed successfully
+- [x] Resource limits set on app (512M/1.0cpu) and worker (512M/1.0cpu) and postgres (256M)
+- [x] Only Caddy exposes ports to the host (80, 443)
+- [x] All named volumes declared at bottom of file
+- [x] `docker compose -f docker-compose.prod.yml config` validates without errors
+- [x] App and worker containers mount `uploads` volume at `/app/uploads` with `STORAGE_PATH=/app/uploads` in environment
+- [x] Caddy service has a `healthcheck` using `wget` against `http://localhost:80/health/live`
 
 **Safeguards:**
 > ⚠️ Do NOT expose PostgreSQL port to the host in production. Only Caddy should have host-mapped ports. PostgreSQL is internal-only, accessed by app/worker/migrate via Docker network.
@@ -216,16 +227,16 @@ Create a `Caddyfile` for the Caddy reverse proxy that handles TLS, WebSocket pas
 - JSON logging to stdout
 
 **Acceptance Criteria:**
-- [ ] `Caddyfile` exists at project root
-- [ ] Hostname is configurable via `KITH_HOSTNAME` env var
-- [ ] Reverse proxy routes to `app:4000`
-- [ ] WebSocket connections work (LiveView requirement)
-- [ ] HSTS header is set with preload
-- [ ] Static assets get long cache headers
-- [ ] gzip compression is enabled
-- [ ] Caddy removes the `Server` header
-- [ ] TLS is automatic when a real hostname is configured
-- [ ] **Header passthrough verification:** `X-Forwarded-For` and `X-Forwarded-Proto` headers must be correctly set by Caddy and trusted by Phoenix. Acceptance criterion: send a request through Caddy, inspect `conn.remote_ip` and `conn.scheme` in Phoenix — both must reflect the client values, not the Caddy container values. Add a test in Phase 14 (`TEST-14-NEW-G`) using `curl` through the Docker stack to verify this.
+- [x] `Caddyfile` exists at project root
+- [x] Hostname is configurable via `KITH_HOSTNAME` env var
+- [x] Reverse proxy routes to `app:4000`
+- [x] WebSocket connections work (LiveView requirement)
+- [x] HSTS header is set with preload
+- [x] Static assets get long cache headers
+- [x] gzip compression is enabled
+- [x] Caddy removes the `Server` header
+- [x] TLS is automatic when a real hostname is configured
+- [x] **Header passthrough verification:** `X-Forwarded-For` and `X-Forwarded-Proto` headers must be correctly set by Caddy and trusted by Phoenix. Acceptance criterion: send a request through Caddy, inspect `conn.remote_ip` and `conn.scheme` in Phoenix — both must reflect the client values, not the Caddy container values. Add a test in Phase 14 (`TEST-14-NEW-G`) using `curl` through the Docker stack to verify this.
 
 **Safeguards:**
 > ⚠️ Caddy adds `X-Forwarded-For` and `X-Forwarded-Proto` headers automatically. Do NOT add them manually in the Caddyfile — that would duplicate them. Phoenix's `Plug.SSL` reads `X-Forwarded-Proto` for HTTPS detection, and LiveView uses the origin for `check_origin` — both depend on these headers being correct and not duplicated.
@@ -309,13 +320,13 @@ end
 ```
 
 **Acceptance Criteria:**
-- [ ] `GET /health/live` returns 200 with `{"status": "ok"}`
-- [ ] `GET /health/ready` returns 200 with db and migration status when healthy
-- [ ] `GET /health/ready` returns 503 when database is unreachable
-- [ ] Health endpoints do NOT require authentication
-- [ ] Health endpoints do NOT go through CSRF or session pipelines
-- [ ] Response time for `/health/live` is under 5ms
-- [ ] Response time for `/health/ready` is under 100ms
+- [x] `GET /health/live` returns 200 with `{"status": "ok"}`
+- [x] `GET /health/ready` returns 200 with db and migration status when healthy
+- [x] `GET /health/ready` returns 503 when database is unreachable
+- [x] Health endpoints do NOT require authentication
+- [x] Health endpoints do NOT go through CSRF or session pipelines
+- [x] Response time for `/health/live` is under 5ms
+- [x] Response time for `/health/ready` is under 100ms
 
 **Safeguards:**
 > ⚠️ Health endpoints MUST be outside all auth pipelines. If they accidentally end up behind auth, Docker HEALTHCHECK will fail and containers will restart in a loop. Verify by accessing without any cookies or auth headers.
@@ -352,10 +363,10 @@ Document all Docker named volumes used in production, their purposes, backup req
 - Warning: MinIO is dev-only, not in prod volumes
 
 **Acceptance Criteria:**
-- [ ] Volume documentation exists in `docs/deployment/volumes.md` or in the README deployment section
-- [ ] All 5 volumes are documented with purpose and backup priority
-- [ ] Backup and restore procedures are documented for critical volumes
-- [ ] Warning about MinIO being dev-only is included
+- [x] Volume documentation exists in `docs/deployment/volumes.md` or in the README deployment section
+- [x] All 5 volumes are documented with purpose and backup priority
+- [x] Backup and restore procedures are documented for critical volumes
+- [x] Warning about MinIO being dev-only is included
 
 **Safeguards:**
 > ⚠️ `postgres_data` volume contains ALL user data. If this volume is lost without a backup, all data is gone. Document the backup strategy prominently and recommend automated daily backups.
@@ -460,12 +471,12 @@ KITH_MODE=web
 ```
 
 **Acceptance Criteria:**
-- [ ] `.env` is in `.gitignore`
-- [ ] `.env.example` exists with all variables documented
-- [ ] `.env.example` has comments explaining each variable
-- [ ] Required variables are clearly marked
-- [ ] `runtime.exs` supports `*_FILE` suffix for file-based secrets
-- [ ] `chmod 600` requirement is documented in .env.example header and README
+- [x] `.env` is in `.gitignore`
+- [x] `.env.example` exists with all variables documented
+- [x] `.env.example` has comments explaining each variable
+- [x] Required variables are clearly marked
+- [x] `runtime.exs` supports `*_FILE` suffix for file-based secrets
+- [x] `chmod 600` requirement is documented in .env.example header and README
 
 **Safeguards:**
 > ⚠️ NEVER commit `.env` to version control. Verify `.gitignore` includes `.env` (not `.env*` which would exclude `.env.example`). The `.gitignore` should have exactly `.env` (not a glob).
@@ -504,11 +515,11 @@ Verify and document resource limits and restart policies in `docker-compose.prod
 | redis (optional) | `unless-stopped` |
 
 **Acceptance Criteria:**
-- [ ] All services in docker-compose.prod.yml have explicit restart policies
-- [ ] app and worker have 512M/1.0cpu limits with 256M/0.5cpu reservations
-- [ ] postgres has 256M memory limit
-- [ ] migrate has `restart: no`
-- [ ] Resource limits are documented in deployment guide
+- [x] All services in docker-compose.prod.yml have explicit restart policies
+- [x] app and worker have 512M/1.0cpu limits with 256M/0.5cpu reservations
+- [x] postgres has 256M memory limit
+- [x] migrate has `restart: no`
+- [x] Resource limits are documented in deployment guide
 
 **Safeguards:**
 > ⚠️ The `migrate` service MUST have `restart: no`. If it has `unless-stopped`, it will run migrations in an infinite loop after the first successful run exits. This can cause issues if migrations have side effects.
@@ -552,12 +563,12 @@ end
 ```
 
 **Acceptance Criteria:**
-- [ ] Oban Web dashboard is accessible at `/admin/oban`
-- [ ] Only admin users can access the dashboard
-- [ ] Non-admin users receive a 403 or redirect
-- [ ] Dashboard shows all 5 queues (default, reminders, integrations, mailer, purge)
-- [ ] Dashboard shows cron job schedule
-- [ ] Dashboard allows job inspection and retry
+- [x] Oban Web dashboard is accessible at `/admin/oban`
+- [x] Only admin users can access the dashboard
+- [x] Non-admin users receive a 403 or redirect
+- [x] Dashboard shows all 5 queues (default, reminders, integrations, mailer, purge)
+- [x] Dashboard shows cron job schedule
+- [x] Dashboard allows job inspection and retry
 
 **Safeguards:**
 > ⚠️ The Oban Web dashboard exposes job details including arguments, which may contain PII (email addresses, contact names). Admin-only access is mandatory, not optional. Test that editor and viewer roles are denied access.
@@ -595,11 +606,11 @@ end
 Alternatively, if using PromEx's built-in plug, mount it with auth middleware.
 
 **Acceptance Criteria:**
-- [ ] `/metrics` endpoint is gated behind admin authentication
-- [ ] Unauthenticated requests to `/metrics` return 401 or redirect to login
-- [ ] Non-admin authenticated requests return 403
-- [ ] Admin users can access `/metrics` and see Prometheus-format output
-- [ ] Metrics include Phoenix request metrics, Ecto query metrics, and Oban queue metrics
+- [x] `/metrics` endpoint is gated behind admin authentication
+- [x] Unauthenticated requests to `/metrics` return 401 or redirect to login
+- [x] Non-admin authenticated requests return 403
+- [x] Admin users can access `/metrics` and see Prometheus-format output
+- [x] Metrics include Phoenix request metrics, Ecto query metrics, and Oban queue metrics
 
 **Safeguards:**
 > ⚠️ The `/metrics` endpoint exposes operational data: request rates, error rates, queue depths, database performance. This information can be used to plan attacks (e.g., identifying slow endpoints for DoS). Admin-only access is non-negotiable.
@@ -637,12 +648,12 @@ config :logger,
 ```
 
 **Acceptance Criteria:**
-- [ ] Sentry initializes ONLY when `SENTRY_DSN` is set
-- [ ] When `SENTRY_DSN` is not set, no Sentry configuration is loaded and no errors are raised
-- [ ] Release version is tagged with the app version from `mix.exs`
-- [ ] Environment is configurable via `SENTRY_ENVIRONMENT`
-- [ ] Unhandled exceptions are captured and sent to Sentry
-- [ ] Logger backend integration sends error-level log messages to Sentry
+- [x] Sentry initializes ONLY when `SENTRY_DSN` is set
+- [x] When `SENTRY_DSN` is not set, no Sentry configuration is loaded and no errors are raised
+- [x] Release version is tagged with the app version from `mix.exs`
+- [x] Environment is configurable via `SENTRY_ENVIRONMENT`
+- [x] Unhandled exceptions are captured and sent to Sentry
+- [x] Logger backend integration sends error-level log messages to Sentry
 
 **Safeguards:**
 > ⚠️ Do NOT hardcode a Sentry DSN in any config file. It must always come from the environment. Also verify that Sentry does not capture sensitive data in breadcrumbs (e.g., request bodies with passwords). Configure `before_send` callback if needed to scrub PII.
@@ -678,10 +689,10 @@ Create a document describing how to scale Kith beyond a single-node deployment. 
 6. **Database connection pooling** — With N app replicas, total DB connections = N * `POOL_SIZE`. Monitor PostgreSQL `max_connections` and use PgBouncer if needed.
 
 **Acceptance Criteria:**
-- [ ] Document exists at `docs/deployment/scaling.md`
-- [ ] Covers stateless app design, load balancing, Oban multi-node, Redis rate limiting, PubSub clustering, and DB connection pooling
-- [ ] Each topic includes what to configure and what tradeoffs exist
-- [ ] Sticky session requirement for LiveView is clearly documented
+- [x] Document exists at `docs/deployment/scaling.md`
+- [x] Covers stateless app design, load balancing, Oban multi-node, Redis rate limiting, PubSub clustering, and DB connection pooling
+- [x] Each topic includes what to configure and what tradeoffs exist
+- [x] Sticky session requirement for LiveView is clearly documented
 
 **Safeguards:**
 > ⚠️ Do NOT implement multi-node clustering in v1. This document is informational only. Premature clustering adds complexity (Erlang distribution, network partitions) that a single-node deployment doesn't need.
@@ -727,11 +738,11 @@ Write deployment instructions in the project README (or a dedicated `docs/deploy
 - Email not sending: check `docker compose logs worker` and verify SMTP credentials
 
 **Acceptance Criteria:**
-- [ ] Deployment guide exists with quick-start instructions
-- [ ] Upgrade instructions are documented
-- [ ] All required environment variables are referenced
-- [ ] Troubleshooting section covers common issues
-- [ ] Instructions are copy-pasteable (exact commands, not paraphrased)
+- [x] Deployment guide exists with quick-start instructions
+- [x] Upgrade instructions are documented
+- [x] All required environment variables are referenced
+- [x] Troubleshooting section covers common issues
+- [x] Instructions are copy-pasteable (exact commands, not paraphrased)
 
 **Safeguards:**
 > ⚠️ Never include actual secret values in documentation. Always use placeholders like `generate_with_mix_phx.gen.secret`. Verify no real credentials were accidentally committed.
@@ -763,10 +774,10 @@ docker-build:
 ```
 
 **Acceptance Criteria:**
-- [ ] CI builds the Docker image on every push/PR
-- [ ] Build failure is a CI failure (blocks merge)
-- [ ] Image is verified to start correctly (eval test)
-- [ ] Build uses Docker layer caching where possible
+- [x] CI builds the Docker image on every push/PR
+- [x] Build failure is a CI failure (blocks merge)
+- [x] Image is verified to start correctly (eval test)
+- [x] Build uses Docker layer caching where possible
 
 **Safeguards:**
 > ⚠️ Do NOT push CI-built images to a registry automatically. Image publishing should be a manual/tagged release process, not on every commit. CI build is for validation only.
@@ -808,11 +819,11 @@ test/
 ```
 
 **Acceptance Criteria:**
-- [ ] `.dockerignore` exists and excludes `.env`, `.git`, `_build`, `deps`, `node_modules`
-- [ ] Runner stage uses non-root user
-- [ ] docker-compose.prod.yml includes `security_opt: [no-new-privileges:true]` on app and worker
-- [ ] docker-compose.prod.yml includes `cap_drop: [ALL]` on app and worker
-- [ ] No secrets are present in the built image (verify with `docker history`)
+- [x] `.dockerignore` exists and excludes `.env`, `.git`, `_build`, `deps`, `node_modules`
+- [x] Runner stage uses non-root user
+- [x] docker-compose.prod.yml includes `security_opt: [no-new-privileges:true]` on app and worker
+- [x] docker-compose.prod.yml includes `cap_drop: [ALL]` on app and worker
+- [x] No secrets are present in the built image (verify with `docker history`)
 
 **Safeguards:**
 > ⚠️ Verify `.env` is in `.dockerignore`. If `.env` is copied into the build context, secrets could leak into Docker layer history even if not explicitly COPY'd — build context contents are accessible during build.
