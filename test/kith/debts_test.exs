@@ -47,6 +47,16 @@ defmodule Kith.DebtsTest do
       assert [returned] = Debts.list_debts(account.id, contact.id)
       assert length(returned.payments) == 1
     end
+
+    test "preloads currency" do
+      {account, user} = setup_account()
+      currency = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+      contact = insert(:contact, account: account)
+      insert(:debt, account: account, contact: contact, creator: user, currency: currency)
+
+      assert [returned] = Debts.list_debts(account.id, contact.id)
+      assert returned.currency.code == "EUR"
+    end
   end
 
   describe "get_debt!/2" do
@@ -78,6 +88,16 @@ defmodule Kith.DebtsTest do
 
       fetched = Debts.get_debt!(account.id, debt.id)
       assert length(fetched.payments) == 1
+    end
+
+    test "preloads currency" do
+      {account, user} = setup_account()
+      currency = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+      contact = insert(:contact, account: account)
+      debt = insert(:debt, account: account, contact: contact, creator: user, currency: currency)
+
+      fetched = Debts.get_debt!(account.id, debt.id)
+      assert fetched.currency.symbol == "£"
     end
   end
 

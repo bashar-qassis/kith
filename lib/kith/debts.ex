@@ -11,11 +11,11 @@ defmodule Kith.Debts do
     |> where([d], d.contact_id == ^contact_id)
     |> order_by([d], desc: d.inserted_at)
     |> Repo.all()
-    |> Repo.preload(:payments)
+    |> Repo.preload([:payments, :currency])
   end
 
   def get_debt!(account_id, id) do
-    Debt |> scope_to_account(account_id) |> Repo.get!(id) |> Repo.preload(:payments)
+    Debt |> scope_to_account(account_id) |> Repo.get!(id) |> Repo.preload([:payments, :currency])
   end
 
   def create_debt(account_id, creator_id, attrs) do
