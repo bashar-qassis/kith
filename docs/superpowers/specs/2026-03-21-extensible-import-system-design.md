@@ -7,6 +7,9 @@
 
 Build an extensible import framework for Kith that supports multiple data sources (VCF, Monica CRM, future platforms). The first new source is Monica CRM, importing contacts and all associated data from a JSON export file, with optional photo sync via Monica's REST API.
 
+**Dependencies:**
+- [Contact "First Met" Fields](2026-03-21-contact-first-met-fields-design.md) — must be implemented first; adds `first_met_at`, `first_met_where`, `first_met_through_id`, `first_met_additional_info` to the Contact schema.
+
 Core principles:
 - Kith's schema stays clean — no source-specific fields on core tables
 - Import tracking via a generic `import_records` table for dedup and change detection
@@ -176,6 +179,10 @@ Replaces the existing `ImportWorker` for new imports.
 | is_active: false | is_archived: true | inverted |
 | is_dead | deceased | rename |
 | description | description | direct |
+| first_met_date (from special_dates) | first_met_at | same extraction logic as birthdate — use `first_met_special_date_id` to find the special_date |
+| first_met_where | first_met_where | direct (from SQL; available in JSON via contact properties) |
+| first_met_additional_info | first_met_additional_info | direct |
+| first_met_through (UUID) | first_met_through_id | resolve via import_records after all contacts imported (Phase 4, alongside relationships) |
 | gender (UUID) | gender_id | via import_records lookup |
 | birthdate (from special_dates) | birthdate | Monica nests special_dates in contact data; identify birthday by matching the contact's `birthday_special_date_id` property. Extract the `date` field, handling `is_year_unknown` (set year to nil/default) and `is_age_based` (approximate). |
 | tags (UUID array) | tags | find-or-create tags by name (account-scoped), then insert join table rows |
@@ -192,12 +199,18 @@ Each is nested inside its parent contact in the JSON.
 - `photo` → `Kith.Contacts.Photo` (metadata only; `storage_key` set to a `"pending_sync:{source_photo_uuid}"` placeholder; file downloaded in Phase 5. Photo records with `pending_sync:` prefix are treated as unsynced by the UI.)
 - `activity` → `Kith.Activities.Activity` (with `activity_type_category_id` via lookup; activities shared across multiple contacts: deduplicate by UUID — on first encounter, create the activity and its join table entry; on subsequent contacts referencing the same activity UUID, add only the join table entry)
 
-**Phase 4 — Relationships** (depends on: contacts, relationship types):
+**Phase 4 — Cross-contact references** (depends on: contacts, relationship types):
 
-Top-level in the JSON. Each references two contact UUIDs (`contact_is`, `of_contact`) and a relationship type.
+Relationships (top-level in the JSON):
+- Each references two contact UUIDs (`contact_is`, `of_contact`) and a relationship type
 - Look up both contacts via `import_records`
 - Look up relationship type
 - Create `Kith.Contacts.Relationship`
+
+First-met-through links:
+- For contacts with a `first_met_through` UUID, look up the referenced contact via `import_records`
+- Update the contact's `first_met_through_id`
+- If the referenced contact was not imported, log a warning and leave null
 
 **Phase 5 — Photo files** (async, depends on: photo records from phase 3):
 
