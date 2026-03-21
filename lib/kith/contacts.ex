@@ -1333,6 +1333,10 @@ defmodule Kith.Contacts do
         |> repo.update()
       end)
       |> Repo.transaction()
+      |> case do
+        {:ok, %{update_survivor_fields: survivor}} -> {:ok, survivor}
+        {:error, step, reason, _changes} -> {:error, {step, reason}}
+      end
     end
   end
 

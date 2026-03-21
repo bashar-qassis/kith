@@ -107,8 +107,11 @@ config :kith, Kith.Vault,
   ciphers: [
     default:
       {Cloak.Ciphers.AES.GCM,
-       tag: "AES.GCM.V1", key: Base.decode64!("dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlcw==")}
+       tag: "AES.GCM.V1", key: Base.decode64!("oQaI0liBwsBX4ClJyWexY+lHhC3R3RPn1t9N8VPFdho=")}
   ]
+
+# Flop — server-side sorting, filtering, pagination
+config :flop, repo: Kith.Repo, default_limit: 25
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

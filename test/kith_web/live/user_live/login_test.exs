@@ -33,7 +33,7 @@ defmodule KithWeb.UserLive.LoginTest do
         form(lv, "#login_form", user: %{email: user.email, password: valid_user_password()})
 
       conn = submit_form(form, conn)
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/dashboard"
     end
 
     test "redirects to login page with a flash error for invalid credentials", %{conn: conn} do

@@ -23,12 +23,12 @@ defmodule KithWeb.API.TagControllerTest do
       assert is_integer(id)
     end
 
-    test "duplicate tag name returns 409", %{conn: conn} do
+    test "duplicate tag name returns 409", %{conn: conn, user: user} do
       post(conn, ~p"/api/tags", %{"tag" => %{"name" => "Duplicate"}})
 
       conn2 =
         build_conn()
-        |> authed_conn(conn.assigns.current_scope.user)
+        |> authed_conn(user)
         |> post(~p"/api/tags", %{"tag" => %{"name" => "Duplicate"}})
 
       assert %{"status" => 409} = json_response(conn2, 409)
@@ -78,7 +78,7 @@ defmodule KithWeb.API.TagControllerTest do
   describe "GET /api/contacts/:id?include=tags" do
     test "returns contact with tags array", %{conn: conn, user: user, contact: contact} do
       {:ok, tag} = Kith.Contacts.create_tag(user.account_id, %{"name" => "Included"})
-      Kith.Contacts.assign_tag(contact, tag)
+      Kith.Contacts.tag_contact(contact, tag)
 
       conn = get(conn, ~p"/api/contacts/#{contact.id}?include=tags")
       assert %{"data" => data} = json_response(conn, 200)
@@ -90,7 +90,7 @@ defmodule KithWeb.API.TagControllerTest do
   describe "DELETE /api/contacts/:contact_id/tags/:tag_id (remove)" do
     test "removes a tag from a contact", %{conn: conn, user: user, contact: contact} do
       {:ok, tag} = Kith.Contacts.create_tag(user.account_id, %{"name" => "Removable"})
-      Kith.Contacts.assign_tag(contact, tag)
+      Kith.Contacts.tag_contact(contact, tag)
 
       conn = delete(conn, ~p"/api/contacts/#{contact.id}/tags/#{tag.id}")
       assert conn.status == 204

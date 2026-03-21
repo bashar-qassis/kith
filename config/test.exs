@@ -25,6 +25,9 @@ config :kith, KithWeb.Endpoint,
 # Disable Oban in tests (use Oban.Testing)
 config :kith, Oban, testing: :inline
 
+# Disable PromEx in tests (its Ecto poller conflicts with sandbox ownership)
+config :kith, Kith.PromEx, disabled: true
+
 # Email — test adapter
 config :kith, Kith.Mailer, adapter: Swoosh.Adapters.Test
 

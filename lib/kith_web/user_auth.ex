@@ -273,12 +273,18 @@ defmodule KithWeb.UserAuth do
   end
 
   defp assign_current_path(socket) do
-    socket
-    |> Phoenix.Component.assign(:current_path, "/")
-    |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
-      path = URI.parse(uri).path || "/"
-      {:cont, Phoenix.Component.assign(socket, :current_path, path)}
-    end)
+    socket = Phoenix.Component.assign(socket, :current_path, "/")
+
+    # attach_hook requires the socket to be mounted via the router (live/3 macro).
+    # When called from tests with a bare %LiveView.Socket{}, skip the hook.
+    if socket.private[:lifecycle] do
+      Phoenix.LiveView.attach_hook(socket, :set_current_path, :handle_params, fn _params, uri, socket ->
+        path = URI.parse(uri).path || "/"
+        {:cont, Phoenix.Component.assign(socket, :current_path, path)}
+      end)
+    else
+      socket
+    end
   end
 
   defp assign_locale(socket) do

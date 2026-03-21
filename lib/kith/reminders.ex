@@ -449,7 +449,9 @@ defmodule Kith.Reminders do
   on already-cancelled or completed jobs.
   """
   def cancel_jobs(job_ids) when is_list(job_ids) do
-    Enum.each(job_ids, &Oban.cancel_job/1)
+    job_ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.each(&Oban.cancel_job/1)
   end
 
   defp cancel_enqueued_jobs_step(multi, reminder) do

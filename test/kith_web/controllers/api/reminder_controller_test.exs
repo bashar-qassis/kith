@@ -13,7 +13,6 @@ defmodule KithWeb.API.ReminderControllerTest do
     default = %{
       "title" => "Birthday",
       "type" => "one_time",
-      "frequency" => "one_time",
       "next_reminder_date" => Date.to_iso8601(Date.add(Date.utc_today(), 15))
     }
 
@@ -41,17 +40,17 @@ defmodule KithWeb.API.ReminderControllerTest do
   end
 
   describe "GET /api/contacts/:contact_id/reminders" do
-    test "lists reminders for a contact", %{conn: conn, contact: contact} do
+    test "lists reminders for a contact", %{conn: conn, user: user, contact: contact} do
       create_reminder_via_api(conn, contact.id, %{"title" => "R1"})
 
       conn2 =
         build_conn()
-        |> authed_conn(conn.assigns.current_scope.user)
+        |> authed_conn(user)
         |> create_reminder_via_api(contact.id, %{"title" => "R2"})
 
       conn3 =
         build_conn()
-        |> authed_conn(conn.assigns.current_scope.user)
+        |> authed_conn(user)
         |> get(~p"/api/contacts/#{contact.id}/reminders")
 
       assert %{"data" => reminders} = json_response(conn3, 200)

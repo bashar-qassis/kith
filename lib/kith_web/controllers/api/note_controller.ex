@@ -113,11 +113,11 @@ defmodule KithWeb.API.NoteController do
 
   # ── Favorite / Unfavorite ────────────────────────────────────────────
 
-  def favorite(conn, %{"note_id" => id}) do
+  def favorite(conn, %{"id" => id}) do
     toggle_favorite(conn, id, true)
   end
 
-  def unfavorite(conn, %{"note_id" => id}) do
+  def unfavorite(conn, %{"id" => id}) do
     toggle_favorite(conn, id, false)
   end
 

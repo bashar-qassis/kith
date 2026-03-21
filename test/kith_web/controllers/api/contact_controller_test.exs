@@ -192,7 +192,7 @@ defmodule KithWeb.API.ContactControllerTest do
         |> post(~p"/api/contacts/#{contact.id}/archive")
         |> json_response(200)
 
-      assert archive_resp["data"]["is_archived"] == true
+      assert archive_resp["data"]["archived"] == true
 
       # Default GET excludes archived contacts
       index_resp = conn |> get(~p"/api/contacts") |> json_response(200)
@@ -212,7 +212,7 @@ defmodule KithWeb.API.ContactControllerTest do
         |> delete(~p"/api/contacts/#{contact.id}/archive")
         |> json_response(200)
 
-      assert unarchive_resp["data"]["is_archived"] == false
+      assert unarchive_resp["data"]["archived"] == false
     end
   end
 

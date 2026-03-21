@@ -23,7 +23,7 @@ defmodule KithWeb.API.NoteControllerTest do
           "note" => %{"body" => "Hello world"}
         })
 
-      assert %{"data" => %{"id" => id, "body" => "Hello world", "is_favorite" => false}} =
+      assert %{"data" => %{"id" => id, "body" => "Hello world", "favorite" => false}} =
                json_response(conn, 201)
 
       assert is_integer(id)
@@ -110,7 +110,7 @@ defmodule KithWeb.API.NoteControllerTest do
         })
 
       conn = post(conn, ~p"/api/notes/#{note.id}/favorite")
-      assert %{"data" => %{"is_favorite" => true}} = json_response(conn, 200)
+      assert %{"data" => %{"favorite" => true}} = json_response(conn, 200)
     end
   end
 
@@ -121,11 +121,11 @@ defmodule KithWeb.API.NoteControllerTest do
           contact_id: contact.id,
           account_id: user.account_id,
           body: "Unfav me",
-          is_favorite: true
+          favorite: true
         })
 
       conn = delete(conn, ~p"/api/notes/#{note.id}/favorite")
-      assert %{"data" => %{"is_favorite" => false}} = json_response(conn, 200)
+      assert %{"data" => %{"favorite" => false}} = json_response(conn, 200)
     end
   end
 end
