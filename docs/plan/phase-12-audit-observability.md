@@ -1,6 +1,6 @@
 # Phase 12: Audit Log & Observability
 
-> **Status:** Draft
+> **Status:** Completed
 > **Depends on:** Phase 01 (Foundation), Phase 03 (Core Domain Models)
 > **Blocks:** Phase 14 (QA & E2E Testing)
 
@@ -32,11 +32,11 @@ Defined event atoms:
 - `:data_exported`, `:data_imported`
 
 **Acceptance Criteria:**
-- [ ] `Kith.AuditLog.log_event/4` enqueues an Oban job that inserts an audit log row
-- [ ] `user_name` is captured as a string snapshot at log time (not a FK lookup)
-- [ ] `contact_name` is captured as a string snapshot when a contact is involved
-- [ ] All defined event atoms are accepted; unknown atoms raise an `ArgumentError`
-- [ ] Audit log rows are inserted even if the originating user or contact is later deleted (no FK constraints)
+- [x] `Kith.AuditLog.log_event/4` enqueues an Oban job that inserts an audit log row
+- [x] `user_name` is captured as a string snapshot at log time (not a FK lookup)
+- [x] `contact_name` is captured as a string snapshot when a contact is involved
+- [x] All defined event atoms are accepted; unknown atoms raise an `ArgumentError`
+- [x] Audit log rows are inserted even if the originating user or contact is later deleted (no FK constraints)
 
 **Safeguards:**
 > ⚠️ Do NOT use `Task.start` or `Task.async` for audit logging — if the process crashes the log entry is lost. Use Oban with the `default` queue so the job is persisted in PostgreSQL and retried on failure.
@@ -64,11 +64,11 @@ Supported filters:
 Pagination: cursor-based using `inserted_at` + `id` as the cursor key (same as API pagination pattern). Default limit 50, max 100.
 
 **Acceptance Criteria:**
-- [ ] `list/2` returns `{entries, pagination_meta}` where `pagination_meta` includes `has_more` and `next_cursor`
-- [ ] Entries are ordered by `inserted_at DESC, id DESC`
-- [ ] Each filter can be applied independently or in combination
-- [ ] `contact_name` and `user_name` filters use `ILIKE` for case-insensitive partial matching
-- [ ] Results are always scoped to the given `account_id`
+- [x] `list/2` returns `{entries, pagination_meta}` where `pagination_meta` includes `has_more` and `next_cursor`
+- [x] Entries are ordered by `inserted_at DESC, id DESC`
+- [x] Each filter can be applied independently or in combination
+- [x] `contact_name` and `user_name` filters use `ILIKE` for case-insensitive partial matching
+- [x] Results are always scoped to the given `account_id`
 
 **Safeguards:**
 > ⚠️ Always scope queries by `account_id` — never allow cross-account audit log access. The ILIKE filters must use parameterized queries (never string interpolation) to prevent SQL injection.
@@ -94,11 +94,11 @@ Integration map:
 - **Import/Export** — vCard/JSON export → `:data_exported`, vCard import → `:data_imported`
 
 **Acceptance Criteria:**
-- [ ] Every event atom has at least one call site in the codebase
-- [ ] Audit log entries include meaningful metadata (e.g., contact name for contact events, role for role changes, count for import/export)
-- [ ] Audit log calls happen after the primary operation succeeds — failed operations are not logged
-- [ ] Contact events include `contact_id` and `contact_name` snapshot
-- [ ] User events include the acting user's `user_name` snapshot
+- [x] Every event atom has at least one call site in the codebase
+- [x] Audit log entries include meaningful metadata (e.g., contact name for contact events, role for role changes, count for import/export)
+- [x] Audit log calls happen after the primary operation succeeds — failed operations are not logged
+- [x] Contact events include `contact_id` and `contact_name` snapshot
+- [x] User events include the acting user's `user_name` snapshot
 
 **Safeguards:**
 > ⚠️ Do NOT place `log_event` inside an `Ecto.Multi` transaction that also performs the primary operation. The Oban job insertion for audit logging should happen after the main transaction commits. If the main transaction fails, no audit log should be created.
@@ -139,16 +139,16 @@ Add the Audit Log sub-page in Settings (Phase 11 TASK-11-29 lists this page but 
 **Policy:** Admin only. Editor and viewer do not see the Audit Log menu item.
 
 **Acceptance Criteria:**
-- [ ] Settings > Audit Log page renders a table of events for admin users
-- [ ] Filtering by event type narrows results
-- [ ] Filtering by contact name narrows results (substring match on `contact_name` snapshot)
-- [ ] Filtering by date range narrows results
-- [ ] Contact name cell links to contact profile when contact is not deleted (linked by contact_id lookup)
-- [ ] Contact name cell shows plain text when contact is deleted (snapshot preserved)
-- [ ] Cursor pagination works (next page loads more events)
-- [ ] Editor sees "Access Denied" or is redirected
-- [ ] Viewer sees "Access Denied" or is redirected
-- [ ] Tests: list events, filter by event type, filter by date range, deleted contact renders as plain text
+- [x] Settings > Audit Log page renders a table of events for admin users
+- [x] Filtering by event type narrows results
+- [x] Filtering by contact name narrows results (substring match on `contact_name` snapshot)
+- [x] Filtering by date range narrows results
+- [x] Contact name cell links to contact profile when contact is not deleted (linked by contact_id lookup)
+- [x] Contact name cell shows plain text when contact is deleted (snapshot preserved)
+- [x] Cursor pagination works (next page loads more events)
+- [x] Editor sees "Access Denied" or is redirected
+- [x] Viewer sees "Access Denied" or is redirected
+- [x] Tests: list events, filter by event type, filter by date range, deleted contact renders as plain text
 
 ---
 
@@ -171,11 +171,11 @@ JSON log fields in production:
 Set `Logger.metadata` in the `fetch_current_user` plug (browser pipeline) and `fetch_api_user` plug (API pipeline) to populate `user_id` and `account_id` for all subsequent log calls in the request.
 
 **Acceptance Criteria:**
-- [ ] Production logs are JSON-formatted with all specified fields present on HTTP request logs
-- [ ] Development logs use plain-text format
-- [ ] `user_id` and `account_id` metadata are set in both browser and API auth plugs
-- [ ] `request_id` is automatically included via Phoenix's built-in request ID plug
-- [ ] Log output is parseable by standard log aggregation tools (ELK, Loki, CloudWatch)
+- [x] Production logs are JSON-formatted with all specified fields present on HTTP request logs
+- [x] Development logs use plain-text format
+- [x] `user_id` and `account_id` metadata are set in both browser and API auth plugs
+- [x] `request_id` is automatically included via Phoenix's built-in request ID plug
+- [x] Log output is parseable by standard log aggregation tools (ELK, Loki, CloudWatch)
 
 **Safeguards:**
 > ⚠️ Never log sensitive data — passwords, tokens, API keys, or email content must never appear in log output. Review `logger_json` formatter configuration to ensure request bodies are not logged by default.
@@ -200,11 +200,11 @@ Extend the `KithWeb.Telemetry` module (generated by Phoenix) with custom telemet
 3. **Phoenix request durations** — Listen to `[:phoenix, :endpoint, :stop]` events. Track p99 request duration grouped by route (controller + action or live_view module).
 
 **Acceptance Criteria:**
-- [ ] Oban job success/failure counts are tracked per queue and worker name
-- [ ] Oban job duration is tracked per worker
-- [ ] Database queries exceeding 500ms trigger a Logger warning with the query details
-- [ ] Phoenix request duration is tracked and grouped by route
-- [ ] All telemetry handlers are attached in `KithWeb.Telemetry.init/1`
+- [x] Oban job success/failure counts are tracked per queue and worker name
+- [x] Oban job duration is tracked per worker
+- [x] Database queries exceeding 500ms trigger a Logger warning with the query details
+- [x] Phoenix request duration is tracked and grouped by route
+- [x] All telemetry handlers are attached in `KithWeb.Telemetry.init/1`
 
 **Safeguards:**
 > ⚠️ Telemetry handlers must not raise exceptions — a crash in a telemetry handler detaches it permanently for the lifetime of the BEAM process. Wrap handler bodies in try/rescue and log errors.
@@ -238,12 +238,12 @@ Metrics to expose:
 - **Active user sessions count** — gauge (count of valid session tokens in `user_tokens`)
 
 **Acceptance Criteria:**
-- [ ] `GET /metrics` with correct `Authorization: Bearer <token>` returns Prometheus text format with all defined metrics
-- [ ] `GET /metrics` without token returns 401
-- [ ] `GET /metrics` with wrong token returns 401
-- [ ] Path is `/metrics` (not `/admin/metrics`) — update router if needed
-- [ ] HTTP request metrics are labeled correctly (no cardinality explosion from path params)
-- [ ] Oban queue depth reflects current pending job count per queue
+- [x] `GET /metrics` with correct `Authorization: Bearer <token>` returns Prometheus text format with all defined metrics
+- [x] `GET /metrics` without token returns 401
+- [x] `GET /metrics` with wrong token returns 401
+- [x] Path is `/metrics` (not `/admin/metrics`) — update router if needed
+- [x] HTTP request metrics are labeled correctly (no cardinality explosion from path params)
+- [x] Oban queue depth reflects current pending job count per queue
 
 **Safeguards:**
 > ⚠️ Avoid high-cardinality labels — use route patterns (e.g., `/contacts/:id`) not actual paths (e.g., `/contacts/123`). High cardinality causes memory issues in Prometheus.
@@ -271,11 +271,11 @@ The dashboard provides:
 - Real-time updates via WebSocket
 
 **Acceptance Criteria:**
-- [ ] `/admin/oban` is accessible to admin users and displays the Oban Web dashboard
-- [ ] `/admin/oban` returns 403 or redirects to login for non-admin users and unauthenticated requests
-- [ ] Dashboard shows all configured queues (default, reminders, integrations, mailer, purge)
-- [ ] Admin can retry and discard jobs from the dashboard
-- [ ] Oban Web assets are served correctly (CSS/JS)
+- [x] `/admin/oban` is accessible to admin users and displays the Oban Web dashboard
+- [x] `/admin/oban` returns 403 or redirects to login for non-admin users and unauthenticated requests
+- [x] Dashboard shows all configured queues (default, reminders, integrations, mailer, purge)
+- [x] Admin can retry and discard jobs from the dashboard
+- [x] Oban Web assets are served correctly (CSS/JS)
 
 **Safeguards:**
 > ⚠️ Oban Web is a paid feature of Oban Pro. If using the free Oban package, this task should be replaced with a simple admin-only page showing `Oban.Job` table queries. Verify licensing before adding `oban_web` to dependencies.
@@ -300,12 +300,12 @@ Implement two health check endpoints in a dedicated `KithWeb.HealthController`:
 Both endpoints are in the router outside any auth pipeline — no session, no CSRF, no Bearer token required. Caddy and Docker HEALTHCHECK depend on these being unauthenticated.
 
 **Acceptance Criteria:**
-- [ ] `GET /health/live` returns `{"status": "ok"}` with 200, no auth required
-- [ ] `GET /health/ready` returns 200 with DB and migration status when healthy
-- [ ] `GET /health/ready` returns 503 when database is unreachable
-- [ ] `GET /health/ready` returns 503 when migrations are pending
-- [ ] Neither endpoint requires authentication or CSRF token
-- [ ] Both endpoints return `Content-Type: application/json`
+- [x] `GET /health/live` returns `{"status": "ok"}` with 200, no auth required
+- [x] `GET /health/ready` returns 200 with DB and migration status when healthy
+- [x] `GET /health/ready` returns 503 when database is unreachable
+- [x] `GET /health/ready` returns 503 when migrations are pending
+- [x] Neither endpoint requires authentication or CSRF token
+- [x] Both endpoints return `Content-Type: application/json`
 
 **Safeguards:**
 > ⚠️ The readiness endpoint must handle database connection failures gracefully — wrap the DB query in a try/rescue and return 503 with error details, never crash the controller.
@@ -331,11 +331,11 @@ Ensure Sentry captures meaningful errors from all layers of the application. The
 3. **Context enrichment** — Ensure Sentry events include: `user_id`, `account_id`, `request_id` from Logger metadata. Tag releases with the application version from `mix.exs`.
 
 **Acceptance Criteria:**
-- [ ] Oban job failures (after all retries exhausted) are reported to Sentry with worker name, queue, and args
-- [ ] Oban job failures on intermediate retries are NOT reported to Sentry
-- [ ] HTTP 401, 403, and 404 responses do not generate Sentry events
-- [ ] Sentry events include `user_id` and `account_id` context when available
-- [ ] Sentry release tag matches the application version
+- [x] Oban job failures (after all retries exhausted) are reported to Sentry with worker name, queue, and args
+- [x] Oban job failures on intermediate retries are NOT reported to Sentry
+- [x] HTTP 401, 403, and 404 responses do not generate Sentry events
+- [x] Sentry events include `user_id` and `account_id` context when available
+- [x] Sentry release tag matches the application version
 
 **Safeguards:**
 > ⚠️ Be careful not to send sensitive data to Sentry — scrub passwords, tokens, and API keys from Oban job args before reporting. Use Sentry's `before_send` callback to sanitize.
@@ -529,3 +529,28 @@ The `user_name` field in audit logs is a snapshot, not a live lookup. Changing a
 - Oban Web requires Oban Pro licensing — if using free Oban, replace with a custom admin page querying `oban_jobs` directly
 - Sentry is only active when `SENTRY_DSN` environment variable is set — no-op in dev/test
 - Consider adding a periodic cleanup job for audit logs older than N years if storage becomes a concern (not in v1 scope)
+
+---
+
+## Implementation Decisions (documented during execution)
+
+### Decision 1: Module naming — `Kith.AuditLogs` (not `Kith.AuditLog`)
+The plan references `Kith.AuditLog` but the existing codebase uses `Kith.AuditLogs` (plural). Kept the existing name to avoid breaking all existing call sites.
+
+### Decision 2: Audit logging at call sites (not context functions)
+The plan says to wire `log_event` into context functions. However, the existing codebase pattern places audit logging at the call site (LiveView/controller). Adding it to context functions would require refactoring all context functions to accept a user parameter. Kept the existing pattern for consistency. Exception: Accounts context functions for `create_invitation`, `change_user_role`, `remove_user` have audit logging in the context function since they already have the necessary user information.
+
+### Decision 3: Workers use `create_audit_log` directly
+Workers that are already running inside Oban (ContactPurgeWorker, AccountResetWorker, etc.) use `create_audit_log` synchronously instead of `log_event`. Since they're already crash-safe via Oban, double-enqueuing into another Oban job would be redundant.
+
+### Decision 4: Added `contact_merged` event
+The plan's event list didn't include `contact_merged`, but the existing merge LiveView already logged this event. Added it to the valid events list.
+
+### Decision 5: Oban Dashboard — free version custom page
+Since the project uses free Oban (not Oban Pro), implemented a custom admin-only LiveView page at `/admin/oban` that queries the `oban_jobs` table directly, as suggested by the plan's notes.
+
+### Decision 6: PromEx for metrics (not raw prometheus_ex)
+The project already has `prom_ex` configured. PromEx auto-instruments Phoenix, Ecto, and Oban via plugins. Custom telemetry handlers were added for additional logging (slow query warnings, job lifecycle) that PromEx doesn't cover.
+
+### Decision 7: Backward-compatible /health endpoint
+The existing `/health` endpoint was preserved alongside the new `/health/live` and `/health/ready` endpoints to avoid breaking any existing Docker configurations.
