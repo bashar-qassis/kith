@@ -1,6 +1,7 @@
 defmodule Kith.SentryEventHandler do
   @moduledoc """
-  Telemetry handler for capturing Oban job failures in Sentry.
+  Telemetry handler for capturing Oban job failures in Sentry,
+  plus context enrichment via `before_send`.
 
   Only reports to Sentry on the final attempt (max_attempts reached)
   to avoid spamming Sentry on each retry.
@@ -37,19 +38,47 @@ defmodule Kith.SentryEventHandler do
         }
       )
     end
+  rescue
+    _ -> :ok
   end
 
   @doc """
-  Scrubs sensitive keys from params before sending to Sentry.
+  Enriches Sentry events with user context and scrubs sensitive data.
   Used as a `before_send` callback.
   """
   def before_send(event) do
+    event
+    |> enrich_with_logger_metadata()
+    |> scrub_event_data()
+  rescue
+    _ -> event
+  end
+
+  defp enrich_with_logger_metadata(event) do
+    metadata = Logger.metadata()
+
+    user_context =
+      %{}
+      |> maybe_put(:id, metadata[:user_id])
+      |> maybe_put(:account_id, metadata[:account_id])
+
+    if user_context == %{} do
+      event
+    else
+      %{event | user: Map.merge(event.user || %{}, user_context)}
+    end
+  end
+
+  defp scrub_event_data(event) do
     update_in(event.request.data, fn data ->
       scrub_params(data)
     end)
   rescue
     _ -> event
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   @doc "Recursively scrubs sensitive keys from a map."
   def scrub_params(params) when is_map(params) do
