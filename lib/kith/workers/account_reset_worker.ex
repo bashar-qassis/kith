@@ -22,6 +22,13 @@ defmodule Kith.Workers.AccountResetWorker do
   def perform(%Oban.Job{args: %{"account_id" => account_id}}) do
     Logger.info("AccountResetWorker: starting reset for account #{account_id}")
 
+    Kith.AuditLogs.create_audit_log(account_id, %{
+      user_id: nil,
+      user_name: "system",
+      event: "account_data_reset",
+      metadata: %{reason: "Account data reset initiated"}
+    })
+
     # 1. Cancel all Oban reminder jobs for the account
     cancel_reminder_jobs(account_id)
 

@@ -61,6 +61,10 @@ defmodule KithWeb.API.ContactExportController do
     account_id = user.account_id
     ids = Map.get(params, "ids", nil)
 
+    Kith.AuditLogs.log_event(account_id, user, :data_exported,
+      metadata: %{format: "vcf", scope: if(ids, do: "selected", else: "all")}
+    )
+
     date = Date.utc_today() |> Date.to_iso8601()
 
     conn =

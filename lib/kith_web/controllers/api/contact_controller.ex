@@ -96,6 +96,11 @@ defmodule KithWeb.API.ContactController do
 
     with true <- Policy.can?(user, :create, :contact),
          {:ok, contact} <- Contacts.create_contact(account_id, contact_params) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_created,
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
+
       conn
       |> put_status(201)
       |> put_resp_header("location", "/api/contacts/#{contact.id}")
@@ -121,6 +126,11 @@ defmodule KithWeb.API.ContactController do
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, id),
          safe_params = Map.drop(contact_params, ["account_id", "deleted_at", "id"]),
          {:ok, updated} <- Contacts.update_contact(contact, safe_params) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_updated,
+        contact_id: updated.id,
+        contact_name: updated.display_name
+      )
+
       json(conn, %{data: ContactJSON.data(updated)})
     else
       false -> {:error, :forbidden}
@@ -143,6 +153,11 @@ defmodule KithWeb.API.ContactController do
     with true <- Policy.can?(user, :delete, :contact),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, id),
          {:ok, _contact} <- Contacts.soft_delete_contact(contact) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_deleted,
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
+
       send_resp(conn, 204, "")
     else
       false -> {:error, :forbidden}
@@ -161,6 +176,11 @@ defmodule KithWeb.API.ContactController do
     with true <- Policy.can?(user, :update, :contact),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, id),
          {:ok, updated} <- Contacts.archive_contact(contact) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_archived,
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
+
       json(conn, %{data: ContactJSON.data(updated)})
     else
       false -> {:error, :forbidden}
@@ -177,6 +197,11 @@ defmodule KithWeb.API.ContactController do
     with true <- Policy.can?(user, :update, :contact),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, id),
          {:ok, updated} <- Contacts.unarchive_contact(contact) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_restored,
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
+
       json(conn, %{data: ContactJSON.data(updated)})
     else
       false -> {:error, :forbidden}
@@ -278,8 +303,16 @@ defmodule KithWeb.API.ContactController do
 
         true ->
           case Contacts.restore_contact(contact) do
-            {:ok, restored} -> json(conn, %{data: ContactJSON.data(restored)})
-            {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
+            {:ok, restored} ->
+              Kith.AuditLogs.log_event(account_id, user, :contact_restored,
+                contact_id: contact.id,
+                contact_name: contact.display_name
+              )
+
+              json(conn, %{data: ContactJSON.data(restored)})
+
+            {:error, %Ecto.Changeset{} = cs} ->
+              {:error, cs}
           end
       end
     else

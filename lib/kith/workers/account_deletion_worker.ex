@@ -28,6 +28,14 @@ defmodule Kith.Workers.AccountDeletionWorker do
       account ->
         Logger.info("AccountDeletionWorker: starting deletion for account #{account_id}")
 
+        # Log audit event before deletion (entry will be cascade-deleted with account)
+        Kith.AuditLogs.create_audit_log(account_id, %{
+          user_id: nil,
+          user_name: "system",
+          event: "account_deleted",
+          metadata: %{account_name: account.name}
+        })
+
         # 1. Cancel all Oban reminder jobs
         cancel_reminder_jobs(account_id)
 

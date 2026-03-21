@@ -63,11 +63,17 @@ defmodule KithWeb.SettingsLive.Account do
 
   def handle_event("toggle-feature", %{"feature" => feature}, socket) do
     account = socket.assigns.account
+    user = socket.assigns.current_scope.user
     flags = socket.assigns.feature_flags
     new_flags = Map.update(flags, feature, true, &(!&1))
 
     case Accounts.update_account(account, %{feature_flags: new_flags}) do
       {:ok, updated} ->
+        if feature == "immich" do
+          event = if Map.get(new_flags, "immich"), do: :immich_linked, else: :immich_unlinked
+          Kith.AuditLogs.log_event(account.id, user, event)
+        end
+
         {:noreply,
          socket
          |> assign(:account, updated)

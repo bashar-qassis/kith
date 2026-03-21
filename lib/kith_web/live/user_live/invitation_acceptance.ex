@@ -51,7 +51,15 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
     token = socket.assigns.token
 
     case Accounts.accept_invitation(token, user_params) do
-      {:ok, _user} ->
+      {:ok, user} ->
+        Kith.AuditLogs.log_event(user.account_id, user, :user_joined,
+          metadata: %{email: user.email, role: user.role}
+        )
+
+        Kith.AuditLogs.log_event(user.account_id, user, :invitation_accepted,
+          metadata: %{invitation_email: socket.assigns.invitation.email}
+        )
+
         {:noreply,
          socket
          |> put_flash(

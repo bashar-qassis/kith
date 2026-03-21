@@ -963,6 +963,10 @@ defmodule Kith.Accounts do
             url: invitation_url_fun.(raw_token)
           })
 
+          Kith.AuditLogs.log_event(account_id, invited_by, :invitation_sent,
+            metadata: %{email: email, role: invitation.role}
+          )
+
           {:ok, invitation}
 
         {:error, changeset} ->
@@ -1139,9 +1143,24 @@ defmodule Kith.Accounts do
   end
 
   defp do_update_role(user, new_role) do
-    user
-    |> User.role_changeset(%{role: new_role})
-    |> Repo.update()
+    old_role = user.role
+
+    case user |> User.role_changeset(%{role: new_role}) |> Repo.update() do
+      {:ok, updated} ->
+        Kith.AuditLogs.log_event(user.account_id, user, :user_role_changed,
+          metadata: %{
+            target_user_id: user.id,
+            target_email: user.email,
+            old_role: old_role,
+            new_role: new_role
+          }
+        )
+
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -1175,6 +1194,9 @@ defmodule Kith.Accounts do
   end
 
   defp do_remove_user(user) do
+    # Snapshot user info before deletion
+    user_name = user.display_name || user.email
+
     Ecto.Multi.new()
     |> Ecto.Multi.delete_all(
       :delete_tokens,
@@ -1183,8 +1205,18 @@ defmodule Kith.Accounts do
     |> Ecto.Multi.delete(:delete_user, user)
     |> Repo.transaction()
     |> case do
-      {:ok, %{delete_user: user}} -> {:ok, user}
-      {:error, _step, changeset, _} -> {:error, changeset}
+      {:ok, %{delete_user: deleted_user}} ->
+        Kith.AuditLogs.create_audit_log(user.account_id, %{
+          user_id: user.id,
+          user_name: user_name,
+          event: "user_removed",
+          metadata: %{email: user.email, role: user.role}
+        })
+
+        {:ok, deleted_user}
+
+      {:error, _step, changeset, _} ->
+        {:error, changeset}
     end
   end
 

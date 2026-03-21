@@ -40,6 +40,10 @@ defmodule KithWeb.API.ContactImportController do
           |> Kith.Workers.ImportWorker.new()
           |> Oban.insert()
 
+          Kith.AuditLogs.log_event(user.account_id, user, :data_imported,
+            metadata: %{format: "vcf", count: length(parsed_contacts), async: true}
+          )
+
           conn
           |> put_status(202)
           |> json(%{
@@ -49,6 +53,15 @@ defmodule KithWeb.API.ContactImportController do
           })
         else
           results = import_contacts_sync(user.account_id, parsed_contacts)
+
+          Kith.AuditLogs.log_event(user.account_id, user, :data_imported,
+            metadata: %{
+              format: "vcf",
+              imported: results.imported,
+              skipped: results.skipped,
+              async: false
+            }
+          )
 
           conn
           |> put_status(200)
