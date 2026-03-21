@@ -17,7 +17,7 @@ defmodule KithWeb.API.ContactJSON do
       last_name: contact.last_name,
       display_name: contact.display_name,
       nickname: contact.nickname,
-      birthdate: contact.birthdate,
+      birthdate: format_year_unknown_date(contact.birthdate, contact.birthdate_year_unknown),
       description: contact.description,
       occupation: contact.occupation,
       company: contact.company,
@@ -26,6 +26,13 @@ defmodule KithWeb.API.ContactJSON do
       deceased: contact.deceased,
       last_talked_to: contact.last_talked_to,
       gender_id: contact.gender_id,
+      middle_name: contact.middle_name,
+      first_met_at: format_year_unknown_date(contact.first_met_at, contact.first_met_year_unknown),
+      first_met_year_unknown: contact.first_met_year_unknown,
+      first_met_where: contact.first_met_where,
+      first_met_through_id: contact.first_met_through_id,
+      first_met_additional_info: contact.first_met_additional_info,
+      birthdate_year_unknown: contact.birthdate_year_unknown,
       inserted_at: contact.inserted_at,
       updated_at: contact.updated_at
     }
@@ -70,6 +77,9 @@ defmodule KithWeb.API.ContactJSON do
 
       :photos, acc ->
         Map.put(acc, :photos, render_assoc(contact.photos, &photo/1))
+
+      :first_met_through, acc ->
+        Map.put(acc, :first_met_through, render_first_met_through(contact))
 
       _, acc ->
         acc
@@ -207,4 +217,16 @@ defmodule KithWeb.API.ContactJSON do
       inserted_at: rel.inserted_at
     }
   end
+
+  defp render_first_met_through(%{first_met_through: %Ecto.Association.NotLoaded{}}), do: nil
+  defp render_first_met_through(%{first_met_through: nil}), do: nil
+  defp render_first_met_through(%{first_met_through: contact}) do
+    %{id: contact.id, display_name: contact.display_name}
+  end
+
+  defp format_year_unknown_date(nil, _unknown), do: nil
+  defp format_year_unknown_date(date, true) do
+    "--" <> String.slice(Date.to_iso8601(date), 5, 5)
+  end
+  defp format_year_unknown_date(date, _), do: date
 end

@@ -15,7 +15,7 @@ defmodule KithWeb.API.Includes do
 
   @valid_includes %{
     contact_show:
-      ~w(tags contact_fields addresses notes life_events activities calls relationships reminders documents photos),
+      ~w(tags contact_fields addresses notes life_events activities calls relationships reminders documents photos first_met_through),
     contact_list: ~w(tags contact_fields addresses),
     note: [],
     activity: ~w(contacts),
