@@ -2,7 +2,6 @@ defmodule KithWeb.ContactLive.Index do
   use KithWeb, :live_view
 
   alias Kith.Contacts
-  alias Kith.Contacts.Contact
 
   @page_size 20
 

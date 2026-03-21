@@ -26,6 +26,7 @@ defmodule KithWeb.ContactLive.Trash do
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex items-center justify-between mb-6">
           <h1 class="text-2xl font-bold">Trash</h1>
+
           <.link navigate={~p"/contacts"} class="link link-hover text-sm">
             <.icon name="hero-arrow-left" class="size-4" /> Back to Contacts
           </.link>
@@ -37,32 +38,36 @@ defmodule KithWeb.ContactLive.Trash do
         </div>
 
         <%= if @contacts == [] do %>
-          <.empty_state icon="hero-trash" message="Trash is empty." />
+          <.empty_state icon="hero-trash" title="Trash is empty." />
         <% else %>
           <div class="overflow-x-auto">
             <table class="table table-zebra w-full">
               <thead>
                 <tr>
                   <th>Name</th>
+
                   <th>Deleted On</th>
+
                   <th>Days Until Permanent Deletion</th>
+
                   <%= if authorized?(@current_scope.user, :update, :contact) do %>
                     <th>Actions</th>
                   <% end %>
                 </tr>
               </thead>
+
               <tbody>
                 <%= for contact <- @contacts do %>
                   <tr>
                     <td class="font-medium">
                       <div class="flex items-center gap-3">
-                        <.avatar contact={contact} size={:sm} />
+                        <.avatar name={contact.display_name} size={:sm} />
                         <span>{contact.display_name}</span>
                       </div>
                     </td>
-                    <td class="text-base-content/70">
-                      <.date_display value={contact.deleted_at} />
-                    </td>
+
+                    <td class="text-base-content/70"><.date_display date={contact.deleted_at} /></td>
+
                     <td>
                       <span class={[
                         "badge badge-sm",
@@ -74,6 +79,7 @@ defmodule KithWeb.ContactLive.Trash do
                         {days_remaining_label(contact.deleted_at)}
                       </span>
                     </td>
+
                     <%= if authorized?(@current_scope.user, :update, :contact) do %>
                       <td class="flex gap-2">
                         <button

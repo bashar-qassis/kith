@@ -52,35 +52,40 @@ defmodule KithWeb.ContactLive.Edit do
         <h1 class="text-2xl font-bold mb-6">
           {if @contact, do: "Edit #{@contact.display_name}", else: "Edit Contact"}
         </h1>
-
-        <.simple_form for={@changeset} id="contact-form" phx-change="validate" phx-submit="save">
+        
+        <.simple_form
+          :let={f}
+          for={@changeset}
+          id="contact-form"
+          as={:contact}
+          phx-change="validate"
+          phx-submit="save"
+        >
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <.input
-              field={@changeset[:first_name]}
+              field={f[:first_name]}
               type="text"
               label="First Name *"
               required
-            />
-            <.input field={@changeset[:last_name]} type="text" label="Last Name" />
-            <.input field={@changeset[:nickname]} type="text" label="Nickname" />
+            /> <.input field={f[:last_name]} type="text" label="Last Name" />
+            <.input field={f[:nickname]} type="text" label="Nickname" />
             <.input
-              field={@changeset[:gender_id]}
+              field={f[:gender_id]}
               type="select"
               label="Gender"
               prompt="Select gender"
               options={Enum.map(@genders, &{&1.name, &1.id})}
-            />
-            <.input field={@changeset[:birthdate]} type="date" label="Birthdate" />
-            <.input field={@changeset[:occupation]} type="text" label="Occupation" />
-            <.input field={@changeset[:company]} type="text" label="Company" />
-            <.input field={@changeset[:deceased]} type="checkbox" label="Deceased" />
-            <.input field={@changeset[:favorite]} type="checkbox" label="Favorite" />
+            /> <.input field={f[:birthdate]} type="date" label="Birthdate" />
+            <.input field={f[:occupation]} type="text" label="Occupation" />
+            <.input field={f[:company]} type="text" label="Company" />
+            <.input field={f[:deceased]} type="checkbox" label="Deceased" />
+            <.input field={f[:favorite]} type="checkbox" label="Favorite" />
           </div>
-
+          
           <%= if @show_deceased_at do %>
-            <.input field={@changeset[:deceased_at]} type="date" label="Date of Death" />
+            <.input field={f[:deceased_at]} type="date" label="Date of Death" />
           <% end %>
-
+          
           <:actions>
             <.link
               navigate={if @contact, do: ~p"/contacts/#{@contact.id}", else: ~p"/contacts"}

@@ -796,6 +796,13 @@ defmodule Kith.Accounts do
   end
 
   @doc """
+  Permanently deletes an account and all associated data.
+  """
+  def delete_account(%Account{} = account) do
+    Repo.delete(account)
+  end
+
+  @doc """
   Lists all users for an account.
   """
   def list_users(account_id) do

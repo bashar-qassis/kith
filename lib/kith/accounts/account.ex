@@ -41,7 +41,7 @@ defmodule Kith.Accounts.Account do
   """
   def settings_changeset(account, attrs) do
     account
-    |> cast(attrs, [:name, :timezone, :locale, :send_hour])
+    |> cast(attrs, [:name, :timezone, :locale, :send_hour, :feature_flags])
     |> validate_required([:name])
     |> validate_length(:name, max: 255)
     |> validate_number(:send_hour, greater_than_or_equal_to: 0, less_than_or_equal_to: 23)
