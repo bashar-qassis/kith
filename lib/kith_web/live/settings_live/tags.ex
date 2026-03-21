@@ -4,21 +4,31 @@ defmodule KithWeb.SettingsLive.Tags do
   alias Kith.Contacts
   alias Kith.Contacts.Tag
 
+  import KithWeb.SettingsLive.SettingsLayout
+
   @impl true
   def mount(_params, _session, socket) do
-    account_id = socket.assigns.current_scope.account.id
-    user = socket.assigns.current_scope.user
-
-    can_edit = Kith.Policy.can?(user, :create, :tag)
-
     {:ok,
      socket
      |> assign(:page_title, "Tags")
-     |> assign(:account_id, account_id)
-     |> assign(:can_edit, can_edit)
-     |> assign(:tags, Contacts.list_tags(account_id))
+     |> assign(:account_id, nil)
+     |> assign(:can_edit, false)
+     |> assign(:tags, [])
      |> assign(:editing_tag, nil)
      |> assign(:changeset, Tag.changeset(%Tag{}, %{}))}
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    account_id = socket.assigns.current_scope.account.id
+    user = socket.assigns.current_scope.user
+    can_edit = Kith.Policy.can?(user, :create, :tag)
+
+    {:noreply,
+     socket
+     |> assign(:account_id, account_id)
+     |> assign(:can_edit, can_edit)
+     |> assign(:tags, Contacts.list_tags(account_id))}
   end
 
   @impl true

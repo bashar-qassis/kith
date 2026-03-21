@@ -3,24 +3,13 @@ defmodule KithWeb.SettingsLive.Import do
 
   alias Kith.Policy
   alias Kith.VCard.Parser
-  alias Kith.Contacts
+
+  import KithWeb.SettingsLive.SettingsLayout
 
   @max_file_size 10 * 1024 * 1024
 
   @impl true
   def mount(_params, _session, socket) do
-    scope = socket.assigns.current_scope
-    user = scope.user
-
-    unless Policy.can?(user, :create, :import) do
-      raise KithWeb.ForbiddenError
-    end
-
-    # Subscribe to import progress for async imports
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{scope.account.id}")
-    end
-
     {:ok,
      socket
      |> assign(:page_title, "Import Contacts")
@@ -33,6 +22,26 @@ defmodule KithWeb.SettingsLive.Import do
        max_file_size: @max_file_size,
        max_entries: 1
      )}
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    scope = socket.assigns.current_scope
+    user = scope.user
+
+    unless Policy.can?(user, :create, :import) do
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to import contacts.")
+       |> push_navigate(to: ~p"/")}
+    else
+      # Subscribe to import progress for async imports
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{scope.account.id}")
+      end
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -121,114 +130,121 @@ defmodule KithWeb.SettingsLive.Import do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto px-4 py-8">
-      <.header>
-        Import Contacts
-        <:subtitle>Import contacts from a vCard (.vcf) file</:subtitle>
-      </.header>
+    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+      <.settings_shell current_path={@current_path} current_scope={@current_scope}>
+        <.header>
+          Import Contacts
+          <:subtitle>Import contacts from a vCard (.vcf) file</:subtitle>
+        </.header>
 
-      <%!-- Warning banner --%>
-      <div class="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <p class="text-amber-800 font-medium">Before you import</p>
-        <p class="text-amber-700 text-sm mt-1">
-          Import creates new contacts. Existing contacts are not updated.
-          Review for duplicates after import.
-        </p>
-      </div>
-
-      <%!-- Results --%>
-      <div :if={@results} class="mt-6 bg-white border rounded-lg p-6">
-        <h3 class="text-lg font-semibold mb-3">Import Results</h3>
-
-        <div class="space-y-2">
-          <p class="text-green-700">
-            <span class="font-semibold">{@results.imported}</span> contacts imported successfully
-          </p>
-          <p :if={@results.skipped > 0} class="text-amber-700">
-            <span class="font-semibold">{@results.skipped}</span> entries skipped
-          </p>
-          <p :if={@results.skipped_duplicates > 0} class="text-amber-600 text-sm">
-            {@results.duplicate_message}
+        <%!-- Warning banner --%>
+        <div class="mt-6 bg-warning/10 border border-warning/30 rounded-lg p-4">
+          <p class="text-warning font-medium">Before you import</p>
+          <p class="text-base-content/70 text-sm mt-1">
+            Import creates new contacts. Existing contacts are not updated.
+            Review for duplicates after import.
           </p>
         </div>
 
-        <div :if={@results.errors != []} class="mt-4">
-          <details class="text-sm">
-            <summary class="cursor-pointer text-gray-600 hover:text-gray-800">
-              Show error details ({length(@results.errors)} errors)
-            </summary>
-            <ul class="mt-2 space-y-1 text-red-600">
-              <li :for={error <- @results.errors}>{error}</li>
-            </ul>
-          </details>
-        </div>
+        <%!-- Results --%>
+        <div :if={@results} class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+          <h3 class="text-lg font-semibold mb-3">Import Results</h3>
 
-        <div class="mt-4">
-          <.link navigate={~p"/contacts"} class="text-blue-600 hover:underline text-sm">
-            View imported contacts
-          </.link>
-        </div>
-      </div>
-
-      <%!-- Progress --%>
-      <div :if={@progress} class="mt-6 bg-white border rounded-lg p-6">
-        <p class="text-gray-700 mb-2">Processing import... This may take a few minutes.</p>
-        <div class="w-full bg-gray-200 rounded-full h-2">
-          <div
-            class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={"width: #{if @progress.total > 0, do: round(@progress.current / @progress.total * 100), else: 0}%"}
-          >
-          </div>
-        </div>
-        <p class="text-sm text-gray-500 mt-1">
-          {@progress.current} / {@progress.total} contacts
-        </p>
-      </div>
-
-      <%!-- Upload form --%>
-      <div :if={!@results && !@progress} class="mt-6 bg-white border rounded-lg p-6">
-        <form id="import-form" phx-submit="import" phx-change="validate">
-          <div
-            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors"
-            phx-drop-target={@uploads.vcf_file.ref}
-          >
-            <.live_file_input upload={@uploads.vcf_file} class="hidden" />
-            <p class="text-gray-600">
-              Drag and drop a <span class="font-semibold">.vcf</span>
-              file here, or
-              <label for={@uploads.vcf_file.ref} class="text-blue-600 hover:underline cursor-pointer">
-                browse
-              </label>
+          <div class="space-y-2">
+            <p class="text-success">
+              <span class="font-semibold">{@results.imported}</span> contacts imported successfully
             </p>
-            <p class="text-xs text-gray-400 mt-1">Maximum file size: 10 MB</p>
+            <p :if={@results.skipped > 0} class="text-warning">
+              <span class="font-semibold">{@results.skipped}</span> entries skipped
+            </p>
+            <p :if={@results.skipped_duplicates > 0} class="text-warning text-sm">
+              {@results.duplicate_message}
+            </p>
           </div>
 
-          <%!-- Show selected file --%>
-          <div
-            :for={entry <- @uploads.vcf_file.entries}
-            class="mt-4 flex items-center justify-between"
-          >
-            <span class="text-sm text-gray-700">{entry.client_name}</span>
-            <span class="text-xs text-gray-500">{Float.round(entry.client_size / 1024, 1)} KB</span>
+          <div :if={@results.errors != []} class="mt-4">
+            <details class="text-sm">
+              <summary class="cursor-pointer text-base-content/60 hover:text-base-content">
+                Show error details ({length(@results.errors)} errors)
+              </summary>
+              <ul class="mt-2 space-y-1 text-error">
+                <li :for={error <- @results.errors}>{error}</li>
+              </ul>
+            </details>
           </div>
-
-          <%!-- Upload errors --%>
-          <p :for={err <- upload_errors(@uploads.vcf_file)} class="mt-2 text-sm text-red-600">
-            {upload_error_message(err)}
-          </p>
 
           <div class="mt-4">
-            <button
-              type="submit"
-              disabled={@importing || @uploads.vcf_file.entries == []}
-              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm disabled:opacity-50"
-            >
-              {if @importing, do: "Importing...", else: "Import Contacts"}
-            </button>
+            <.link navigate={~p"/contacts"} class="text-primary hover:underline text-sm">
+              View imported contacts
+            </.link>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <%!-- Progress --%>
+        <div :if={@progress} class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+          <p class="text-base-content/70 mb-2">Processing import... This may take a few minutes.</p>
+          <div class="w-full bg-base-300 rounded-full h-2">
+            <div
+              class="bg-primary h-2 rounded-full transition-all duration-300"
+              style={"width: #{if @progress.total > 0, do: round(@progress.current / @progress.total * 100), else: 0}%"}
+            >
+            </div>
+          </div>
+          <p class="text-sm text-base-content/50 mt-1">
+            {@progress.current} / {@progress.total} contacts
+          </p>
+        </div>
+
+        <%!-- Upload form --%>
+        <div
+          :if={!@results && !@progress}
+          class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6"
+        >
+          <form id="import-form" phx-submit="import" phx-change="validate">
+            <div
+              class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center hover:border-base-content/30 transition-colors"
+              phx-drop-target={@uploads.vcf_file.ref}
+            >
+              <.live_file_input upload={@uploads.vcf_file} class="hidden" />
+              <p class="text-base-content/60">
+                Drag and drop a <span class="font-semibold">.vcf</span>
+                file here, or
+                <label for={@uploads.vcf_file.ref} class="text-primary hover:underline cursor-pointer">
+                  browse
+                </label>
+              </p>
+              <p class="text-xs text-base-content/40 mt-1">Maximum file size: 10 MB</p>
+            </div>
+
+            <%!-- Show selected file --%>
+            <div
+              :for={entry <- @uploads.vcf_file.entries}
+              class="mt-4 flex items-center justify-between"
+            >
+              <span class="text-sm text-base-content/70">{entry.client_name}</span>
+              <span class="text-xs text-base-content/50">
+                {Float.round(entry.client_size / 1024, 1)} KB
+              </span>
+            </div>
+
+            <%!-- Upload errors --%>
+            <p :for={err <- upload_errors(@uploads.vcf_file)} class="mt-2 text-sm text-error">
+              {upload_error_message(err)}
+            </p>
+
+            <div class="mt-4">
+              <button
+                type="submit"
+                disabled={@importing || @uploads.vcf_file.entries == []}
+                class="btn btn-primary btn-sm disabled:opacity-50"
+              >
+                {if @importing, do: "Importing...", else: "Import Contacts"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </.settings_shell>
+    </Layouts.app>
     """
   end
 
