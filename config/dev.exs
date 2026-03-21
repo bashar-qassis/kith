@@ -82,6 +82,9 @@ config :swoosh, :api_client, false
 # Disable Sentry in dev (no hackney dependency needed)
 config :sentry, client: Sentry.NoopClient, dsn: nil
 
+# Dev metrics token (for testing /metrics endpoint locally)
+config :kith, metrics_token: "dev-metrics-token"
+
 # Enable dev routes for dashboard and mailbox
 config :kith, dev_routes: true
 

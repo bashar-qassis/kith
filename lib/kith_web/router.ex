@@ -38,6 +38,17 @@ defmodule KithWeb.Router do
     get "/ready", HealthController, :ready
   end
 
+  # Prometheus metrics — Bearer token auth, no user session
+  # Caddy should restrict external access; Prometheus scrapes from Docker network.
+  pipeline :metrics do
+    plug KithWeb.Plugs.MetricsAuth
+  end
+
+  scope "/" do
+    pipe_through :metrics
+    get "/metrics", PromEx.Plug, prom_ex_module: Kith.PromEx
+  end
+
   # Backward-compatible single health endpoint
   scope "/", KithWeb do
     get "/health", HealthController, :index

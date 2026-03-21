@@ -222,6 +222,13 @@ if config_env() == :prod do
 
   config :remote_ip, headers: ~w[x-forwarded-for], proxies: trusted_proxies
 
+  # Metrics endpoint authentication
+  metrics_token =
+    System.get_env("METRICS_TOKEN") ||
+      raise "METRICS_TOKEN is required in production for /metrics endpoint"
+
+  config :kith, metrics_token: metrics_token
+
   # Structured JSON logging in production
   config :logger, :default_handler,
     formatter: {LoggerJSON.Formatters.Basic, metadata: [:request_id, :user_id, :account_id]}

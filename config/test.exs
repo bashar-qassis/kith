@@ -35,6 +35,9 @@ config :swoosh, :api_client, false
 # Disable Sentry in tests
 config :sentry, client: Sentry.NoopClient, dsn: nil
 
+# Test metrics token
+config :kith, metrics_token: "test-metrics-token"
+
 # Disable email verification by default in tests (override per-test as needed)
 config :kith, signup_double_optin: false
 
