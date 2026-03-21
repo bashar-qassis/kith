@@ -35,6 +35,7 @@ Tracks each import job.
 | file_storage_key | string | reference to file in Kith.Storage |
 | api_url | string | nullable, for photo sync |
 | api_key_encrypted | binary | nullable, encrypted via Vault |
+| api_options | map | nullable, selected API supplement options e.g. `%{photos: true, first_met_details: true}` |
 | summary | map | `%{contacts: 851, notes: 423, skipped: 2, errors: [...]}` |
 | started_at | utc_datetime | |
 | completed_at | utc_datetime | |
@@ -98,8 +99,12 @@ defmodule Kith.Imports.Source do
   @callback test_connection(credential()) :: :ok | {:error, String.t()}
   @callback fetch_photo(credential(), resource_id :: String.t()) ::
               {:ok, binary()} | {:error, term()}
+  # Returns list of supplementary data types the API can provide beyond the file export
+  @callback api_supplement_options() :: [%{key: atom(), label: String.t(), description: String.t()}]
+  @callback fetch_supplement(credential(), contact_source_id :: String.t(), key :: atom()) ::
+              {:ok, map()} | {:error, term()}
 
-  @optional_callbacks [test_connection: 1, fetch_photo: 2]
+  @optional_callbacks [test_connection: 1, fetch_photo: 2, api_supplement_options: 0, fetch_supplement: 3]
 end
 ```
 
@@ -181,8 +186,8 @@ Replaces the existing `ImportWorker` for new imports.
 | description | description | direct |
 | first_met_date (nested special_date object) | first_met_at | extract `.date` from the nested object; handle `is_year_unknown` and `is_age_based` |
 | first_met_through (UUID) | first_met_through_id | resolve via import_records after all contacts imported (Phase 4, alongside relationships) |
-| first_met_where | first_met_where | NOT in JSON export — only in SQL dump. Left null on import. |
-| first_met_additional_info | first_met_additional_info | NOT in JSON export — only in SQL dump. Left null on import. |
+| first_met_where | first_met_where | NOT in JSON export. Fetched via API supplement (`GET /api/contacts/{id}`) if user enables "Fetch how we met details" option. |
+| first_met_additional_info | first_met_additional_info | NOT in JSON export. Fetched via API supplement (same call as above). |
 | gender (UUID) | gender_id | via import_records lookup |
 | birthdate (nested special_date object) | birthdate | Same structure as `first_met_date` — extract `.date`, handle `is_year_unknown` and `is_age_based` |
 | tags (UUID array) | tags | find-or-create tags by name (account-scoped), then insert join table rows |
@@ -277,11 +282,29 @@ Per job:
 5. On HTTP 429 → return `{:snooze, 60}` (Oban reschedules after 60s, does NOT reprocess batch)
 6. On other errors → Oban retries with backoff (max 3 attempts)
 
+### API Supplement Worker
+
+`Kith.Workers.ApiSupplementWorker` — Oban worker, queue: `:api_supplement`
+
+**Config requirement:** Add `api_supplement: 3` to Oban queues in `config/config.exs`.
+
+Handles all non-photo API fetches (first_met details, future supplement types). One job per contact, staggered like photo sync (batches of 50, 60-second gaps).
+
+Per job:
+1. Load the import record and contact
+2. Call `GET {monica_url}/api/contacts/{source_contact_id}` with Bearer token
+3. Extract `first_met_where` and `first_met_additional_information` from the response
+4. Update the Kith contact record
+5. On HTTP 429 → `{:snooze, 60}`
+6. On other errors → Oban retries with backoff (max 3 attempts)
+
+The worker checks `api_options` on the import to determine which fields to fetch. If only `first_met_details` is selected (no photos), only this worker runs. If both are selected, both workers run concurrently with independent rate limiting.
+
 ### Progress
 
-Photo sync progress is tracked separately from the main import:
-- Import summary includes `photos_total` and `photos_synced` counters
-- PubSub broadcasts photo sync progress for the UI
+Photo sync and API supplement progress are tracked separately from the main import:
+- Import summary includes `photos_total`, `photos_synced`, `supplements_total`, `supplements_synced` counters
+- PubSub broadcasts progress for the UI
 
 ## Import Wizard UI
 
@@ -299,10 +322,16 @@ New import wizard in the existing import tab. Supports multiple source types.
 - File upload (accepts `.json`)
 - On upload: validate JSON structure (check `version`, `app_version`, `account.data`)
 - Show summary: "Found 851 contacts, 26 relationships, 313 photos"
-- Optional expandable section: "Connect to Monica for photo sync"
+- Optional expandable section: "Connect to Monica API"
   - Monica URL field
   - API key field
   - "Test Connection" button → hits `/api/me`, shows inline success/failure
+  - On successful connection, show checkboxes for API-supplemented data (from `api_supplement_options/0`):
+    - [x] Sync photos (313 found)
+    - [x] Fetch "How we met" details (first_met_where, first_met_additional_info)
+    - Future sources can add their own options here
+  - Checkboxes are only shown after a successful connection test
+  - Selected options are stored on the `imports` record as `api_options` (map)
 
 **Step 3 — Confirmation:**
 - Summary table of what will be imported
@@ -314,7 +343,9 @@ New import wizard in the existing import tab. Supports multiple source types.
 - Running counters: imported / updated / skipped / errors
 - Expandable error log with specific failures
 - On main import completion: summary card with totals
-- If photo sync enabled: secondary progress "Syncing photos: 42/313" continues updating
+- If API options enabled, secondary progress bars that continue after main import:
+  - "Syncing photos: 42/313" (if photos selected)
+  - "Fetching details: 100/851" (if first_met_details selected)
 
 ### Implementation
 
@@ -345,6 +376,7 @@ lib/kith/imports/sources/monica.ex           # Monica source implementation
 lib/kith/imports/sources/vcard.ex            # VCard source (wraps existing parser)
 lib/kith/workers/import_source_worker.ex     # Generic import Oban worker
 lib/kith/workers/photo_sync_worker.ex        # Photo download Oban worker
+lib/kith/workers/api_supplement_worker.ex    # API data supplement Oban worker
 
 lib/kith_web/live/import_wizard_live.ex      # Import wizard LiveView
 lib/kith_web/live/components/monica_import_component.ex
