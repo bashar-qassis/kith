@@ -50,3 +50,6 @@ erl_crash.dump
 # Generated reports
 /docs/playwright-report/
 /docs/screenshots/
+
+# Git worktrees
+.worktrees/
