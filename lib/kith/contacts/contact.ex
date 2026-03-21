@@ -31,9 +31,18 @@ defmodule Kith.Contacts.Contact do
     field :immich_last_synced_at, :utc_datetime
     field :aliases, {:array, :string}, default: []
 
+    # First-met metadata
+    field :middle_name, :string
+    field :first_met_at, :date
+    field :first_met_year_unknown, :boolean, default: false
+    field :first_met_where, :string
+    field :first_met_additional_info, :string
+    field :birthdate_year_unknown, :boolean, default: false
+
     belongs_to :account, Kith.Accounts.Account
     belongs_to :gender, Kith.Contacts.Gender
     belongs_to :currency, Kith.Contacts.Currency
+    belongs_to :first_met_through, Kith.Contacts.Contact
 
     has_many :addresses, Kith.Contacts.Address
     has_many :contact_fields, Kith.Contacts.ContactField
@@ -79,7 +88,14 @@ defmodule Kith.Contacts.Contact do
       :aliases,
       :account_id,
       :gender_id,
-      :currency_id
+      :currency_id,
+      :middle_name,
+      :first_met_at,
+      :first_met_year_unknown,
+      :first_met_where,
+      :first_met_through_id,
+      :first_met_additional_info,
+      :birthdate_year_unknown
     ])
     |> validate_required([:first_name, :account_id])
     |> assoc_constraint(:account)
@@ -108,7 +124,14 @@ defmodule Kith.Contacts.Contact do
       :immich_person_url,
       :immich_status,
       :immich_last_synced_at,
-      :aliases
+      :aliases,
+      :middle_name,
+      :first_met_at,
+      :first_met_year_unknown,
+      :first_met_where,
+      :first_met_through_id,
+      :first_met_additional_info,
+      :birthdate_year_unknown
     ])
     |> validate_required([:first_name])
     |> compute_display_name()
@@ -128,10 +151,11 @@ defmodule Kith.Contacts.Contact do
 
   defp compute_display_name(changeset) do
     first = get_field(changeset, :first_name)
+    middle = get_field(changeset, :middle_name)
     last = get_field(changeset, :last_name)
 
     display_name =
-      [first, last]
+      [first, middle, last]
       |> Enum.reject(&is_nil/1)
       |> Enum.reject(&(&1 == ""))
       |> Enum.join(" ")
