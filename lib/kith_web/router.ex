@@ -32,6 +32,17 @@ defmodule KithWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
+  # Well-known URLs for DAV client auto-discovery (RFC 6764)
+  scope "/.well-known", KithWeb do
+    get "/carddav", WellKnownController, :carddav
+  end
+
+  # CardDAV server — handles PROPFIND, REPORT, GET, PUT, DELETE via plug
+  # Auth is handled internally by Kith.DAV.Auth (HTTP Basic over TLS)
+  scope "/dav" do
+    forward "/", Kith.DAV.CardDAVPlug
+  end
+
   # Health check — no auth required (used by Docker HEALTHCHECK and orchestrators)
   scope "/health", KithWeb do
     get "/live", HealthController, :live
@@ -58,6 +69,7 @@ defmodule KithWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/terms", PageController, :tos
   end
 
   pipeline :api_public_rate_limited do
@@ -172,6 +184,58 @@ defmodule KithWeb.Router do
     delete "/reminders/:id", ReminderController, :delete
     post "/reminder_instances/:id/resolve", ReminderController, :resolve_instance
     post "/reminder_instances/:id/dismiss", ReminderController, :dismiss_instance
+    post "/reminder_instances/:id/snooze", ReminderController, :snooze_instance
+
+    # Tasks
+    get "/contacts/:contact_id/tasks", TaskController, :index
+    post "/contacts/:contact_id/tasks", TaskController, :create
+    get "/tasks/:id", TaskController, :show
+    patch "/tasks/:id", TaskController, :update
+    delete "/tasks/:id", TaskController, :delete
+    post "/tasks/:id/complete", TaskController, :complete
+
+    # Pets
+    get "/contacts/:contact_id/pets", PetController, :index
+    post "/contacts/:contact_id/pets", PetController, :create
+    get "/pets/:id", PetController, :show
+    patch "/pets/:id", PetController, :update
+    delete "/pets/:id", PetController, :delete
+
+    # Gifts
+    get "/contacts/:contact_id/gifts", GiftController, :index
+    post "/contacts/:contact_id/gifts", GiftController, :create
+    get "/gifts/:id", GiftController, :show
+    patch "/gifts/:id", GiftController, :update
+    delete "/gifts/:id", GiftController, :delete
+
+    # Debts
+    get "/contacts/:contact_id/debts", DebtController, :index
+    post "/contacts/:contact_id/debts", DebtController, :create
+    get "/debts/:id", DebtController, :show
+    patch "/debts/:id", DebtController, :update
+    delete "/debts/:id", DebtController, :delete
+    post "/debts/:id/settle", DebtController, :settle
+    post "/debts/:id/write_off", DebtController, :write_off
+    post "/debts/:id/payments", DebtController, :add_payment
+    delete "/debt_payments/:id", DebtController, :delete_payment
+
+    # Conversations
+    get "/contacts/:contact_id/conversations", ConversationController, :index
+    post "/contacts/:contact_id/conversations", ConversationController, :create
+    get "/conversations/:id", ConversationController, :show
+    patch "/conversations/:id", ConversationController, :update
+    delete "/conversations/:id", ConversationController, :delete
+
+    # Messages
+    get "/conversations/:conversation_id/messages", MessageController, :index
+    post "/conversations/:conversation_id/messages", MessageController, :create
+
+    # Journal (account-level, not contact-scoped)
+    get "/journal", JournalController, :index
+    post "/journal", JournalController, :create
+    get "/journal/:id", JournalController, :show
+    patch "/journal/:id", JournalController, :update
+    delete "/journal/:id", JournalController, :delete
 
     # Tags
     get "/tags", TagController, :index
@@ -199,6 +263,21 @@ defmodule KithWeb.Router do
     patch "/contact_field_types/:id", ContactFieldTypeController, :update
     delete "/contact_field_types/:id", ContactFieldTypeController, :delete
 
+    get "/emotions", EmotionController, :index
+    post "/emotions", EmotionController, :create
+    patch "/emotions/:id", EmotionController, :update
+    delete "/emotions/:id", EmotionController, :delete
+
+    get "/activity_type_categories", ActivityTypeCategoryController, :index
+    post "/activity_type_categories", ActivityTypeCategoryController, :create
+    patch "/activity_type_categories/:id", ActivityTypeCategoryController, :update
+    delete "/activity_type_categories/:id", ActivityTypeCategoryController, :delete
+
+    get "/life_event_types", LifeEventTypeController, :index
+    post "/life_event_types", LifeEventTypeController, :create
+    patch "/life_event_types/:id", LifeEventTypeController, :update
+    delete "/life_event_types/:id", LifeEventTypeController, :delete
+
     # Export endpoints
     get "/contacts/export.vcf", ContactExportController, :bulk
     get "/contacts/:id/export.vcf", ContactExportController, :show
@@ -206,6 +285,11 @@ defmodule KithWeb.Router do
 
     # Import endpoint
     post "/contacts/import", ContactImportController, :create
+
+    # Duplicate Detection
+    get "/duplicates", DuplicateController, :index
+    post "/duplicates/scan", DuplicateController, :scan
+    post "/duplicates/:id/dismiss", DuplicateController, :dismiss
 
     # Mobile push integration point — implement in v2
     post "/devices", DeviceController, :create
@@ -257,10 +341,14 @@ defmodule KithWeb.Router do
       # Reminders
       live "/reminders/upcoming", ReminderLive.Upcoming, :index
 
+      # Journal
+      live "/journal", JournalLive.Index, :index
+
       # Contact management
       live "/contacts", ContactLive.Index, :index
       live "/contacts/archived", ContactLive.Index, :archived
       live "/contacts/trash", ContactLive.Trash, :index
+      live "/contacts/duplicates", ContactLive.Duplicates, :index
       live "/contacts/new", ContactLive.New, :new
       live "/contacts/:id", ContactLive.Show, :show
       live "/contacts/:id/edit", ContactLive.Edit, :edit
@@ -268,6 +356,9 @@ defmodule KithWeb.Router do
 
       # Settings
       live "/settings/tags", SettingsLive.Tags, :index
+      live "/settings/emotions", SettingsLive.Emotions, :index
+      live "/settings/activity-types", SettingsLive.ActivityTypes, :index
+      live "/settings/life-event-types", SettingsLive.LifeEventTypes, :index
       live "/settings/integrations", SettingsLive.Integrations, :index
       live "/settings/account", SettingsLive.Account, :index
       live "/settings/import", SettingsLive.Import, :index

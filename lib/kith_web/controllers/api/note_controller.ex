@@ -19,12 +19,14 @@ defmodule KithWeb.API.NoteController do
   def index(conn, %{"contact_id" => contact_id} = params) do
     scope = conn.assigns.current_scope
     account_id = scope.account.id
+    user_id = scope.user.id
 
     with {:ok, _contact} <- fetch_contact(account_id, contact_id) do
       query =
         Note
         |> TenantScope.scope_to_account(account_id)
         |> where([n], n.contact_id == ^contact_id)
+        |> where([n], n.is_private == false or n.author_id == ^user_id)
 
       {notes, meta} = Pagination.paginate(query, params)
       json(conn, Pagination.paginated_response(Enum.map(notes, &note_json/1), meta))
@@ -36,10 +38,17 @@ defmodule KithWeb.API.NoteController do
   def show(conn, %{"id" => id}) do
     scope = conn.assigns.current_scope
     account_id = scope.account.id
+    user_id = scope.user.id
 
     case Note |> TenantScope.scope_to_account(account_id) |> Repo.get(id) do
-      nil -> {:error, :not_found}
-      note -> json(conn, %{data: note_json(note)})
+      nil ->
+        {:error, :not_found}
+
+      %Note{is_private: true, author_id: author_id} when author_id != user_id ->
+        {:error, :not_found}
+
+      note ->
+        json(conn, %{data: note_json(note)})
     end
   end
 
@@ -153,6 +162,8 @@ defmodule KithWeb.API.NoteController do
       contact_id: note.contact_id,
       body: note.body,
       favorite: note.favorite,
+      is_private: note.is_private,
+      author_id: note.author_id,
       inserted_at: note.inserted_at,
       updated_at: note.updated_at
     }

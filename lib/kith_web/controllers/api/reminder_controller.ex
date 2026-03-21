@@ -83,9 +83,6 @@ defmodule KithWeb.API.ReminderController do
         {:ok, reminder} ->
           conn |> put_status(201) |> json(%{data: reminder_json(reminder)})
 
-        {:error, _step, %Ecto.Changeset{} = cs, _changes} ->
-          {:error, cs}
-
         {:error, %Ecto.Changeset{} = cs} ->
           {:error, cs}
 
@@ -117,9 +114,6 @@ defmodule KithWeb.API.ReminderController do
           case Reminders.update_reminder(reminder, attrs) do
             {:ok, updated} ->
               json(conn, %{data: reminder_json(updated)})
-
-            {:error, _step, %Ecto.Changeset{} = cs, _changes} ->
-              {:error, cs}
 
             {:error, %Ecto.Changeset{} = cs} ->
               {:error, cs}
@@ -174,6 +168,26 @@ defmodule KithWeb.API.ReminderController do
     end
   end
 
+  # POST /api/reminder_instances/:id/snooze
+  def snooze_instance(conn, %{"id" => id, "duration" => duration}) do
+    scope = conn.assigns.current_scope
+    user = scope.user
+    account_id = scope.account.id
+
+    with true <- Policy.can?(user, :update, :reminder),
+         instance when not is_nil(instance) <-
+           ReminderInstance |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id),
+         true <- duration in ReminderInstance.snooze_durations(),
+         {:ok, updated} <- Reminders.snooze_instance(instance, duration) do
+      json(conn, %{data: instance_json(updated)})
+    else
+      false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
+      {:error, :invalid_status} -> {:error, :conflict, "Instance is not in pending status"}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
   # POST /api/reminder_instances/:id/dismiss
   def dismiss_instance(conn, %{"id" => id}) do
     scope = conn.assigns.current_scope
@@ -214,6 +228,23 @@ defmodule KithWeb.API.ReminderController do
       frequency: r.frequency,
       inserted_at: r.inserted_at,
       updated_at: r.updated_at
+    }
+  end
+
+  defp instance_json(%ReminderInstance{} = i) do
+    %{
+      id: i.id,
+      status: i.status,
+      scheduled_for: i.scheduled_for,
+      fired_at: i.fired_at,
+      resolved_at: i.resolved_at,
+      snoozed_until: i.snoozed_until,
+      snooze_count: i.snooze_count,
+      reminder_id: i.reminder_id,
+      account_id: i.account_id,
+      contact_id: i.contact_id,
+      inserted_at: i.inserted_at,
+      updated_at: i.updated_at
     }
   end
 end
