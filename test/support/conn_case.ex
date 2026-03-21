@@ -28,6 +28,7 @@ defmodule KithWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import KithWeb.ConnCase
+      import KithWeb.APIHelpers
     end
   end
 
