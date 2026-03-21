@@ -14,6 +14,8 @@ defmodule Kith.Storage.Backend do
   @callback upload_binary(binary :: binary(), destination :: storage_key(), opts()) ::
               {:ok, storage_key()} | {:error, term()}
 
+  @callback read(storage_key()) :: {:ok, binary()} | {:error, term()}
+
   @callback delete(storage_key()) :: :ok | {:error, term()}
 
   @callback url(storage_key()) :: String.t()

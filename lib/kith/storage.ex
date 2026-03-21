@@ -39,6 +39,14 @@ defmodule Kith.Storage do
   end
 
   @doc """
+  Reads a file from storage by its storage key.
+  Returns `{:ok, binary}` or `{:error, reason}`.
+  """
+  def read(storage_key) do
+    backend().read(storage_key)
+  end
+
+  @doc """
   Deletes a file from storage by its storage key.
   Returns `:ok` or `{:error, reason}`.
   """

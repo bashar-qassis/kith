@@ -55,6 +55,23 @@ defmodule Kith.Storage.S3 do
   end
 
   @impl true
+  def read(storage_key) do
+    result =
+      bucket()
+      |> ExAws.S3.get_object(storage_key)
+      |> ExAws.request()
+
+    case result do
+      {:ok, %{body: body}} ->
+        {:ok, body}
+
+      {:error, reason} ->
+        Logger.error("S3 read failed for #{storage_key}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @impl true
   def delete(storage_key) do
     result =
       bucket()

@@ -33,6 +33,12 @@ defmodule Kith.Storage.Local do
   end
 
   @impl true
+  def read(storage_key) do
+    path = full_path(storage_key)
+    File.read(path)
+  end
+
+  @impl true
   def delete(storage_key) do
     path = full_path(storage_key)
 
