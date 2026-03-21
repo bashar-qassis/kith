@@ -44,17 +44,21 @@ defmodule KithWeb.UserLive.Registration do
             x-data="{ pw: '' }"
             class="space-y-1"
           >
-            <input
-              type="password"
-              name={@form[:password].name}
-              id={@form[:password].id}
-              value={Phoenix.HTML.Form.normalize_value("password", @form[:password].value)}
-              class="input input-bordered w-full"
-              autocomplete="new-password"
-              required
-              x-model="pw"
-            />
-            <.error :for={msg <- Enum.map(@form[:password].errors, &translate_error/1)}>{msg}</.error>
+            <div class="fieldset mb-2">
+              <label for={@form[:password].id}>
+                <span class="label mb-1">Password</span>
+                <input
+                  type="password"
+                  name={@form[:password].name}
+                  id={@form[:password].id}
+                  value={Phoenix.HTML.Form.normalize_value("password", @form[:password].value)}
+                  class="w-full input"
+                  autocomplete="new-password"
+                  required
+                  x-model="pw"
+                />
+              </label>
+            </div>
             <div
               class="h-1.5 w-full rounded-full bg-base-200 overflow-hidden"
               x-show="pw.length > 0"

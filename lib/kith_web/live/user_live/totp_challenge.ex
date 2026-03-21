@@ -20,31 +20,37 @@ defmodule KithWeb.UserLive.TotpChallenge do
             </:subtitle>
           </.header>
         </div>
-        
-        <.form
-          for={@form}
+
+        <form
           id="totp_challenge_form"
           action={~p"/users/totp-verify"}
           method="post"
           x-ref="totpForm"
         >
+          <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
           <input type="hidden" name="totp_token" value={@totp_token} />
           <input type="hidden" name="remember_me" value={to_string(@remember_me)} />
           <div x-show="!recoveryMode">
-            <.input
-              field={@form[:code]}
-              type="text"
-              label="Authentication code"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              autocomplete="one-time-code"
-              maxlength="6"
-              required
-              phx-mounted={JS.focus()}
-              x-on:input="if ($event.target.value.length === 6 && /^\d{6}$/.test($event.target.value)) { $nextTick(() => $refs.totpForm.submit()) }"
-            />
+            <div class="fieldset mb-2">
+              <label for="totp_code">
+                <span class="label mb-1">Authentication code</span>
+                <input
+                  type="text"
+                  name="totp[code]"
+                  id="totp_code"
+                  inputmode="numeric"
+                  pattern="[0-9]{6}"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  required
+                  phx-mounted={JS.focus()}
+                  class="w-full input"
+                  x-on:input="if ($event.target.value.length === 6 && /^\d{6}$/.test($event.target.value)) { $nextTick(() => $refs.totpForm.submit()) }"
+                />
+              </label>
+            </div>
           </div>
-          
+
           <div x-show="recoveryMode" x-cloak>
             <.input
               field={@form[:code]}
@@ -58,9 +64,9 @@ defmodule KithWeb.UserLive.TotpChallenge do
               required
             />
           </div>
-           <.button class="btn btn-primary w-full" phx-disable-with="Verifying...">Verify</.button>
-        </.form>
-        
+          <.button class="btn btn-primary w-full" phx-disable-with="Verifying...">Verify</.button>
+        </form>
+
         <p class="text-center text-sm text-zinc-500">
           <button
             type="button"
@@ -70,7 +76,7 @@ defmodule KithWeb.UserLive.TotpChallenge do
           >
           </button>
         </p>
-        
+
         <p class="text-center text-sm text-zinc-500">
           <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
             Back to log in

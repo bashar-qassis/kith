@@ -51,7 +51,7 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
     token = socket.assigns.token
 
     case Accounts.accept_invitation(token, user_params) do
-      {:ok, user} ->
+      {:ok, _user} ->
         {:noreply,
          socket
          |> put_flash(
