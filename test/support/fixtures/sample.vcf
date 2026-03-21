@@ -1,0 +1,30 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Doe;Jane;;;
+FN:Jane Doe
+ORG:Acme Corp
+TITLE:Software Engineer
+TEL;TYPE=CELL:+1-555-0123
+TEL;TYPE=WORK:+1-555-0456
+EMAIL;TYPE=HOME:jane.doe@example.com
+ADR;TYPE=HOME:;;123 Elm Street;Springfield;IL;62704;US
+BDAY:1990-03-15
+NOTE:Met at the Elixir conference
+URL:https://janedoe.example.com
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Müller;François;;;
+FN:François Müller
+TEL;TYPE=CELL:+49-170-1234567
+EMAIL:francois@example.de
+BDAY:1985-02-29
+NOTE:UTF-8 test — special chars: é, ñ, ü, ø
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Smith;Alice;;;
+FN:Alice Smith
+ORG:Test Inc
+EMAIL:alice@example.com
+END:VCARD
