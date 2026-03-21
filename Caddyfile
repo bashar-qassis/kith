@@ -1,0 +1,37 @@
+# Kith Reverse Proxy Configuration
+# KITH_HOSTNAME controls TLS behavior:
+#   - "localhost" → HTTP only (development)
+#   - "kith.example.com" → automatic TLS via Let's Encrypt
+
+{$KITH_HOSTNAME:localhost} {
+    # Reverse proxy to Phoenix app
+    # Caddy natively handles WebSocket upgrade for LiveView
+    reverse_proxy app:4000 {
+        transport http {
+            versions h1 h2c
+        }
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server identification
+        -Server
+    }
+
+    # Static asset caching — Phoenix fingerprinted assets get immutable cache
+    @static path /assets/*
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # Compression
+    encode gzip zstd
+
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}

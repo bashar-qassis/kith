@@ -1,0 +1,212 @@
+# Kith Production Docker Compose
+# Usage: docker compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. Copy .env.example to .env and fill in all required values
+#   2. chmod 600 .env
+#   3. docker build -t kith:latest .
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — all application data
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kith}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-kith_prod}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kith}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    restart: unless-stopped
+    # No exposed ports — internal network only
+
+  # ---------------------------------------------------------------------------
+  # Migrate — one-shot service that runs Ecto migrations then exits
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: kith:latest
+    command: ["eval", "Kith.Release.migrate()"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # App — Phoenix web server (HTTP, LiveView, API)
+  # ---------------------------------------------------------------------------
+  app:
+    image: kith:latest
+    command: ["start"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      KITH_HOSTNAME: ${KITH_HOSTNAME:-localhost}
+      KITH_MODE: web
+      POOL_SIZE: ${POOL_SIZE:-10}
+      PORT: 4000
+      STORAGE_PATH: /app/uploads
+      METRICS_TOKEN: ${METRICS_TOKEN}
+      # Auth
+      AUTH_TOKEN_SALT: ${AUTH_TOKEN_SALT}
+      TOTP_ISSUER: ${TOTP_ISSUER:-Kith}
+      CLOAK_KEY: ${CLOAK_KEY}
+      # OAuth (optional)
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # Email
+      MAILER_ADAPTER: ${MAILER_ADAPTER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Storage (S3 optional — if set, uploads volume is unused)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      # Features
+      DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      SIGNUP_DOUBLE_OPTIN: ${SIGNUP_DOUBLE_OPTIN:-true}
+      MAX_UPLOAD_SIZE_KB: ${MAX_UPLOAD_SIZE_KB:-5120}
+      MAX_STORAGE_SIZE_MB: ${MAX_STORAGE_SIZE_MB:-0}
+      # Observability
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      # Rate limiting
+      RATE_LIMIT_BACKEND: ${RATE_LIMIT_BACKEND:-ets}
+      REDIS_URL: ${REDIS_URL:-}
+      # Network
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+    volumes:
+      - uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+          cpus: "0.5"
+    restart: unless-stopped
+    # No exposed ports — Caddy proxies to app:4000
+
+  # ---------------------------------------------------------------------------
+  # Worker — background job processor (Oban), no HTTP server
+  # ---------------------------------------------------------------------------
+  worker:
+    image: kith:latest
+    command: ["start"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      KITH_HOSTNAME: ${KITH_HOSTNAME:-localhost}
+      KITH_MODE: worker
+      POOL_SIZE: ${POOL_SIZE:-10}
+      STORAGE_PATH: /app/uploads
+      CLOAK_KEY: ${CLOAK_KEY}
+      # Email (worker sends emails via Oban jobs)
+      MAILER_ADAPTER: ${MAILER_ADAPTER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Storage
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      # Observability
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      # Immich integration
+      IMMICH_ENABLED: ${IMMICH_ENABLED:-false}
+      IMMICH_BASE_URL: ${IMMICH_BASE_URL:-}
+      IMMICH_API_KEY: ${IMMICH_API_KEY:-}
+      IMMICH_SYNC_INTERVAL_HOURS: ${IMMICH_SYNC_INTERVAL_HOURS:-24}
+    volumes:
+      - uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+          cpus: "0.5"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Caddy — reverse proxy, automatic TLS, security headers
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health/live"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — optional, for multi-node rate limiting
+  # Uncomment when scaling to multiple app replicas
+  # ---------------------------------------------------------------------------
+  # redis:
+  #   image: redis:7-alpine
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 128M
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+  uploads:
+  # redis_data:  # Uncomment with redis service
