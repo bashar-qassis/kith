@@ -100,6 +100,7 @@ defmodule Kith.Contacts.Contact do
     |> validate_required([:first_name, :account_id])
     |> assoc_constraint(:account)
     |> compute_display_name()
+    |> validate_first_met_through_account()
   end
 
   def update_changeset(contact, attrs) do
@@ -135,6 +136,7 @@ defmodule Kith.Contacts.Contact do
     ])
     |> validate_required([:first_name])
     |> compute_display_name()
+    |> validate_first_met_through_account()
   end
 
   def soft_delete_changeset(contact) do
@@ -147,6 +149,27 @@ defmodule Kith.Contacts.Contact do
 
   def archive_changeset(contact, archived?) do
     change(contact, is_archived: archived?)
+  end
+
+  defp validate_first_met_through_account(changeset) do
+    with {_, through_id} when not is_nil(through_id) <- {:change, get_change(changeset, :first_met_through_id)},
+         account_id when not is_nil(account_id) <- get_field(changeset, :account_id) do
+      contact_id = get_field(changeset, :id)
+
+      cond do
+        contact_id && through_id == contact_id ->
+          add_error(changeset, :first_met_through_id, "cannot reference the contact itself")
+
+        true ->
+          case Kith.Repo.get(Kith.Contacts.Contact, through_id) do
+            %{account_id: ^account_id} -> changeset
+            _ -> add_error(changeset, :first_met_through_id, "must be a contact in the same account")
+          end
+      end
+    else
+      {:change, nil} -> changeset
+      _ -> changeset
+    end
   end
 
   defp compute_display_name(changeset) do
