@@ -256,9 +256,16 @@ defmodule KithWeb.UserAuth do
         Scope.for_user(user)
       end)
 
-    socket
-    |> assign_locale()
-    |> assign_current_path()
+    # Guard against double-mounting (e.g. :require_authenticated + :require_sudo_mode
+    # both call mount_current_scope). assign_new for :current_scope handles the data,
+    # but the hook must also be attached only once.
+    if Map.has_key?(socket.assigns, :current_path) do
+      socket
+    else
+      socket
+      |> assign_locale()
+      |> assign_current_path()
+    end
   end
 
   defp assign_current_path(socket) do

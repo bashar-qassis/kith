@@ -89,7 +89,7 @@ defmodule KithWeb.SettingsLive.Integrations do
     account = socket.assigns.account
 
     case ImmichSettings.test_connection(account) do
-      :ok ->
+      {:ok, _count} ->
         {:noreply, assign(socket, :test_result, :ok)}
 
       {:error, reason} ->

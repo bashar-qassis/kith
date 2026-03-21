@@ -7,6 +7,9 @@
 # General application configuration
 import Config
 
+# Register .vcf (vCard) MIME type for LiveView uploads
+config :mime, :types, %{"text/vcard" => ["vcf"]}
+
 config :kith, :scopes,
   user: [
     default: true,
@@ -102,7 +105,9 @@ config :logger, :default_formatter,
 # Cloak encryption vault — key set per-environment
 config :kith, Kith.Vault,
   ciphers: [
-    default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!("dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlcw==")}
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlcw==")}
   ]
 
 # Use Jason for JSON parsing in Phoenix
