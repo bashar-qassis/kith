@@ -27,6 +27,10 @@ defmodule Kith.Workers.ImportSourceWorker do
         completed_at: now
       })
 
+      if import.api_url && import.api_key_encrypted && import.api_options do
+        enqueue_async_jobs(import)
+      end
+
       topic = "import:#{import.account_id}"
       Phoenix.PubSub.broadcast(Kith.PubSub, topic, {:import_complete, summary_map})
 
@@ -53,4 +57,61 @@ defmodule Kith.Workers.ImportSourceWorker do
 
   defp ensure_map(%{__struct__: _} = s), do: Map.from_struct(s)
   defp ensure_map(m) when is_map(m), do: m
+
+  defp enqueue_async_jobs(import) do
+    import_records = Kith.Imports.list_import_records(import.id)
+
+    # Photo sync jobs
+    if import.api_options["photos"] || import.api_options[:photos] do
+      photo_records = Enum.filter(import_records, &(&1.source_entity_type == "photo"))
+
+      photo_records
+      |> Enum.with_index()
+      |> Enum.each(fn {rec, idx} ->
+        batch = div(idx, 50)
+        delay = batch * 60
+
+        %{import_id: import.id, photo_id: rec.local_entity_id, source_photo_id: rec.source_entity_id}
+        |> Kith.Workers.PhotoSyncWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+        |> Oban.insert()
+      end)
+    end
+
+    # API supplement jobs — only for contacts with first_met_date in export
+    if import.api_options["first_met_details"] || import.api_options[:first_met_details] do
+      contacts_with_first_met = case Kith.Storage.read(import.file_storage_key) do
+        {:ok, data} ->
+          case Jason.decode(data) do
+            {:ok, parsed} ->
+              (get_in(parsed, ["contacts", "data"]) || [])
+              |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
+              |> Enum.map(& &1["uuid"])
+              |> MapSet.new()
+            _ -> MapSet.new()
+          end
+        _ -> MapSet.new()
+      end
+
+      contact_records =
+        import_records
+        |> Enum.filter(&(&1.source_entity_type == "contact"))
+        |> Enum.filter(&MapSet.member?(contacts_with_first_met, &1.source_entity_id))
+
+      contact_records
+      |> Enum.with_index()
+      |> Enum.each(fn {rec, idx} ->
+        batch = div(idx, 50)
+        delay = batch * 60
+
+        %{
+          import_id: import.id,
+          contact_id: rec.local_entity_id,
+          source_contact_id: rec.source_entity_id,
+          key: "first_met_details"
+        }
+        |> Kith.Workers.ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+        |> Oban.insert()
+      end)
+    end
+  end
 end

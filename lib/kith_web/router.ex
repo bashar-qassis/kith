@@ -361,7 +361,7 @@ defmodule KithWeb.Router do
       live "/settings/life-event-types", SettingsLive.LifeEventTypes, :index
       live "/settings/integrations", SettingsLive.Integrations, :index
       live "/settings/account", SettingsLive.Account, :index
-      live "/settings/import", SettingsLive.Import, :index
+      live "/settings/import", ImportWizardLive, :index
       live "/settings/export", SettingsLive.Export, :index
 
       # Immich review
