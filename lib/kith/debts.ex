@@ -19,9 +19,27 @@ defmodule Kith.Debts do
   end
 
   def create_debt(account_id, creator_id, attrs) do
+    attrs = maybe_inherit_contact_currency(account_id, attrs)
+
     %Debt{account_id: account_id, creator_id: creator_id}
     |> Debt.changeset(attrs)
     |> Repo.insert()
+  end
+
+  defp maybe_inherit_contact_currency(account_id, attrs) do
+    currency_val = attrs["currency_id"] || attrs[:currency_id]
+    has_explicit_currency = currency_val not in [nil, ""]
+
+    if has_explicit_currency do
+      attrs
+    else
+      contact_id = attrs["contact_id"] || attrs[:contact_id]
+
+      case contact_id && Kith.Contacts.get_contact(account_id, contact_id) do
+        %{currency_id: cid} when not is_nil(cid) -> Map.put(attrs, "currency_id", cid)
+        _ -> attrs
+      end
+    end
   end
 
   def update_debt(%Debt{} = debt, attrs) do

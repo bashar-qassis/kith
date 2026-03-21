@@ -188,6 +188,55 @@ defmodule Kith.DebtsTest do
       assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
       assert debt.status == "active"
     end
+
+    test "inherits currency from contact when not specified" do
+      {account, user} = setup_account()
+      currency = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+      contact = insert(:contact, account: account, currency: currency)
+
+      attrs = %{
+        "title" => "Dinner",
+        "amount" => "25.00",
+        "direction" => "owed_to_me",
+        "contact_id" => contact.id
+      }
+
+      assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
+      assert debt.currency_id == currency.id
+    end
+
+    test "uses explicit currency_id when provided, ignoring contact default" do
+      {account, user} = setup_account()
+      eur = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+      gbp = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+      contact = insert(:contact, account: account, currency: eur)
+
+      attrs = %{
+        "title" => "Dinner",
+        "amount" => "25.00",
+        "direction" => "owed_to_me",
+        "contact_id" => contact.id,
+        "currency_id" => gbp.id
+      }
+
+      assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
+      assert debt.currency_id == gbp.id
+    end
+
+    test "leaves currency nil when contact has no default and none specified" do
+      {account, user} = setup_account()
+      contact = insert(:contact, account: account)
+
+      attrs = %{
+        "title" => "Dinner",
+        "amount" => "25.00",
+        "direction" => "owed_to_me",
+        "contact_id" => contact.id
+      }
+
+      assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
+      assert is_nil(debt.currency_id)
+    end
   end
 
   describe "update_debt/2" do
