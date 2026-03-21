@@ -28,7 +28,7 @@ defmodule KithWeb.UserLive.Registration do
           phx-submit="save"
           phx-change="validate"
           phx-trigger-action={@trigger_submit}
-          action={~p"/users/log-in"}
+          action={~p"/users/log-in?_action=registered"}
           method="post"
         >
           <.input
