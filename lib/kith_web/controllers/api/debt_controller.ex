@@ -29,7 +29,7 @@ defmodule KithWeb.API.DebtController do
         |> where([d], d.is_private == false or d.creator_id == ^user_id)
 
       {debts, meta} = Pagination.paginate(query, params)
-      debts = Repo.preload(debts, :payments)
+      debts = Repo.preload(debts, [:payments, :currency])
       json(conn, Pagination.paginated_response(Enum.map(debts, &debt_json/1), meta))
     end
   end
@@ -49,7 +49,7 @@ defmodule KithWeb.API.DebtController do
         {:error, :not_found}
 
       debt ->
-        debt = Repo.preload(debt, :payments)
+        debt = Repo.preload(debt, [:payments, :currency])
         json(conn, %{data: debt_json(debt)})
     end
   end
@@ -68,7 +68,7 @@ defmodule KithWeb.API.DebtController do
       conn
       |> put_status(201)
       |> put_resp_header("location", "/api/debts/#{debt.id}")
-      |> json(%{data: debt_json(Repo.preload(debt, :payments))})
+      |> json(%{data: debt_json(Repo.preload(debt, [:payments, :currency]))})
     else
       false -> {:error, :forbidden}
       {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
@@ -90,7 +90,7 @@ defmodule KithWeb.API.DebtController do
          debt when not is_nil(debt) <-
            Debt |> TenantScope.scope_to_account(account_id) |> Repo.get(id),
          {:ok, updated} <- Debts.update_debt(debt, attrs) do
-      json(conn, %{data: debt_json(Repo.preload(updated, :payments))})
+      json(conn, %{data: debt_json(Repo.preload(updated, [:payments, :currency]))})
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
@@ -131,7 +131,7 @@ defmodule KithWeb.API.DebtController do
          debt when not is_nil(debt) <-
            Debt |> TenantScope.scope_to_account(account_id) |> Repo.get(id),
          {:ok, updated} <- Debts.settle_debt(debt) do
-      json(conn, %{data: debt_json(Repo.preload(updated, :payments))})
+      json(conn, %{data: debt_json(Repo.preload(updated, [:payments, :currency]))})
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
@@ -150,7 +150,7 @@ defmodule KithWeb.API.DebtController do
          debt when not is_nil(debt) <-
            Debt |> TenantScope.scope_to_account(account_id) |> Repo.get(id),
          {:ok, updated} <- Debts.write_off_debt(debt) do
-      json(conn, %{data: debt_json(Repo.preload(updated, :payments))})
+      json(conn, %{data: debt_json(Repo.preload(updated, [:payments, :currency]))})
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
@@ -221,13 +221,24 @@ defmodule KithWeb.API.DebtController do
       due_date: debt.due_date,
       notes: debt.notes,
       settled_at: debt.settled_at,
-      currency_id: debt.currency_id,
+      currency: currency_json(debt.currency),
       is_private: debt.is_private,
       creator_id: debt.creator_id,
       outstanding_balance: Debts.outstanding_balance(debt),
       payments: Enum.map(debt.payments, &payment_json/1),
       inserted_at: debt.inserted_at,
       updated_at: debt.updated_at
+    }
+  end
+
+  defp currency_json(nil), do: nil
+
+  defp currency_json(currency) do
+    %{
+      id: currency.id,
+      code: currency.code,
+      symbol: currency.symbol,
+      name: currency.name
     }
   end
 
