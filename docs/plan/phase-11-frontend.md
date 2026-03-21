@@ -1,6 +1,6 @@
 # Phase 11: Frontend — LiveView Screens & Components
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** Phase 01 (Foundation), Phase 02 (Auth), Phase 03 (Domain), Phase 04-05 (Contacts & Sub-entities), Phase 06 (Reminders), Phase 07 (Integrations), Phase 08 (Settings)
 > **Blocks:** Phase 14 (QA & E2E Testing)
 
@@ -1333,3 +1333,46 @@ Viewer user sees a 403 page with an explanation that their role does not have pe
 - Contact profile is the most complex screen (TASK-11-18) and should be broken into sub-tasks during implementation: sidebar, tab system, each tab component.
 - The Trix editor hook for notes (referenced in TASK-11-18 via Phase 05) requires a LiveView JS hook that syncs Trix content to a hidden form input. This is a critical integration point between the JS ecosystem and LiveView.
 - All settings pages follow the same pattern: LiveView at a specific route, form with `phx-submit`, flash message on success. Consider extracting a shared settings form component pattern.
+
+---
+
+## Implementation Decisions
+
+### Decision A: CSP Nonce Strategy
+Per-request nonce generated in `KithWeb.Plugs.CSP` using `Base.encode64(:crypto.strong_rand_bytes(16))`. Replaced `'unsafe-inline'` in `script-src` with `'nonce-#{nonce}'`. Nonce assigned to conn and referenced in root layout via `nonce={assigns[:csp_nonce]}`.
+
+### Decision B: RTL Detection
+`@rtl_locales ~w(ar he fa ur)` — base locale extracted by splitting on `-` and downcasing. Returns `"rtl"` or `"ltr"`. Implemented in `KithWeb.Plugs.AssignLocale`.
+
+### Decision C: Sidebar Collapse Persistence
+Desktop sidebar collapse state stored in `localStorage` via Alpine.js `x-init`/`x-effect`. No server round-trip for UI chrome state — follows Alpine.js scope boundary rule.
+
+### Decision D: Current Path Tracking
+`assign_current_path/1` in `UserAuth` uses `attach_hook(:set_current_path, :handle_params, ...)` to parse URI path on every navigation. Powers active-state highlighting in sidebar and mobile nav.
+
+### Decision E: Component Organization
+11 function components in `KithWeb.KithComponents` (Level 3): `avatar`, `contact_badge`, `tag_badge`, `reminder_row`, `card`, `section_header`, `empty_state`, `role_badge`, `emotion_badge`, `date_display`, `relative_time`. All globally imported via `html_helpers/0`.
+
+### Decision F: Avatar Deterministic Colors
+Avatar background color derived from `name |> :erlang.phash2(8)` mapping to 8 Tailwind color classes. Ensures same contact always gets same color across sessions.
+
+### Decision G: Error Pages Standalone
+Custom 404/403/500 pages are standalone HTML (no layout dependency) so they render even when the app shell is broken. 500 includes a unique reference ID via `System.unique_integer/1`.
+
+### Decision H: Dashboard Query Placement
+All dashboard data loaded in `handle_params/3`, not `mount/3` (Phoenix Iron Law). Added `recent_contacts/2`, `contact_count/1`, `note_count/1`, `recent_activity/2` to `Kith.Contacts`.
+
+### Decision I: Contact Profile Tab Simplification
+Reduced from 9 tabs to 3 main content tabs (Notes, Life Events, Photos). Addresses, contact fields, relationships, and reminders moved to sidebar sections for always-visible access.
+
+### Decision J: Cursor-Based Pagination
+Contact list uses cursor pagination with last contact ID as cursor. `list_contacts_paginated/2` fetches `limit+1` to detect `has_more`. All filtering (search, archived, deceased, favorites, tags) done at DB level.
+
+### Decision K: Settings Sidebar Navigation
+Shared `SettingsLayout.settings_shell/1` component with nav items that highlight based on `@current_path` match. Policy-gated items (Account, Integrations) hidden for non-admin users.
+
+### Decision L: Invitation Acceptance Route
+`/invitations/:token` placed in public `current_user` live_session (not authenticated scope). Uses `Accounts.get_invitation_by_token/1` to validate, then `Accounts.accept_invitation/2` to create user and accept.
+
+### Decision M: Registration Password Strength
+Alpine.js `x-data` scope with `pw` variable drives a visual strength meter bar. Purely client-side UI feedback — does not replace server-side validation. Follows Alpine scope boundary (no server state mutation).
