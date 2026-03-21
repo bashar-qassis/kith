@@ -1,0 +1,44 @@
+# Version control
+.git
+.gitignore
+
+# Environment secrets — NEVER include in build context
+.env
+.env.*
+!.env.example
+
+# Build artifacts (rebuilt inside container)
+_build
+deps
+node_modules
+
+# IDE and editor files
+.elixir_ls
+.idea
+.vscode
+*.swp
+*.swo
+
+# Documentation and tests (not needed in production image)
+docs/
+test/
+*.md
+!README.md
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github
+
+# Development tooling
+.formatter.exs
+.credo.exs
+docker-compose.dev.yml
+.tool-versions
+
+# Playwright and test reports
+.playwright-mcp
+playwright-report
+test-results

@@ -55,6 +55,13 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
@@ -118,6 +125,13 @@ services:
   worker:
     image: kith:latest
     command: ["start"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
     depends_on:
       migrate:
         condition: service_completed_successfully
