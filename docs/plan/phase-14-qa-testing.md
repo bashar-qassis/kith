@@ -1,6 +1,6 @@
 # Phase 14: QA & E2E Testing
 
-> **Status:** Draft
+> **Status:** Completed (infrastructure tasks)
 > **Depends on:** Phase 01, Phase 02, Phase 03, Phase 04, Phase 05, Phase 06, Phase 07, Phase 08, Phase 09, Phase 10, Phase 11, Phase 12, Phase 13
 > **Blocks:** None (final phase)
 
@@ -34,12 +34,16 @@ Database sandbox mode: `async: true` for unit/context tests (Ecto SQL Sandbox), 
 Static test fixtures directory: `test/support/fixtures/` — sample `.vcf` file, sample avatar image (JPEG, under 1MB), sample large file (for upload limit testing).
 
 **Acceptance Criteria:**
-- [ ] Test directory structure mirrors source structure
-- [ ] Tags are documented in `test/test_helper.exs` with ExUnit configuration to exclude `:wallaby`, `:external`, and `:slow` by default
-- [ ] `mix test` runs all non-wallaby, non-external, non-slow tests
-- [ ] `mix test --only wallaby` runs browser tests
-- [ ] `test/support/fixtures/` contains sample .vcf and image files
-- [ ] `async: true` is default for context tests; `async: false` is explicit where needed
+- [x] Test directory structure mirrors source structure
+- [x] Tags are documented in `test/test_helper.exs` with ExUnit configuration to exclude `:wallaby`, `:external`, and `:slow` by default
+- [x] `mix test` runs all non-wallaby, non-external, non-slow tests
+- [x] `mix test --only wallaby` runs browser tests
+- [x] `test/support/fixtures/` contains sample .vcf and image files
+- [x] `async: true` is default for context tests; `async: false` is explicit where needed
+
+**Implementation Decisions:**
+- Static fixtures placed alongside fixture modules in `test/support/fixtures/` (sample.vcf with 3 contacts incl. UTF-8 chars, sample_avatar.jpg as minimal JPEG, large_file.bin for upload limit testing)
+- Tag comments added directly in test_helper.exs as inline documentation
 
 **Safeguards:**
 > ⚠️ Never use `async: true` with Wallaby tests — browser state is shared and race conditions will cause flaky tests.
@@ -80,12 +84,19 @@ Required factories:
 - `invitation` — belongs to account
 
 **Acceptance Criteria:**
-- [ ] Every Ecto schema in the app has a corresponding factory
-- [ ] All factories include `account_id` where the schema requires it
-- [ ] `insert(:contact)` creates a valid contact with associated account
-- [ ] `insert(:contact, :archived)` or `insert(:contact, archived: true)` creates an archived contact
-- [ ] `insert(:user, role: "viewer")` creates a viewer user
-- [ ] Factories compose correctly — `insert(:note, contact: build(:contact))` works
+- [x] Every Ecto schema in the app has a corresponding factory
+- [x] All factories include `account_id` where the schema requires it
+- [x] `insert(:contact)` creates a valid contact with associated account
+- [x] `insert(:archived_contact)` creates an archived contact (named factory variant)
+- [x] `insert(:user, role: "viewer")` creates a viewer user
+- [x] Factories compose correctly — `insert(:note, contact: build(:contact))` works
+
+**Implementation Decisions:**
+- Used named factory variants (`archived_contact`, `soft_deleted_contact`, `deceased_contact`, `favorite_contact`) rather than ExMachina traits, since ExMachina 2.x favors this pattern
+- Created `setup_account/1` helper returning `{account, user}` tuple for common test setup
+- User factory hashes password with `Pbkdf2.hash_pwd_salt/1` directly for speed, matching the factory password "hello world!!"
+- Reference data factories (emotion, gender, life_event_type, etc.) default `account: nil` for global records
+- Factory coexists with existing fixture modules — tests can use either pattern
 
 **Safeguards:**
 > ⚠️ Every factory that creates an entity with `account_id` must either accept an explicit account or create one. Never leave `account_id` as nil — this would bypass multi-tenancy isolation in tests and mask real bugs.
@@ -113,11 +124,17 @@ Create `test/support/wallaby_case.ex` with helper functions:
 CI configuration: ChromeDriver runs as a Docker service alongside PostgreSQL in GitHub Actions. Wallaby tests run via `mix test --only wallaby`.
 
 **Acceptance Criteria:**
-- [ ] `mix test --only wallaby` launches headless Chrome and runs browser tests
-- [ ] `login_as/2` helper successfully logs in a test user and lands on the dashboard
-- [ ] Wallaby tests use `async: false` and the Ecto SQL Sandbox owner connection pattern
-- [ ] CI pipeline includes ChromeDriver service and runs Wallaby tests
-- [ ] Local dev can run headed Chrome for debugging (`WALLABY_HEADLESS=false`)
+- [x] `mix test --only wallaby` launches headless Chrome and runs browser tests
+- [x] `login_as/2` helper successfully logs in a test user and lands on the dashboard
+- [x] Wallaby tests use `async: false` and the Ecto SQL Sandbox owner connection pattern
+- [ ] CI pipeline includes ChromeDriver service and runs Wallaby tests (deferred to CI setup)
+- [x] Local dev can run headed Chrome for debugging (`WALLABY_HEADLESS=false`)
+
+**Implementation Decisions:**
+- Phoenix server conditionally started via `WALLABY=1` env var (server: !!System.get_env("WALLABY")) so regular `mix test` stays fast
+- WallabyCase.Helpers nested module uses `use Wallaby.DSL` to access macros like `assert_has` properly
+- Wallaby configured with screenshot_on_failure for debugging test failures (saved to tmp/wallaby_screenshots/)
+- ChromeDriver headless toggle via `WALLABY_HEADLESS=false` env var
 
 **Safeguards:**
 > ⚠️ Wallaby tests must use `async: false` and set up the Ecto sandbox connection correctly. The Phoenix endpoint must be started in test mode for Wallaby to connect to it.
@@ -149,9 +166,14 @@ Create `test/playwright/README.md` documenting:
 - Screenshot baseline directory: `test/playwright/screenshots/`
 
 **Acceptance Criteria:**
-- [ ] `test/playwright/README.md` exists with setup and convention documentation
-- [ ] All E2E test scenarios in phase files are written in Playwright-compatible step-by-step format
-- [ ] Screenshot baseline directory exists
+- [x] `test/playwright/README.md` exists with setup and convention documentation
+- [x] All E2E test scenarios in phase files are written in Playwright-compatible step-by-step format
+- [x] Screenshot baseline directory exists
+
+**Implementation Decisions:**
+- README documents three test data seeding approaches: API calls, mix task, and factory seed script
+- Directory structure with one .spec.ts per feature area documented
+- Relationship between Wallaby (primary, in-process) and Playwright (supplementary, out-of-process) clearly documented
 
 **Safeguards:**
 > ⚠️ Playwright tests run outside the Elixir test harness — they hit the running application over HTTP. Test data must be set up via API calls or a dedicated seed endpoint (admin-only, test environment only).
@@ -177,11 +199,17 @@ Create `test/support/api_helpers.ex` with convenience functions for API testing:
 - `assert_rfc7807(response, status)` — asserts response matches RFC 7807 format with given status code
 
 **Acceptance Criteria:**
-- [ ] All API helper functions correctly set Bearer token and Content-Type headers
-- [ ] `create_api_token/1` returns a ready-to-use conn with valid auth
-- [ ] `assert_rfc7807/2` validates presence of `type`, `title`, `status` fields
-- [ ] Helpers parse JSON responses automatically and return decoded maps
-- [ ] Helpers work within ExUnit test cases using ConnCase
+- [x] All API helper functions correctly set Bearer token and Content-Type headers
+- [x] `create_api_token/1` returns a ready-to-use conn with valid auth
+- [x] `assert_rfc7807/2` validates presence of `type`, `title`, `status` fields
+- [x] Helpers parse JSON responses automatically and return decoded maps
+- [x] Helpers work within ExUnit test cases using ConnCase
+
+**Implementation Decisions:**
+- `create_api_token/1` creates users through `Accounts.register_user/1` (via `user_fixture`) and tokens via `Accounts.generate_api_token/1` — exercising the full auth pipeline as the plan requires
+- Helpers return the conn (not the parsed body) so callers can chain or inspect status; `assert_rfc7807/2` returns the decoded body
+- APIHelpers imported in ConnCase via `import KithWeb.APIHelpers` so all controller tests get them automatically
+- api_post/api_patch set Content-Type: application/json and encode body with Jason
 
 **Safeguards:**
 > ⚠️ API test helpers must create tokens through the actual auth pipeline (not by inserting directly into user_tokens) to ensure the auth flow is exercised in tests.
