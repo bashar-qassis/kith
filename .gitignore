@@ -39,3 +39,9 @@ Thumbs.db
 
 # Erlang crash dumps
 erl_crash.dump
+
+# Playwright
+/test-results/
+/playwright-report/
+.playwright-mcp/
+/node_modules/
