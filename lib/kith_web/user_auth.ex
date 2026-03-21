@@ -4,6 +4,8 @@ defmodule KithWeb.UserAuth do
   import Plug.Conn
   import Phoenix.Controller
 
+  require Logger
+
   alias Kith.Accounts
   alias Kith.Accounts.Scope
 
@@ -67,6 +69,8 @@ defmodule KithWeb.UserAuth do
   def fetch_current_scope_for_user(conn, _opts) do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
+      Logger.metadata(user_id: user.id, account_id: user.account_id)
+
       conn
       |> assign(:current_scope, Scope.for_user(user))
       |> maybe_reissue_user_session_token(user, token_inserted_at)

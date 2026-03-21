@@ -8,6 +8,9 @@ defmodule KithWeb.Plugs.FetchApiUser do
   """
 
   import Plug.Conn
+
+  require Logger
+
   alias Kith.Accounts
 
   def init(opts), do: opts
@@ -15,6 +18,7 @@ defmodule KithWeb.Plugs.FetchApiUser do
   def call(conn, _opts) do
     with {:ok, raw_token} <- extract_bearer_token(conn),
          {user, _token_record} <- Accounts.get_user_by_api_token(raw_token) do
+      Logger.metadata(user_id: user.id, account_id: user.account_id)
       scope = Kith.Accounts.Scope.for_user(user)
 
       conn
