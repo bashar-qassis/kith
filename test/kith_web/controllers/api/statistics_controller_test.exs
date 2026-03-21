@@ -40,7 +40,7 @@ defmodule KithWeb.API.StatisticsControllerTest do
       # Create 3 contacts
       c1 = contact_fixture(user.account_id, %{})
       c2 = contact_fixture(user.account_id, %{})
-      c3 = contact_fixture(user.account_id, %{})
+      _c3 = contact_fixture(user.account_id, %{})
 
       # Create 2 notes
       {:ok, _} =

@@ -23,8 +23,9 @@ defmodule Kith.Factory do
   use ExMachina.Ecto, repo: Kith.Repo
 
   alias Kith.Accounts.{Account, User, AccountInvitation}
-  alias Kith.Contacts.{Contact, Note, Tag, Address, ContactField, ContactFieldType}
+  alias Kith.Contacts.{Contact, Note, Tag, Address, ContactField, ContactFieldType, Pet}
   alias Kith.Contacts.{Relationship, RelationshipType, Gender, Emotion, Photo, Document}
+  alias Kith.Contacts.{Gift, Debt, DebtPayment}
   alias Kith.Contacts.{ImmichCandidate, Currency, LifeEventType, ActivityTypeCategory, CallDirection}
   alias Kith.Activities.{Activity, Call, LifeEvent}
   alias Kith.Reminders.{Reminder, ReminderInstance, ReminderRule}
@@ -145,6 +146,43 @@ defmodule Kith.Factory do
       occurred_at: DateTime.utc_now(:second),
       duration_mins: 15,
       notes: "Test call notes"
+    }
+  end
+
+  # ── Task ────────────────────────────────────────────────────────────
+
+  def task_factory do
+    contact = build(:contact)
+
+    %Kith.Tasks.Task{
+      account: contact.account,
+      contact: contact,
+      creator: build(:user, account: contact.account),
+      title: sequence(:task_title, &"Task #{&1}"),
+      description: "Test task description",
+      due_date: Date.add(Date.utc_today(), 7),
+      priority: "medium",
+      status: "pending",
+      is_private: true
+    }
+  end
+
+  def completed_task_factory do
+    build(:task, status: "completed", completed_at: DateTime.utc_now(:second))
+  end
+
+  # ── Pet ────────────────────────────────────────────────────────────
+
+  def pet_factory do
+    contact = build(:contact)
+
+    %Pet{
+      account: contact.account,
+      contact: contact,
+      name: sequence(:pet_name, &"Buddy #{&1}"),
+      species: "dog",
+      breed: "Golden Retriever",
+      is_private: true
     }
   end
 
@@ -406,6 +444,95 @@ defmodule Kith.Factory do
     }
   end
 
+  # ── DuplicateCandidate ─────────────────────────────────────────────
+  def duplicate_candidate_factory do
+    account = build(:account)
+    %Kith.Contacts.DuplicateCandidate{
+      account: account,
+      contact: build(:contact, account: account),
+      duplicate_contact: build(:contact, account: account),
+      score: 0.85,
+      reasons: ["name_match"],
+      status: "pending",
+      detected_at: DateTime.utc_now(:second)
+    }
+  end
+
+  # ── Gift ────────────────────────────────────────────────────────────
+  def gift_factory do
+    contact = build(:contact)
+    %Gift{
+      account: contact.account,
+      contact: contact,
+      creator: build(:user, account: contact.account),
+      name: sequence(:gift_name, &"Gift #{&1}"),
+      direction: "given",
+      status: "idea",
+      is_private: true
+    }
+  end
+
+  def received_gift_factory do
+    build(:gift, direction: "received", status: "received")
+  end
+
+  # ── Debt ────────────────────────────────────────────────────────────
+  def debt_factory do
+    contact = build(:contact)
+    %Debt{
+      account: contact.account,
+      contact: contact,
+      creator: build(:user, account: contact.account),
+      title: sequence(:debt_title, &"Debt #{&1}"),
+      amount: Decimal.new("100.00"),
+      direction: "owed_to_me",
+      status: "active",
+      is_private: true
+    }
+  end
+
+  def settled_debt_factory do
+    build(:debt, status: "settled", settled_at: DateTime.utc_now(:second))
+  end
+
+  def debt_payment_factory do
+    debt = build(:debt)
+    %DebtPayment{
+      debt: debt,
+      account: debt.account,
+      amount: Decimal.new("50.00"),
+      paid_at: Date.utc_today()
+    }
+  end
+
+  # ── Conversation ───────────────────────────────────────────────────
+  def conversation_factory do
+    contact = build(:contact)
+
+    %Kith.Conversations.Conversation{
+      account: contact.account,
+      contact: contact,
+      creator: build(:user, account: contact.account),
+      subject: sequence(:conversation_subject, &"Conversation #{&1}"),
+      platform: "other",
+      status: "active",
+      is_private: true
+    }
+  end
+
+  # ── Message ────────────────────────────────────────────────────────
+  def message_factory do
+    conversation = build(:conversation)
+
+    %Kith.Conversations.Message{
+      conversation: conversation,
+      account: conversation.account,
+      body: sequence(:message_body, &"Message #{&1}"),
+      direction: "sent",
+      sent_at: DateTime.utc_now(:second)
+    }
+  end
+
   # ── Reference Data (global, nullable account_id) ─────────────────────
 
   def life_event_type_factory do
@@ -439,6 +566,22 @@ defmodule Kith.Factory do
       code: sequence(:currency_code, &"X#{String.pad_leading(to_string(&1), 2, "0")}"),
       name: sequence(:currency_name, &"Test Currency #{&1}"),
       symbol: "$"
+    }
+  end
+
+  # ── Journal Entry ──────────────────────────────────────────────────
+
+  def journal_entry_factory do
+    account = build(:account)
+
+    %Kith.Journal.Entry{
+      account: account,
+      author: build(:user, account: account),
+      title: sequence(:journal_title, &"Journal Entry #{&1}"),
+      content: "<p>Today was a good day.</p>",
+      occurred_at: DateTime.utc_now(:second),
+      mood: "good",
+      is_private: true
     }
   end
 

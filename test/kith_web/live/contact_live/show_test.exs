@@ -22,28 +22,21 @@ defmodule KithWeb.ContactLive.ShowTest do
     test "tab switching works", %{conn: conn, contact: contact} do
       {:ok, view, _html} = live(conn, ~p"/contacts/#{contact.id}")
 
-      html = view |> element("button", "Activities") |> render_click()
-      assert html =~ "Activities"
-
-      html = view |> element("button", "Calls") |> render_click()
-      assert html =~ "Calls"
-
+      # The contact show page has 3 tabs: Notes (default), Life Events, Photos
+      # Addresses, Contact Info, and Relationships are sidebar cards (always visible)
       html = view |> element("button", "Life Events") |> render_click()
       assert html =~ "Life Events"
 
-      html = view |> element("button", "Addresses") |> render_click()
-      assert html =~ "Addresses"
+      html = view |> element("button", "Photos") |> render_click()
+      assert html =~ "Photos"
 
-      html = view |> element("button", "Contact Info") |> render_click()
-      assert html =~ "Contact Info"
-
-      html = view |> element("button", "Relationships") |> render_click()
-      assert html =~ "Relationships"
+      html = view |> element("button", "Notes") |> render_click()
+      assert html =~ "Notes"
     end
 
     test "shows empty state messages", %{conn: conn, contact: contact} do
       {:ok, _view, html} = live(conn, ~p"/contacts/#{contact.id}")
-      assert html =~ "No notes yet."
+      assert html =~ "No notes yet"
     end
 
     test "reminders sidebar renders", %{conn: conn, contact: contact} do
@@ -77,19 +70,19 @@ defmodule KithWeb.ContactLive.ShowTest do
     test "shows Add Note button", %{conn: conn, contact: contact} do
       {:ok, view, _html} = live(conn, ~p"/contacts/#{contact.id}")
 
-      # Click "Add Note" and verify form appears
-      html = view |> element("button", "Add Note") |> render_click()
+      # Click the header "Add Note" button
+      html = view |> element("#add-note-#{contact.id}") |> render_click()
       assert html =~ "trix-editor"
       assert html =~ "Private"
     end
   end
 
-  describe "addresses tab" do
+  describe "addresses section" do
     test "add an address", %{conn: conn, contact: contact} do
       {:ok, view, _html} = live(conn, ~p"/contacts/#{contact.id}")
 
-      view |> element("button", "Addresses") |> render_click()
-      view |> element("button", "Add Address") |> render_click()
+      # Addresses section is always visible in the sidebar — target header button
+      view |> element("#add-address-#{contact.id}") |> render_click()
 
       # Submit via render_submit with the component target
       view
@@ -115,15 +108,14 @@ defmodule KithWeb.ContactLive.ShowTest do
     end
   end
 
-  describe "contact fields tab" do
+  describe "contact fields section" do
     test "add a contact field", %{conn: conn, contact: contact, account_id: account_id} do
       {:ok, view, _html} = live(conn, ~p"/contacts/#{contact.id}")
 
-      view |> element("button", "Contact Info") |> render_click()
-
+      # Contact Info section is always visible in the sidebar
       [email_type | _] = Kith.Contacts.list_contact_field_types(account_id)
 
-      view |> element("button", "Add Field") |> render_click()
+      view |> element("button", "Add Info") |> render_click()
 
       view
       |> form("form[phx-submit=save]", %{

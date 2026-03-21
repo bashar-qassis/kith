@@ -31,7 +31,7 @@ defmodule Kith.Contacts.MergeTest do
 
   describe "merge_contacts/3" do
     test "merges contacts with default field choices (keep survivor)", ctx do
-      {:ok, result} = Contacts.merge_contacts(ctx.contact_a.id, ctx.contact_b.id)
+      {:ok, _result} = Contacts.merge_contacts(ctx.contact_a.id, ctx.contact_b.id)
 
       survivor = Repo.get!(Kith.Contacts.Contact, ctx.contact_a.id)
       non_survivor = Repo.get!(Kith.Contacts.Contact, ctx.contact_b.id)

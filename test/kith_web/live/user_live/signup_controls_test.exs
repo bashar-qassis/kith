@@ -24,7 +24,7 @@ defmodule KithWeb.UserLive.SignupControlsTest do
   describe "registration when DISABLE_SIGNUP=false" do
     test "renders registration page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/register")
-      assert html =~ "Register for an account"
+      assert html =~ "Create an account"
     end
 
     test "shows signup link on login page", %{conn: conn} do

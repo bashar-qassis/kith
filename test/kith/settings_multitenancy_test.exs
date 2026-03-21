@@ -4,11 +4,10 @@ defmodule Kith.SettingsMultitenancyTest do
   use Kith.DataCase, async: true
 
   alias Kith.Accounts
-  alias Kith.Accounts.{Account, AccountInvitation, User}
+  alias Kith.Accounts.User
   alias Kith.Contacts
   alias Kith.Contacts.{Gender, RelationshipType, ContactFieldType, Tag}
   alias Kith.Reminders
-  alias Kith.Reminders.ReminderRule
 
   import Kith.AccountsFixtures
   import Kith.ContactsFixtures
@@ -144,7 +143,7 @@ defmodule Kith.SettingsMultitenancyTest do
         %{name: "Global Gender", account_id: nil, position: 0, inserted_at: now, updated_at: now}
       ])
 
-      {:ok, custom} = Contacts.create_gender(account_id, %{name: "Custom", position: 10})
+      {:ok, _custom} = Contacts.create_gender(account_id, %{name: "Custom", position: 10})
       genders = Contacts.list_genders(account_id)
       names = Enum.map(genders, & &1.name)
 
@@ -175,7 +174,7 @@ defmodule Kith.SettingsMultitenancyTest do
 
     test "cannot delete gender in use", %{account_id: account_id} do
       {:ok, gender} = Contacts.create_gender(account_id, %{name: "InUse"})
-      contact = contact_fixture(account_id, %{gender_id: gender.id})
+      _contact = contact_fixture(account_id, %{gender_id: gender.id})
       assert {:error, :in_use} = Contacts.delete_gender(gender)
     end
 
@@ -327,8 +326,6 @@ defmodule Kith.SettingsMultitenancyTest do
       account_id: account_id
     } do
       # Capture the raw token via the url_fun callback
-      captured_token = nil
-
       {:ok, _invitation} =
         Accounts.create_invitation(
           account_id,

@@ -6,7 +6,6 @@ defmodule Kith.Workers.ImmichSyncWorkerTest do
   alias Kith.Repo
 
   import Kith.AccountsFixtures
-  import Kith.ContactsFixtures
 
   setup do
     user = user_fixture()

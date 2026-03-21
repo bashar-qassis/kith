@@ -4,13 +4,13 @@ defmodule KithWeb.UserLive.SettingsTest do
   import Phoenix.LiveViewTest
   import Kith.AccountsFixtures
 
-  @tag token_authenticated_at: DateTime.utc_now(:second)
+  @moduletag token_authenticated_at: DateTime.utc_now(:second)
   setup :register_and_log_in_user
 
   describe "Settings page" do
     test "renders settings page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/settings")
-      assert html =~ "Account Settings"
+      assert html =~ "Profile Settings"
     end
 
     test "redirects if user is not logged in" do
@@ -23,7 +23,7 @@ defmodule KithWeb.UserLive.SettingsTest do
   end
 
   describe "update email form" do
-    test "updates the user email", %{conn: conn, user: user} do
+    test "updates the user email", %{conn: conn} do
       new_email = unique_user_email()
 
       {:ok, lv, _html} = live(conn, ~p"/users/settings")

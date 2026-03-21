@@ -6,8 +6,6 @@ defmodule KithWeb.API.ContactControllerTest do
 
   alias Kith.Accounts
 
-  @valid_password valid_user_password()
-
   # Helper to get an authenticated conn
   defp authed_conn(conn, user) do
     {raw_token, _} = Accounts.generate_api_token(user)
@@ -28,7 +26,7 @@ defmodule KithWeb.API.ContactControllerTest do
       conn = authed_conn(conn, user)
 
       # Create 25 contacts
-      contacts =
+      _contacts =
         for i <- 1..25 do
           contact_fixture(user.account_id, %{first_name: "Contact", last_name: "#{i}"})
         end

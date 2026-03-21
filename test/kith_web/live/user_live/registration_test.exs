@@ -8,7 +8,7 @@ defmodule KithWeb.UserLive.RegistrationTest do
     test "renders registration page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/register")
 
-      assert html =~ "Register for an account"
+      assert html =~ "Create an account"
       assert html =~ "Log in"
     end
 
@@ -66,6 +66,31 @@ defmodule KithWeb.UserLive.RegistrationTest do
         |> render_submit()
 
       assert result =~ "has already been taken"
+    end
+  end
+
+  describe "Registration with ToS required" do
+    setup do
+      original = Application.get_env(:kith, :require_tos_acceptance, false)
+      Application.put_env(:kith, :require_tos_acceptance, true)
+      on_exit(fn -> Application.put_env(:kith, :require_tos_acceptance, original) end)
+      :ok
+    end
+
+    test "shows ToS checkbox when required", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/register")
+      assert html =~ "Terms of Service"
+    end
+
+    test "requires ToS acceptance for registration", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      result =
+        lv
+        |> form("#registration_form", user: %{email: unique_user_email(), password: valid_user_password()})
+        |> render_submit()
+
+      assert result =~ "you must accept the Terms of Service"
     end
   end
 end

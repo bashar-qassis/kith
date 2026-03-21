@@ -43,7 +43,7 @@ defmodule KithWeb.API.ReminderControllerTest do
     test "lists reminders for a contact", %{conn: conn, user: user, contact: contact} do
       create_reminder_via_api(conn, contact.id, %{"title" => "R1"})
 
-      conn2 =
+      _conn2 =
         build_conn()
         |> authed_conn(user)
         |> create_reminder_via_api(contact.id, %{"title" => "R2"})
@@ -71,7 +71,7 @@ defmodule KithWeb.API.ReminderControllerTest do
       })
 
       # Create a reminder 45 days from now (outside 30-day window)
-      conn2 =
+      _conn2 =
         build_conn()
         |> authed_conn(user)
         |> create_reminder_via_api(contact.id, %{
@@ -100,7 +100,7 @@ defmodule KithWeb.API.ReminderControllerTest do
         "next_reminder_date" => Date.to_iso8601(Date.add(Date.utc_today(), 15))
       })
 
-      conn2 =
+      _conn2 =
         build_conn()
         |> authed_conn(user)
         |> create_reminder_via_api(contact.id, %{
