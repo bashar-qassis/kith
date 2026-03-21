@@ -1,13 +1,15 @@
 defmodule KithWeb.ContactLive.DebtsComponent do
   use KithWeb, :live_component
 
-  alias Kith.Debts
+  alias Kith.{Debts, Contacts}
 
   @impl true
   def mount(socket) do
     {:ok,
      socket
      |> assign(:debts, [])
+     |> assign(:currencies, [])
+     |> assign(:contact_currency, nil)
      |> assign(:show_form, false)
      |> assign(:expanded_debt_id, nil)
      |> assign(:show_payment_form_for, nil)}
@@ -16,11 +18,16 @@ defmodule KithWeb.ContactLive.DebtsComponent do
   @impl true
   def update(assigns, socket) do
     debts = Debts.list_debts(assigns.account_id, assigns.contact_id)
+    currencies = Contacts.list_currencies()
+    contact = Contacts.get_contact(assigns.account_id, assigns.contact_id, preload: [:currency])
+    contact_currency = contact && contact.currency
 
     {:ok,
      socket
      |> assign(assigns)
-     |> assign(:debts, debts)}
+     |> assign(:debts, debts)
+     |> assign(:currencies, currencies)
+     |> assign(:contact_currency, contact_currency)}
   end
 
   @impl true
@@ -30,6 +37,24 @@ defmodule KithWeb.ContactLive.DebtsComponent do
 
   def handle_event("cancel-form", _params, socket) do
     {:noreply, assign(socket, :show_form, false)}
+  end
+
+  def handle_event("set-contact-currency", %{"currency_id" => currency_id}, socket) do
+    contact = Contacts.get_contact(socket.assigns.account_id, socket.assigns.contact_id)
+    currency_id = if currency_id == "", do: nil, else: String.to_integer(currency_id)
+
+    case Contacts.update_contact(contact, %{currency_id: currency_id}) do
+      {:ok, updated_contact} ->
+        updated_contact = Kith.Repo.preload(updated_contact, :currency)
+
+        {:noreply,
+         socket
+         |> assign(:contact_currency, updated_contact.currency)
+         |> put_flash(:info, "Default currency updated.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update currency.")}
+    end
   end
 
   def handle_event("save-debt", %{"debt" => debt_params}, socket) do
@@ -110,18 +135,6 @@ defmodule KithWeb.ContactLive.DebtsComponent do
     end
   end
 
-  defp total_owed_to_me(debts) do
-    debts
-    |> Enum.filter(&(&1.direction == "owed_to_me" and &1.status == "active"))
-    |> Enum.reduce(Decimal.new(0), fn d, acc -> Decimal.add(acc, d.amount) end)
-  end
-
-  defp total_owed_by_me(debts) do
-    debts
-    |> Enum.filter(&(&1.direction == "owed_by_me" and &1.status == "active"))
-    |> Enum.reduce(Decimal.new(0), fn d, acc -> Decimal.add(acc, d.amount) end)
-  end
-
   defp active_debts(debts) do
     Enum.filter(debts, &(&1.status == "active"))
   end
@@ -130,10 +143,22 @@ defmodule KithWeb.ContactLive.DebtsComponent do
     Enum.reduce(debt.payments, Decimal.new(0), fn p, acc -> Decimal.add(acc, p.amount) end)
   end
 
-  defp format_amount(amount) do
-    amount
-    |> Decimal.round(2)
-    |> Decimal.to_string(:normal)
+  defp format_amount(amount, currency) do
+    symbol = if currency, do: currency.symbol, else: "$"
+    formatted = amount |> Decimal.round(2) |> Decimal.to_string(:normal)
+    "#{symbol}#{formatted}"
+  end
+
+  defp totals_by_currency(debts, direction) do
+    debts
+    |> Enum.filter(&(&1.direction == direction and &1.status == "active"))
+    |> Enum.group_by(& &1.currency_id)
+    |> Enum.map(fn {_currency_id, group} ->
+      currency = List.first(group).currency
+      total = Enum.reduce(group, Decimal.new(0), fn d, acc -> Decimal.add(acc, d.amount) end)
+      {currency, total}
+    end)
+    |> Enum.reject(fn {_currency, total} -> Decimal.equal?(total, Decimal.new(0)) end)
   end
 
   @impl true
@@ -141,7 +166,28 @@ defmodule KithWeb.ContactLive.DebtsComponent do
     ~H"""
     <div>
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Debts</h3>
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Debts</h3>
+          <%= if @can_edit do %>
+            <form phx-change="set-contact-currency" phx-target={@myself}>
+              <select
+                name="currency_id"
+                class="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors"
+              >
+                <option value="">No default currency</option>
+                <%= for c <- @currencies do %>
+                  <option value={c.id} selected={@contact_currency && @contact_currency.id == c.id}>
+                    {c.code} ({c.symbol})
+                  </option>
+                <% end %>
+              </select>
+            </form>
+          <% else %>
+            <span :if={@contact_currency} class="text-xs text-[var(--color-text-tertiary)]">
+              {@contact_currency.code}
+            </span>
+          <% end %>
+        </div>
         <%= if @can_edit do %>
           <button
             id={"add-debt-#{@contact_id}"}
@@ -156,19 +202,19 @@ defmodule KithWeb.ContactLive.DebtsComponent do
 
       <%!-- Summary --%>
       <%= if @debts != [] do %>
-        <div class="flex gap-3 mb-3 text-xs">
-          <% owed_to = total_owed_to_me(@debts) %>
-          <% owed_by = total_owed_by_me(@debts) %>
-          <%= if Decimal.gt?(owed_to, Decimal.new(0)) do %>
+        <div class="flex gap-3 mb-3 text-xs flex-wrap">
+          <% owed_to_groups = totals_by_currency(@debts, "owed_to_me") %>
+          <% owed_by_groups = totals_by_currency(@debts, "owed_by_me") %>
+          <%= for {currency, total} <- owed_to_groups do %>
             <span class="inline-flex items-center gap-1 text-[var(--color-success)]">
               <.icon name="hero-arrow-down-left" class="size-3" />
-              Owed to you: ${format_amount(owed_to)}
+              Owed to you: {format_amount(total, currency)}
             </span>
           <% end %>
-          <%= if Decimal.gt?(owed_by, Decimal.new(0)) do %>
+          <%= for {currency, total} <- owed_by_groups do %>
             <span class="inline-flex items-center gap-1 text-[var(--color-error)]">
               <.icon name="hero-arrow-up-right" class="size-3" />
-              You owe: ${format_amount(owed_by)}
+              You owe: {format_amount(total, currency)}
             </span>
           <% end %>
         </div>
@@ -187,7 +233,7 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                 class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               />
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="grid grid-cols-3 gap-2 mt-2">
               <input
                 type="number"
                 name="debt[amount]"
@@ -197,6 +243,17 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                 min="0.01"
                 class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               />
+              <select
+                name="debt[currency_id]"
+                class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+              >
+                <option value="">Currency</option>
+                <%= for c <- @currencies do %>
+                  <option value={c.id} selected={@contact_currency && @contact_currency.id == c.id}>
+                    {c.code} ({c.symbol})
+                  </option>
+                <% end %>
+              </select>
               <select
                 name="debt[direction]"
                 required
@@ -280,7 +337,7 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                   debt.direction == "owed_to_me" && "text-[var(--color-success)]",
                   debt.direction == "owed_by_me" && "text-[var(--color-error)]"
                 ]}>
-                  ${format_amount(debt.amount)}
+                  {format_amount(debt.amount, debt.currency)}
                 </span>
                 <span class={[
                   "inline-flex items-center rounded-[var(--radius-full)] px-1.5 py-0.5 text-[10px] font-medium border",
@@ -302,7 +359,7 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                   </span>
                   <% paid = total_paid(debt) %>
                   <%= if Decimal.gt?(paid, Decimal.new(0)) do %>
-                    <span>Paid: ${format_amount(paid)}</span>
+                    <span>Paid: {format_amount(paid, debt.currency)}</span>
                   <% end %>
                 </div>
 
@@ -311,7 +368,7 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                   <div class="mt-2 space-y-1">
                     <%= for payment <- debt.payments do %>
                       <div class="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
-                        <span>${format_amount(payment.amount)} on <.date_display date={payment.paid_at} /></span>
+                        <span>{format_amount(payment.amount, debt.currency)} on <.date_display date={payment.paid_at} /></span>
                         <span :if={payment.notes} class="text-[var(--color-text-tertiary)] truncate ms-2">{payment.notes}</span>
                       </div>
                     <% end %>
@@ -413,7 +470,7 @@ defmodule KithWeb.ContactLive.DebtsComponent do
             <%= for debt <- settled do %>
               <div class="flex items-center justify-between text-xs text-[var(--color-text-disabled)]">
                 <span class="line-through truncate">{debt.title}</span>
-                <span>${format_amount(debt.amount)}</span>
+                <span>{format_amount(debt.amount, debt.currency)}</span>
               </div>
             <% end %>
           </div>
