@@ -44,9 +44,6 @@ erl_crash.dump
 .playwright-mcp/
 /node_modules/
 
-# Temporary screenshots
-*.png
-
 # Local uploads
 /priv/uploads/
 
