@@ -119,7 +119,7 @@ defmodule KithWeb.ContactLive.Trash do
     contact = Contacts.get_contact!(account_id, String.to_integer(id))
     {:ok, _} = Contacts.restore_contact(contact)
 
-    AuditLogs.log_event(account_id, user, "Contact restored from trash",
+    AuditLogs.log_event(account_id, user, :contact_restored,
       contact_id: contact.id,
       contact_name: contact.display_name
     )
@@ -143,7 +143,7 @@ defmodule KithWeb.ContactLive.Trash do
 
     {:ok, _} = Contacts.hard_delete_contact(contact)
 
-    AuditLogs.log_event(account_id, user, "Contact permanently deleted",
+    AuditLogs.log_event(account_id, user, :contact_purged,
       contact_id: contact.id,
       contact_name: display_name
     )

@@ -145,23 +145,11 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   def handle_event("bulk-archive", _params, socket) do
-    perform_bulk_action(
-      socket,
-      fn contact ->
-        Contacts.archive_contact(contact)
-      end,
-      "archived"
-    )
+    perform_bulk_action(socket, &Contacts.archive_contact/1, :contact_archived, "archived")
   end
 
   def handle_event("bulk-delete", _params, socket) do
-    perform_bulk_action(
-      socket,
-      fn contact ->
-        Contacts.soft_delete_contact(contact)
-      end,
-      "moved to trash"
-    )
+    perform_bulk_action(socket, &Contacts.soft_delete_contact/1, :contact_deleted, "moved to trash")
   end
 
   def handle_event("bulk-favorite", _params, socket) do
@@ -217,7 +205,7 @@ defmodule KithWeb.ContactLive.Index do
      |> load_contacts()}
   end
 
-  defp perform_bulk_action(socket, action_fn, action_label) do
+  defp perform_bulk_action(socket, action_fn, event, flash_label) do
     account_id = socket.assigns.account_id
     user = socket.assigns.current_scope.user
     contacts = get_selected_contacts(socket)
@@ -225,7 +213,7 @@ defmodule KithWeb.ContactLive.Index do
     Enum.each(contacts, fn contact ->
       {:ok, _} = action_fn.(contact)
 
-      Kith.AuditLogs.log_event(account_id, user, "Contact #{action_label}",
+      Kith.AuditLogs.log_event(account_id, user, event,
         contact_id: contact.id,
         contact_name: contact.display_name
       )
@@ -236,7 +224,7 @@ defmodule KithWeb.ContactLive.Index do
     {:noreply,
      socket
      |> assign(:selected_ids, MapSet.new())
-     |> put_flash(:info, "#{count} contact(s) #{action_label}.")
+     |> put_flash(:info, "#{count} contact(s) #{flash_label}.")
      |> load_contacts()}
   end
 

@@ -137,7 +137,7 @@ defmodule KithWeb.ContactLive.Merge do
         # Log the merge
         scope = socket.assigns.current_scope
 
-        Kith.AuditLogs.log_event(scope.account.id, scope.user, "contact_merged",
+        Kith.AuditLogs.log_event(scope.account.id, scope.user, :contact_merged,
           contact_id: contact_a.id,
           contact_name: contact_a.display_name,
           metadata: %{

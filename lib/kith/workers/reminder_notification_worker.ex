@@ -75,17 +75,34 @@ defmodule Kith.Workers.ReminderNotificationWorker do
 
     case Kith.Mailer.deliver(email) do
       {:ok, _} ->
-        :ok
-
-      {:error, reason} ->
-        # Log audit event for email failure
         Kith.AuditLogs.create_audit_log(reminder.account_id, %{
           user_id: nil,
           user_name: "system",
-          event: "reminder.email_failed",
+          event: "reminder_fired",
           contact_id: reminder.contact_id,
           contact_name: reminder.contact.display_name,
-          metadata: %{error: inspect(reason), instance_id: instance.id}
+          metadata: %{
+            reminder_id: reminder.id,
+            instance_id: instance.id,
+            type: to_string(type)
+          }
+        })
+
+        :ok
+
+      {:error, reason} ->
+        Kith.AuditLogs.create_audit_log(reminder.account_id, %{
+          user_id: nil,
+          user_name: "system",
+          event: "reminder_fired",
+          contact_id: reminder.contact_id,
+          contact_name: reminder.contact.display_name,
+          metadata: %{
+            reminder_id: reminder.id,
+            instance_id: instance.id,
+            type: to_string(type),
+            delivery_error: inspect(reason)
+          }
         })
 
         {:error, reason}

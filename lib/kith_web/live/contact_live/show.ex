@@ -56,7 +56,7 @@ defmodule KithWeb.ContactLive.Show do
 
     {:ok, updated} = Contacts.archive_contact(contact)
 
-    AuditLogs.log_event(account_id, user, "Contact archived",
+    AuditLogs.log_event(account_id, user, :contact_archived,
       contact_id: contact.id,
       contact_name: contact.display_name
     )
@@ -74,7 +74,7 @@ defmodule KithWeb.ContactLive.Show do
 
     {:ok, updated} = Contacts.unarchive_contact(contact)
 
-    AuditLogs.log_event(account_id, user, "Contact unarchived",
+    AuditLogs.log_event(account_id, user, :contact_restored,
       contact_id: contact.id,
       contact_name: contact.display_name
     )
@@ -92,7 +92,7 @@ defmodule KithWeb.ContactLive.Show do
 
     {:ok, _} = Contacts.soft_delete_contact(contact)
 
-    AuditLogs.log_event(account_id, user, "Contact moved to trash",
+    AuditLogs.log_event(account_id, user, :contact_deleted,
       contact_id: contact.id,
       contact_name: contact.display_name
     )

@@ -41,7 +41,7 @@ defmodule KithWeb.ContactLive.FormComponent do
 
     case Contacts.create_contact(account_id, contact_params) do
       {:ok, contact} ->
-        Kith.AuditLogs.log_event(account_id, user, "Contact created",
+        Kith.AuditLogs.log_event(account_id, user, :contact_created,
           contact_id: contact.id,
           contact_name: contact.display_name
         )
@@ -63,7 +63,7 @@ defmodule KithWeb.ContactLive.FormComponent do
 
     case Contacts.update_contact(contact, contact_params) do
       {:ok, updated_contact} ->
-        Kith.AuditLogs.log_event(account_id, user, "Contact updated",
+        Kith.AuditLogs.log_event(account_id, user, :contact_updated,
           contact_id: updated_contact.id,
           contact_name: updated_contact.display_name,
           metadata: %{changed_fields: changed_fields(contact_params, contact)}

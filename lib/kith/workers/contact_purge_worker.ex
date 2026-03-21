@@ -62,11 +62,12 @@ defmodule Kith.Workers.ContactPurgeWorker do
     # Cancel any remaining Oban jobs for the contact's reminders
     Reminders.cancel_all_for_contact(contact.id, contact.account_id)
 
-    # Create audit log entry (survives the hard-delete since it uses plain integer IDs)
+    # Create audit log entry synchronously (we're already in an Oban job, no need to double-enqueue).
+    # Must insert before deletion since the contact will be cascade-deleted.
     Kith.AuditLogs.create_audit_log(contact.account_id, %{
       user_id: nil,
       user_name: "system",
-      event: "contact.purged",
+      event: "contact_purged",
       contact_id: contact.id,
       contact_name: contact.display_name || contact.first_name,
       metadata: %{reason: "Contact permanently purged after 30-day trash window."}

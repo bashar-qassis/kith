@@ -108,7 +108,7 @@ defmodule KithWeb.ContactLive.New do
 
     case Contacts.create_contact(account_id, contact_params) do
       {:ok, contact} ->
-        Kith.AuditLogs.log_event(account_id, user, "Contact created",
+        Kith.AuditLogs.log_event(account_id, user, :contact_created,
           contact_id: contact.id,
           contact_name: contact.display_name
         )
