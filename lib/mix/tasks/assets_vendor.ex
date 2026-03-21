@@ -1,16 +1,11 @@
 defmodule Mix.Tasks.Assets.Vendor do
-  @moduledoc "Downloads vendored JS files (daisyUI, heroicons) for the asset pipeline."
+  @moduledoc "Downloads vendored JS files (heroicons) for the asset pipeline."
   @shortdoc "Downloads vendored JS dependencies"
 
   use Mix.Task
 
   @vendor_dir "assets/vendor"
-  @files [
-    {"daisyui.js",
-     "https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js"},
-    {"daisyui-theme.js",
-     "https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js"}
-  ]
+  @files []
 
   @impl true
   def run(_args) do

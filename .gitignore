@@ -20,9 +20,7 @@
 # In case you use Node.js/Esbuild/Tailwind
 /assets/node_modules/
 
-# If you use DaisyUI
-/assets/vendor/daisyui.js
-/assets/vendor/daisyui-theme.js
+# Vendored JS plugins
 /assets/vendor/heroicons.js
 
 # macOS
@@ -45,3 +43,13 @@ erl_crash.dump
 /playwright-report/
 .playwright-mcp/
 /node_modules/
+
+# Temporary screenshots
+*.png
+
+# Local uploads
+/priv/uploads/
+
+# Generated reports
+/docs/playwright-report/
+/docs/screenshots/

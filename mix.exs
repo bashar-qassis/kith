@@ -119,6 +119,10 @@ defmodule Kith.MixProject do
       # HTML Sanitization (rich text from Trix editor)
       {:html_sanitize_ex, "~> 1.4"},
 
+      # Server-side sorting, filtering, and pagination
+      {:flop, "~> 0.26"},
+      {:flop_phoenix, "~> 0.23"},
+
       # Dev/Test
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
