@@ -22,4 +22,8 @@ defmodule Kith.Contacts.Photo do
     |> cast(attrs, [:file_name, :storage_key, :file_size, :content_type, :is_cover, :contact_id, :account_id, :is_private])
     |> validate_required([:file_name, :storage_key, :file_size, :content_type])
   end
+
+  @doc "Returns true if the photo is awaiting sync from an external source."
+  def pending_sync?(%__MODULE__{storage_key: "pending_sync:" <> _}), do: true
+  def pending_sync?(%__MODULE__{}), do: false
 end

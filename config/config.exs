@@ -8,7 +8,7 @@
 import Config
 
 # Register .vcf (vCard) MIME type for LiveView uploads
-config :mime, :types, %{"text/vcard" => ["vcf"]}
+config :mime, :types, %{"text/vcard" => ["vcf"], "application/json" => ["json"]}
 
 config :kith, :scopes,
   user: [
@@ -40,7 +40,9 @@ config :kith, Oban,
     exports: 2,
     imports: 2,
     immich: 3,
-    purge: 1
+    purge: 1,
+    photo_sync: 5,
+    api_supplement: 3
   ],
   plugins: [
     Oban.Plugins.Pruner,
@@ -48,7 +50,8 @@ config :kith, Oban,
      crontab: [
        {"0 2 * * *", Kith.Workers.ReminderSchedulerWorker},
        {"0 3 * * *", Kith.Workers.ContactPurgeWorker},
-       {"0 4 * * 0", Kith.Workers.DuplicateDetectionWorker}
+       {"0 4 * * 0", Kith.Workers.DuplicateDetectionWorker},
+       {"0 5 * * 0", Kith.Workers.ImportFileCleanupWorker}
      ]}
   ]
 
