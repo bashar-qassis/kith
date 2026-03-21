@@ -1,13 +1,30 @@
 defmodule KithWeb.ContactLive.Show do
+  @moduledoc """
+  Contact profile page with two-column layout: sidebar metadata + tabbed content.
+  Each tab is a Level 2 LiveComponent that loads its own data.
+  """
+
   use KithWeb, :live_view
 
   alias Kith.Contacts
   alias Kith.AuditLogs
 
-  @tabs ~w(notes activities calls life_events photos documents addresses contact_fields relationships)a
+  @tabs ~w(notes life_events photos)a
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
+  def mount(_params, _session, socket) do
+    # No DB queries in mount — mount is called twice (HTTP + WebSocket).
+    {:ok,
+     socket
+     |> assign(:contact, nil)
+     |> assign(:active_tab, :notes)
+     |> assign(:tags, [])
+     |> assign(:tag_search, "")
+     |> assign(:show_tag_dropdown, false)}
+  end
+
+  @impl true
+  def handle_params(%{"id" => id}, _uri, socket) do
     account_id = socket.assigns.current_scope.account.id
     user_id = socket.assigns.current_scope.user.id
 
@@ -15,16 +32,13 @@ defmodule KithWeb.ContactLive.Show do
       Contacts.get_contact!(account_id, String.to_integer(id))
       |> Kith.Repo.preload([:tags, :gender])
 
-    {:ok,
+    {:noreply,
      socket
      |> assign(:page_title, contact.display_name)
      |> assign(:account_id, account_id)
      |> assign(:current_user_id, user_id)
      |> assign(:contact, contact)
-     |> assign(:active_tab, :notes)
-     |> assign(:tags, Contacts.list_tags(account_id))
-     |> assign(:tag_search, "")
-     |> assign(:show_tag_dropdown, false)}
+     |> assign(:tags, Contacts.list_tags(account_id))}
   end
 
   @impl true
@@ -135,12 +149,6 @@ defmodule KithWeb.ContactLive.Show do
     {:noreply, assign(socket, :contact, updated_contact)}
   end
 
-  defp initials(contact) do
-    f = if contact.first_name, do: String.first(contact.first_name), else: ""
-    l = if contact.last_name, do: String.first(contact.last_name), else: ""
-    String.upcase(f <> l)
-  end
-
   defp compute_age(birthdate) when is_struct(birthdate, Date) do
     today = Date.utc_today()
     years = today.year - birthdate.year
@@ -158,11 +166,9 @@ defmodule KithWeb.ContactLive.Show do
     Kith.Policy.can?(assigns.current_scope.user, action, resource)
   end
 
-  defp tag_style(%{color: color}) when is_binary(color) and color != "" do
-    "background-color: #{color}20; color: #{color}; border-color: #{color}40;"
-  end
-
-  defp tag_style(_), do: ""
+  defp tab_label(:notes), do: "Notes"
+  defp tab_label(:life_events), do: "Life Events"
+  defp tab_label(:photos), do: "Photos"
 
   defp filtered_tags(tags, contact_tags, search) do
     contact_tag_ids = Enum.map(contact_tags, & &1.id) |> MapSet.new()

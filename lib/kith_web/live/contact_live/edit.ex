@@ -2,40 +2,136 @@ defmodule KithWeb.ContactLive.Edit do
   use KithWeb, :live_view
 
   alias Kith.Contacts
+  alias Kith.Contacts.Contact
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    account_id = socket.assigns.current_scope.account.id
-    user = socket.assigns.current_scope.user
-    Kith.Policy.authorize!(user, :update, :contact)
-
-    contact =
-      Contacts.get_contact!(account_id, String.to_integer(id))
-      |> Kith.Repo.preload([:gender])
-
+  def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "Edit #{contact.display_name}")
-     |> assign(:contact, contact)
-     |> assign(:account_id, account_id)}
+     |> assign(:page_title, "Edit Contact")
+     |> assign(:contact, nil)
+     |> assign(:changeset, Contact.update_changeset(%Contact{}, %{}))
+     |> assign(:genders, [])
+     |> assign(:show_deceased_at, false)}
+  end
+
+  @impl true
+  def handle_params(%{"id" => id}, _uri, socket) do
+    user = socket.assigns.current_scope.user
+
+    unless Kith.Policy.can?(user, :update, :contact) do
+      {:noreply,
+       socket
+       |> put_flash(:error, "You don't have permission to edit contacts")
+       |> push_navigate(to: ~p"/contacts")}
+    else
+      account_id = socket.assigns.current_scope.account.id
+
+      contact =
+        Contacts.get_contact!(account_id, String.to_integer(id))
+        |> Kith.Repo.preload([:gender])
+
+      changeset = Contact.update_changeset(contact, %{})
+
+      {:noreply,
+       socket
+       |> assign(:page_title, "Edit #{contact.display_name}")
+       |> assign(:contact, contact)
+       |> assign(:account_id, account_id)
+       |> assign(:changeset, changeset)
+       |> assign(:genders, Contacts.list_genders(account_id))
+       |> assign(:show_deceased_at, contact.deceased || false)}
+    end
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 class="text-2xl font-bold mb-6">Edit {@contact.display_name}</h1>
+    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-2xl font-bold mb-6">
+          {if @contact, do: "Edit #{@contact.display_name}", else: "Edit Contact"}
+        </h1>
 
-      <.live_component
-        module={KithWeb.ContactLive.FormComponent}
-        id="contact-form"
-        contact={@contact}
-        action={:edit}
-        account_id={@account_id}
-        current_scope={@current_scope}
-        return_to={~p"/contacts/#{@contact.id}"}
-      />
-    </div>
+        <.simple_form for={@changeset} id="contact-form" phx-change="validate" phx-submit="save">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <.input
+              field={@changeset[:first_name]}
+              type="text"
+              label="First Name *"
+              required
+            />
+            <.input field={@changeset[:last_name]} type="text" label="Last Name" />
+            <.input field={@changeset[:nickname]} type="text" label="Nickname" />
+            <.input
+              field={@changeset[:gender_id]}
+              type="select"
+              label="Gender"
+              prompt="Select gender"
+              options={Enum.map(@genders, &{&1.name, &1.id})}
+            />
+            <.input field={@changeset[:birthdate]} type="date" label="Birthdate" />
+            <.input field={@changeset[:occupation]} type="text" label="Occupation" />
+            <.input field={@changeset[:company]} type="text" label="Company" />
+            <.input field={@changeset[:deceased]} type="checkbox" label="Deceased" />
+            <.input field={@changeset[:favorite]} type="checkbox" label="Favorite" />
+          </div>
+
+          <%= if @show_deceased_at do %>
+            <.input field={@changeset[:deceased_at]} type="date" label="Date of Death" />
+          <% end %>
+
+          <:actions>
+            <.link
+              navigate={if @contact, do: ~p"/contacts/#{@contact.id}", else: ~p"/contacts"}
+              class="btn btn-ghost"
+            >
+              Cancel
+            </.link>
+            <button type="submit" class="btn btn-primary" phx-disable-with="Saving...">
+              Save Changes
+            </button>
+          </:actions>
+        </.simple_form>
+      </div>
+    </Layouts.app>
     """
+  end
+
+  @impl true
+  def handle_event("validate", %{"contact" => contact_params}, socket) do
+    changeset =
+      (socket.assigns.contact || %Contact{})
+      |> Contact.update_changeset(contact_params)
+      |> Map.put(:action, :validate)
+
+    show_deceased = contact_params["deceased"] == "true"
+
+    {:noreply,
+     socket
+     |> assign(:changeset, changeset)
+     |> assign(:show_deceased_at, show_deceased)}
+  end
+
+  def handle_event("save", %{"contact" => contact_params}, socket) do
+    account_id = socket.assigns.account_id
+    user = socket.assigns.current_scope.user
+    contact = socket.assigns.contact
+
+    case Contacts.update_contact(contact, contact_params) do
+      {:ok, updated_contact} ->
+        Kith.AuditLogs.log_event(account_id, user, "Contact updated",
+          contact_id: updated_contact.id,
+          contact_name: updated_contact.display_name
+        )
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Contact updated successfully.")
+         |> push_navigate(to: ~p"/contacts/#{updated_contact.id}")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :changeset, changeset)}
+    end
   end
 end

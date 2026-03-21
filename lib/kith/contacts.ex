@@ -78,6 +78,113 @@ defmodule Kith.Contacts do
     |> Repo.all()
   end
 
+  @doc """
+  Lists contacts with cursor-based pagination.
+
+  Returns `%{entries: [%Contact{}, ...], has_more: boolean}`.
+
+  ## Options
+
+    * `:limit` - page size (default 20)
+    * `:after_cursor` - contact id to paginate after
+    * `:order_by` - Ecto order_by clause (default `[asc: :display_name]`)
+    * `:preload` - associations to preload (default `[:tags]`)
+    * `:search` - search string to filter by name/company/fields
+    * `:archived` - when `true`, include archived contacts (default `false`)
+    * `:deceased` - when `true`, include deceased contacts (default `false`)
+    * `:favorites_only` - when `true`, only return favorites (default `false`)
+    * `:tag_ids` - list of tag id strings to filter by (default `[]`)
+  """
+  def list_contacts_paginated(account_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 20)
+    after_cursor = Keyword.get(opts, :after_cursor, nil)
+    order = Keyword.get(opts, :order_by, asc: :display_name)
+    preloads = Keyword.get(opts, :preload, [:tags])
+    search = Keyword.get(opts, :search, "")
+    show_archived = Keyword.get(opts, :archived, false)
+    show_deceased = Keyword.get(opts, :deceased, false)
+    favorites_only = Keyword.get(opts, :favorites_only, false)
+    tag_ids = Keyword.get(opts, :tag_ids, [])
+
+    query =
+      Contact
+      |> scope_active(account_id)
+      |> paginated_search(search)
+      |> paginated_filter_archived(show_archived)
+      |> paginated_filter_deceased(show_deceased)
+      |> paginated_filter_favorites(favorites_only)
+      |> paginated_filter_tags(tag_ids)
+      |> paginated_cursor(after_cursor)
+      |> order_by(^order)
+      |> limit(^(limit + 1))
+      |> preload(^preloads)
+
+    results = Repo.all(query)
+    has_more = length(results) > limit
+    entries = if has_more, do: Enum.take(results, limit), else: results
+
+    %{entries: entries, has_more: has_more}
+  end
+
+  defp paginated_search(query, ""), do: query
+  defp paginated_search(query, nil), do: query
+
+  defp paginated_search(query, search) do
+    pattern = "%#{String.replace(search, ~r/[%_\\]/, "\\\\\\0")}%"
+
+    query
+    |> join(:left, [c], cf in ContactField, on: cf.contact_id == c.id)
+    |> where(
+      [c, cf],
+      ilike(c.first_name, ^pattern) or
+        ilike(c.last_name, ^pattern) or
+        ilike(c.display_name, ^pattern) or
+        ilike(c.nickname, ^pattern) or
+        ilike(c.company, ^pattern) or
+        ilike(cf.value, ^pattern)
+    )
+    |> distinct([c], c.id)
+  end
+
+  defp paginated_filter_archived(query, true), do: query
+
+  defp paginated_filter_archived(query, false) do
+    where(query, [c], c.is_archived == false)
+  end
+
+  defp paginated_filter_deceased(query, true), do: query
+
+  defp paginated_filter_deceased(query, false) do
+    where(query, [c], c.deceased == false)
+  end
+
+  defp paginated_filter_favorites(query, false), do: query
+
+  defp paginated_filter_favorites(query, true) do
+    where(query, [c], c.favorite == true)
+  end
+
+  defp paginated_filter_tags(query, []), do: query
+
+  defp paginated_filter_tags(query, tag_ids) do
+    int_ids =
+      Enum.map(tag_ids, fn
+        id when is_binary(id) -> String.to_integer(id)
+        id when is_integer(id) -> id
+      end)
+
+    query
+    |> join(:inner, [c], t in assoc(c, :tags))
+    |> where([c, ..., t], t.id in ^int_ids)
+    |> distinct([c], c.id)
+  end
+
+  defp paginated_cursor(query, nil), do: query
+
+  defp paginated_cursor(query, cursor) do
+    where(query, [c], c.id > ^cursor)
+  end
+
   def get_contact!(account_id, id) do
     Contact
     |> scope_to_account(account_id)

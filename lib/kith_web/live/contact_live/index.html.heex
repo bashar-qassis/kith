@@ -1,272 +1,279 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold">{@page_title}</h1>
-    <div class="flex items-center gap-3">
-      <%= if can?(assigns, :create, :contact) do %>
-        <.link navigate={~p"/contacts/new"} class="btn btn-primary btn-sm">
-          <.icon name="hero-plus" class="size-4" /> New Contact
-        </.link>
-      <% end %>
-    </div>
-  </div>
-
-  <%!-- Search and filters --%>
-  <div class="flex flex-col sm:flex-row gap-4 mb-6">
-    <div class="flex-1">
-      <form phx-change="search" phx-submit="search">
-        <input
-          type="text"
-          name="search"
-          value={@search}
-          placeholder="Search contacts..."
-          phx-debounce="300"
-          class="input input-bordered w-full"
-        />
-      </form>
+<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">{@page_title}</h1>
+      <div class="flex items-center gap-3">
+        <%= if can?(assigns, :create, :contact) do %>
+          <.link navigate={~p"/contacts/new"} class="btn btn-primary btn-sm">
+            <.icon name="hero-plus" class="size-4" /> New Contact
+          </.link>
+        <% end %>
+      </div>
     </div>
 
-    <div class="flex items-center gap-2 flex-wrap">
-      <select name="sort" phx-change="sort" class="select select-bordered select-sm">
-        <option value="name_asc" selected={@sort == "name_asc"}>Name A-Z</option>
-        <option value="name_desc" selected={@sort == "name_desc"}>Name Z-A</option>
-        <option value="recently_added" selected={@sort == "recently_added"}>Recently Added</option>
-        <option value="recently_contacted" selected={@sort == "recently_contacted"}>Recently Contacted</option>
-      </select>
+    <%!-- Search and filters --%>
+    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+      <div class="flex-1">
+        <form phx-change="search" phx-submit="search">
+          <input
+            type="text"
+            name="search"
+            value={@search}
+            placeholder="Search contacts..."
+            phx-debounce="300"
+            class="input input-bordered w-full"
+          />
+        </form>
+      </div>
 
-      <label class="label cursor-pointer gap-2">
-        <input
-          type="checkbox"
-          checked={@show_archived}
-          phx-click="toggle-archived"
-          class="checkbox checkbox-sm"
-        />
-        <span class="label-text text-sm">Archived</span>
-      </label>
+      <div class="flex items-center gap-2 flex-wrap">
+        <select name="sort" phx-change="sort" class="select select-bordered select-sm">
+          <option value="name_asc" selected={@sort == "name_asc"}>Name A-Z</option>
+          <option value="name_desc" selected={@sort == "name_desc"}>Name Z-A</option>
+          <option value="recently_added" selected={@sort == "recently_added"}>Recently Added</option>
+          <option value="recently_contacted" selected={@sort == "recently_contacted"}>
+            Recently Contacted
+          </option>
+        </select>
 
-      <label class="label cursor-pointer gap-2">
-        <input
-          type="checkbox"
-          checked={@show_deceased}
-          phx-click="toggle-deceased"
-          class="checkbox checkbox-sm"
-        />
-        <span class="label-text text-sm">Deceased</span>
-      </label>
-
-      <label class="label cursor-pointer gap-2">
-        <input
-          type="checkbox"
-          checked={@show_favorites_only}
-          phx-click="toggle-favorites"
-          class="checkbox checkbox-sm"
-        />
-        <span class="label-text text-sm">Favorites</span>
-      </label>
-    </div>
-  </div>
-
-  <%!-- Tag filter --%>
-  <%= if @tags != [] do %>
-    <div class="mb-4 flex flex-wrap gap-2">
-      <span class="text-sm font-medium self-center">Tags:</span>
-      <%= for tag <- @tags do %>
-        <label class="cursor-pointer">
+        <label class="label cursor-pointer gap-2">
           <input
             type="checkbox"
-            value={tag.id}
-            checked={to_string(tag.id) in @selected_tag_ids}
-            phx-click="filter-tags"
-            phx-value-tag_ids={toggle_tag_id(@selected_tag_ids, to_string(tag.id)) |> Jason.encode!()}
-            class="hidden"
+            checked={@show_archived}
+            phx-click="toggle-archived"
+            class="checkbox checkbox-sm"
           />
-          <span class={[
-            "badge badge-sm",
-            if(to_string(tag.id) in @selected_tag_ids, do: "badge-primary", else: "badge-outline")
-          ]}>
-            {tag.name}
-          </span>
+          <span class="label-text text-sm">Archived</span>
         </label>
-      <% end %>
+
+        <label class="label cursor-pointer gap-2">
+          <input
+            type="checkbox"
+            checked={@show_deceased}
+            phx-click="toggle-deceased"
+            class="checkbox checkbox-sm"
+          />
+          <span class="label-text text-sm">Deceased</span>
+        </label>
+
+        <label class="label cursor-pointer gap-2">
+          <input
+            type="checkbox"
+            checked={@show_favorites_only}
+            phx-click="toggle-favorites"
+            class="checkbox checkbox-sm"
+          />
+          <span class="label-text text-sm">Favorites</span>
+        </label>
+      </div>
     </div>
-  <% end %>
 
-  <%!-- Bulk action bar --%>
-  <%= if MapSet.size(@selected_ids) > 0 and can?(assigns, :update, :contact) do %>
-    <div class="bg-base-200 rounded-lg p-3 mb-4 flex items-center gap-3 flex-wrap">
-      <span class="text-sm font-medium">{MapSet.size(@selected_ids)} selected</span>
-      <div class="divider divider-horizontal mx-0"></div>
-      <button phx-click="bulk-favorite" class="btn btn-ghost btn-xs">
-        <.icon name="hero-star" class="size-4" /> Favorite
-      </button>
-      <button phx-click="bulk-archive" class="btn btn-ghost btn-xs">
-        <.icon name="hero-archive-box" class="size-4" /> Archive
-      </button>
-      <button
-        phx-click="bulk-delete"
-        class="btn btn-ghost btn-xs text-error"
-        data-confirm="Move selected contacts to trash?"
-      >
-        <.icon name="hero-trash" class="size-4" /> Delete
-      </button>
-
-      <%!-- Bulk tag assign --%>
-      <%= if @tags != [] do %>
-        <div class="dropdown">
-          <label tabindex="0" class="btn btn-ghost btn-xs">
-            <.icon name="hero-tag" class="size-4" /> Add Tag
+    <%!-- Tag filter --%>
+    <%= if @tags != [] do %>
+      <div class="mb-4 flex flex-wrap gap-2">
+        <span class="text-sm font-medium self-center">Tags:</span>
+        <%= for tag <- @tags do %>
+          <label class="cursor-pointer">
+            <input
+              type="checkbox"
+              value={tag.id}
+              checked={to_string(tag.id) in @selected_tag_ids}
+              phx-click="filter-tags"
+              phx-value-tag_ids={toggle_tag_id(@selected_tag_ids, to_string(tag.id)) |> Jason.encode!()}
+              class="hidden"
+            />
+            <span class={[
+              "badge badge-sm",
+              if(to_string(tag.id) in @selected_tag_ids, do: "badge-primary", else: "badge-outline")
+            ]}>
+              {tag.name}
+            </span>
           </label>
-          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-            <%= for tag <- @tags do %>
-              <li>
-                <button phx-click="bulk-assign-tag" phx-value-tag_id={tag.id}>
-                  {tag.name}
-                </button>
-              </li>
-            <% end %>
-          </ul>
-        </div>
-        <div class="dropdown">
-          <label tabindex="0" class="btn btn-ghost btn-xs">
-            <.icon name="hero-tag" class="size-4" /> Remove Tag
-          </label>
-          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-            <%= for tag <- @tags do %>
-              <li>
-                <button phx-click="bulk-remove-tag" phx-value-tag_id={tag.id}>
-                  {tag.name}
-                </button>
-              </li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
-
-  <%!-- Contact list --%>
-  <div class="overflow-x-auto">
-    <table class="table table-zebra w-full">
-      <thead>
-        <tr>
-          <%= if can?(assigns, :update, :contact) do %>
-            <th class="w-10">
-              <input
-                type="checkbox"
-                class="checkbox checkbox-sm"
-                phx-click="select-all"
-                checked={MapSet.size(@selected_ids) > 0 and MapSet.size(@selected_ids) == length(@contacts)}
-              />
-            </th>
-          <% end %>
-          <th></th>
-          <th>Name</th>
-          <th class="hidden md:table-cell">Company</th>
-          <th class="hidden md:table-cell">Tags</th>
-          <th class="hidden lg:table-cell">Last Contacted</th>
-          <th class="w-10"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= if @contacts == [] do %>
-          <tr>
-            <td colspan="7" class="text-center py-12 text-base-content/60">
-              <.icon name="hero-user-group" class="size-12 mb-2 mx-auto block opacity-40" />
-              <p class="text-lg">No contacts found</p>
-              <p class="text-sm mt-1">
-                <%= if @search != "" do %>
-                  Try a different search term.
-                <% else %>
-                  <.link navigate={~p"/contacts/new"} class="link link-primary">
-                    Add your first contact
-                  </.link>
-                <% end %>
-              </p>
-            </td>
-          </tr>
         <% end %>
-        <%= for contact <- @contacts do %>
-          <tr class={[
-            "hover cursor-pointer",
-            contact.is_archived && "opacity-60"
-          ]}>
+      </div>
+    <% end %>
+
+    <%!-- Bulk action bar --%>
+    <%= if MapSet.size(@selected_ids) > 0 and can?(assigns, :update, :contact) do %>
+      <div class="bg-base-200 rounded-lg p-3 mb-4 flex items-center gap-3 flex-wrap">
+        <span class="text-sm font-medium">{MapSet.size(@selected_ids)} selected</span>
+        <div class="divider divider-horizontal mx-0"></div>
+        <button phx-click="bulk-favorite" class="btn btn-ghost btn-xs">
+          <.icon name="hero-star" class="size-4" /> Favorite
+        </button>
+        <button phx-click="bulk-archive" class="btn btn-ghost btn-xs">
+          <.icon name="hero-archive-box" class="size-4" /> Archive
+        </button>
+        <button
+          phx-click="bulk-delete"
+          class="btn btn-ghost btn-xs text-error"
+          data-confirm="Move selected contacts to trash?"
+        >
+          <.icon name="hero-trash" class="size-4" /> Delete
+        </button>
+
+        <%!-- Bulk tag assign --%>
+        <%= if @tags != [] do %>
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-ghost btn-xs">
+              <.icon name="hero-tag" class="size-4" /> Add Tag
+            </label>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+              <%= for tag <- @tags do %>
+                <li>
+                  <button phx-click="bulk-assign-tag" phx-value-tag_id={tag.id}>
+                    {tag.name}
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-ghost btn-xs">
+              <.icon name="hero-tag" class="size-4" /> Remove Tag
+            </label>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+              <%= for tag <- @tags do %>
+                <li>
+                  <button phx-click="bulk-remove-tag" phx-value-tag_id={tag.id}>
+                    {tag.name}
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%!-- Contact list --%>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
             <%= if can?(assigns, :update, :contact) do %>
-              <td phx-click="toggle-select" phx-value-id={contact.id}>
+              <th class="w-10">
                 <input
                   type="checkbox"
                   class="checkbox checkbox-sm"
-                  checked={MapSet.member?(@selected_ids, contact.id)}
-                  phx-click="toggle-select"
-                  phx-value-id={contact.id}
+                  phx-click="select-all"
+                  checked={MapSet.size(@selected_ids) > 0 and MapSet.size(@selected_ids) == length(@contacts)}
                 />
-              </td>
+              </th>
             <% end %>
-            <td class="w-12">
-              <.link navigate={~p"/contacts/#{contact.id}"}>
-                <div class="avatar placeholder">
-                  <div class="bg-neutral text-neutral-content rounded-full w-10 h-10">
-                    <span class="text-sm">{initials(contact)}</span>
-                  </div>
-                </div>
-              </.link>
-            </td>
-            <td>
-              <.link navigate={~p"/contacts/#{contact.id}"} class="font-medium hover:underline">
-                {contact.display_name}
-              </.link>
-              <%= if contact.is_archived do %>
-                <span class="badge badge-ghost badge-xs ms-1">archived</span>
-              <% end %>
-              <%= if contact.deceased do %>
-                <span class="badge badge-ghost badge-xs ms-1">deceased</span>
-              <% end %>
-            </td>
-            <td class="hidden md:table-cell text-base-content/70">
-              {contact.company}
-            </td>
-            <td class="hidden md:table-cell">
-              <div class="flex flex-wrap gap-1">
-                <%= for tag <- (contact.tags || []) do %>
-                  <span class="badge badge-sm" style={tag_style(tag)}>{tag.name}</span>
-                <% end %>
-              </div>
-            </td>
-            <td class="hidden lg:table-cell text-base-content/70 text-sm">
-              <%= if contact.last_talked_to do %>
-                {Calendar.strftime(contact.last_talked_to, "%b %d, %Y")}
-              <% end %>
-            </td>
-            <td>
-              <button
-                phx-click="toggle-favorite"
-                phx-value-id={contact.id}
-                class="btn btn-ghost btn-xs"
-                title={if contact.favorite, do: "Unfavorite", else: "Favorite"}
-              >
-                <.icon
-                  name={if contact.favorite, do: "hero-star-solid", else: "hero-star"}
-                  class={["size-5", contact.favorite && "text-warning"]}
-                />
-              </button>
-            </td>
+            <th></th>
+            <th>Name</th>
+            <th class="hidden md:table-cell">Company</th>
+            <th class="hidden md:table-cell">Tags</th>
+            <th class="hidden lg:table-cell">Last Contacted</th>
+            <th class="w-10"></th>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          <%= if @contacts == [] do %>
+            <tr>
+              <td colspan="7" class="text-center py-12 text-base-content/60">
+                <.icon name="hero-user-group" class="size-12 mb-2 mx-auto block opacity-40" />
+                <p class="text-lg">No contacts found</p>
+                <p class="text-sm mt-1">
+                  <%= if @search != "" do %>
+                    Try a different search term.
+                  <% else %>
+                    <.link navigate={~p"/contacts/new"} class="link link-primary">
+                      Add your first contact
+                    </.link>
+                  <% end %>
+                </p>
+              </td>
+            </tr>
+          <% end %>
+          <%= for contact <- @contacts do %>
+            <tr class={[
+              "hover cursor-pointer",
+              contact.is_archived && "opacity-60"
+            ]}>
+              <%= if can?(assigns, :update, :contact) do %>
+                <td phx-click="toggle-select" phx-value-id={contact.id}>
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    checked={MapSet.member?(@selected_ids, contact.id)}
+                    phx-click="toggle-select"
+                    phx-value-id={contact.id}
+                  />
+                </td>
+              <% end %>
+              <td class="w-12">
+                <.link navigate={~p"/contacts/#{contact.id}"}>
+                  <.avatar name={contact.display_name} size={:sm} />
+                </.link>
+              </td>
+              <td>
+                <.link navigate={~p"/contacts/#{contact.id}"} class="font-medium hover:underline">
+                  {contact.display_name}
+                </.link>
+                <%= if contact.is_archived do %>
+                  <span class="badge badge-ghost badge-xs ms-1">archived</span>
+                <% end %>
+                <%= if contact.deceased do %>
+                  <span class="badge badge-ghost badge-xs ms-1">deceased</span>
+                <% end %>
+              </td>
+              <td class="hidden md:table-cell text-base-content/70">
+                {contact.company}
+              </td>
+              <td class="hidden md:table-cell">
+                <div class="flex flex-wrap gap-1">
+                  <%= for tag <- (contact.tags || []) do %>
+                    <.tag_badge tag={tag} />
+                  <% end %>
+                </div>
+              </td>
+              <td class="hidden lg:table-cell text-base-content/70 text-sm">
+                <%= if contact.last_talked_to do %>
+                  <.relative_time datetime={contact.last_talked_to} />
+                <% end %>
+              </td>
+              <td>
+                <button
+                  phx-click="toggle-favorite"
+                  phx-value-id={contact.id}
+                  class="btn btn-ghost btn-xs"
+                  title={if contact.favorite, do: "Unfavorite", else: "Favorite"}
+                >
+                  <.icon
+                    name={if contact.favorite, do: "hero-star-solid", else: "hero-star"}
+                    class={["size-5", contact.favorite && "text-warning"]}
+                  />
+                </button>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
 
-  <%!-- Navigation links --%>
-  <div class="flex justify-center gap-4 mt-6 text-sm">
-    <%= if @live_action != :archived do %>
-      <.link navigate={~p"/contacts/archived"} class="link link-hover">
-        View Archived Contacts
+    <%!-- Load more --%>
+    <div :if={@has_more} class="flex justify-center mt-6">
+      <button phx-click="load-more" class="btn btn-outline btn-sm">
+        Load more
+      </button>
+    </div>
+
+    <%!-- Navigation links --%>
+    <div class="flex justify-center gap-4 mt-6 text-sm">
+      <%= if @live_action != :archived do %>
+        <.link navigate={~p"/contacts/archived"} class="link link-hover">
+          View Archived Contacts
+        </.link>
+      <% else %>
+        <.link navigate={~p"/contacts"} class="link link-hover">
+          &larr; Back to Contacts
+        </.link>
+      <% end %>
+      <.link navigate={~p"/contacts/trash"} class="link link-hover">
+        Trash
       </.link>
-    <% else %>
-      <.link navigate={~p"/contacts"} class="link link-hover">
-        &larr; Back to Contacts
-      </.link>
-    <% end %>
-    <.link navigate={~p"/contacts/trash"} class="link link-hover">
-      Trash
-    </.link>
+    </div>
   </div>
-</div>
+</Layouts.app>

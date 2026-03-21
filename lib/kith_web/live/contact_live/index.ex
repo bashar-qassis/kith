@@ -4,6 +4,8 @@ defmodule KithWeb.ContactLive.Index do
   alias Kith.Contacts
   alias Kith.Contacts.Contact
 
+  @page_size 20
+
   @sort_options %{
     "name_asc" => [asc: :display_name],
     "name_desc" => [desc: :display_name],
@@ -26,8 +28,10 @@ defmodule KithWeb.ContactLive.Index do
      |> assign(:show_favorites_only, false)
      |> assign(:selected_tag_ids, [])
      |> assign(:selected_ids, MapSet.new())
-     |> assign(:tags, Contacts.list_tags(account_id))
-     |> load_contacts()}
+     |> assign(:contacts, [])
+     |> assign(:after_cursor, nil)
+     |> assign(:has_more, false)
+     |> assign(:tags, Contacts.list_tags(account_id))}
   end
 
   @impl true
@@ -35,7 +39,12 @@ defmodule KithWeb.ContactLive.Index do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :index, _params), do: socket
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:page_title, "Contacts")
+    |> assign(:show_archived, false)
+    |> load_contacts()
+  end
 
   defp apply_action(socket, :archived, _params) do
     socket
@@ -85,6 +94,22 @@ defmodule KithWeb.ContactLive.Index do
      socket
      |> assign(:selected_tag_ids, tag_ids)
      |> load_contacts()}
+  end
+
+  def handle_event("load-more", _params, socket) do
+    %{entries: entries, has_more: has_more} = fetch_page(socket)
+
+    after_cursor =
+      case List.last(entries) do
+        nil -> socket.assigns.after_cursor
+        contact -> contact.id
+      end
+
+    {:noreply,
+     socket
+     |> assign(:contacts, socket.assigns.contacts ++ entries)
+     |> assign(:after_cursor, after_cursor)
+     |> assign(:has_more, has_more)}
   end
 
   def handle_event("toggle-favorite", %{"id" => id}, socket) do
@@ -141,7 +166,6 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   def handle_event("bulk-favorite", _params, socket) do
-    account_id = socket.assigns.account_id
     contacts = get_selected_contacts(socket)
 
     # If any are not favorited, favorite all. If all favorited, unfavorite all.
@@ -225,59 +249,37 @@ defmodule KithWeb.ContactLive.Index do
     |> Enum.map(&Contacts.get_contact!(account_id, &1))
   end
 
-  defp load_contacts(socket) do
+  defp fetch_page(socket) do
     account_id = socket.assigns.account_id
-    search = socket.assigns.search
     sort = Map.get(@sort_options, socket.assigns.sort, asc: :display_name)
-    show_archived = socket.assigns.show_archived
-    show_deceased = socket.assigns.show_deceased
-    show_favorites_only = socket.assigns.show_favorites_only
-    selected_tag_ids = socket.assigns.selected_tag_ids
 
-    contacts =
-      if search != "" do
-        Contacts.search_contacts(account_id, search)
-      else
-        Contacts.list_contacts(account_id,
-          order_by: sort,
-          preload: [:tags]
-        )
+    Contacts.list_contacts_paginated(account_id,
+      limit: @page_size,
+      after_cursor: socket.assigns.after_cursor,
+      order_by: sort,
+      preload: [:tags],
+      search: socket.assigns.search,
+      archived: socket.assigns.show_archived,
+      deceased: socket.assigns.show_deceased,
+      favorites_only: socket.assigns.show_favorites_only,
+      tag_ids: socket.assigns.selected_tag_ids
+    )
+  end
+
+  defp load_contacts(socket) do
+    socket = assign(socket, :after_cursor, nil)
+    %{entries: entries, has_more: has_more} = fetch_page(socket)
+
+    after_cursor =
+      case List.last(entries) do
+        nil -> nil
+        contact -> contact.id
       end
 
-    contacts =
-      contacts
-      |> maybe_filter_archived(show_archived)
-      |> maybe_filter_deceased(show_deceased)
-      |> maybe_filter_favorites(show_favorites_only)
-      |> maybe_filter_tags(selected_tag_ids)
-
-    assign(socket, :contacts, contacts)
-  end
-
-  defp maybe_filter_archived(contacts, true), do: contacts
-  defp maybe_filter_archived(contacts, false), do: Enum.reject(contacts, & &1.is_archived)
-
-  defp maybe_filter_deceased(contacts, true), do: contacts
-  defp maybe_filter_deceased(contacts, false), do: Enum.reject(contacts, & &1.deceased)
-
-  defp maybe_filter_favorites(contacts, false), do: contacts
-  defp maybe_filter_favorites(contacts, true), do: Enum.filter(contacts, & &1.favorite)
-
-  defp maybe_filter_tags(contacts, []), do: contacts
-
-  defp maybe_filter_tags(contacts, tag_ids) do
-    tag_ids = Enum.map(tag_ids, &String.to_integer/1)
-
-    Enum.filter(contacts, fn contact ->
-      contact_tag_ids = Enum.map(contact.tags, & &1.id)
-      Enum.any?(tag_ids, &(&1 in contact_tag_ids))
-    end)
-  end
-
-  defp initials(%Contact{first_name: first, last_name: last}) do
-    f = if first, do: String.first(first), else: ""
-    l = if last, do: String.first(last), else: ""
-    String.upcase(f <> l)
+    socket
+    |> assign(:contacts, entries)
+    |> assign(:after_cursor, after_cursor)
+    |> assign(:has_more, has_more)
   end
 
   defp can?(%{current_scope: scope}, action, resource) do
@@ -287,10 +289,4 @@ defmodule KithWeb.ContactLive.Index do
   defp toggle_tag_id(selected, id) do
     if id in selected, do: List.delete(selected, id), else: [id | selected]
   end
-
-  defp tag_style(%{color: color}) when is_binary(color) and color != "" do
-    "background-color: #{color}20; color: #{color}; border-color: #{color}40;"
-  end
-
-  defp tag_style(_), do: ""
 end
