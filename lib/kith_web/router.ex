@@ -32,7 +32,13 @@ defmodule KithWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
-  # Health check — no auth required
+  # Health check — no auth required (used by Docker HEALTHCHECK and orchestrators)
+  scope "/health", KithWeb do
+    get "/live", HealthController, :live
+    get "/ready", HealthController, :ready
+  end
+
+  # Backward-compatible single health endpoint
   scope "/", KithWeb do
     get "/health", HealthController, :index
   end
