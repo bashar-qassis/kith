@@ -139,61 +139,61 @@ defmodule KithWeb.SettingsLive.Account do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
-        <.header>
+        <UI.header>
           Account Settings
           <:subtitle>Manage your account configuration</:subtitle>
-        </.header>
+        </UI.header>
 
         <%= if @account_form do %>
           <%!-- General settings --%>
-          <div class="mt-8 bg-base-100 border border-base-300 rounded-lg p-6">
+          <div class="mt-8 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
             <h2 class="text-lg font-semibold mb-4">General</h2>
 
-            <.simple_form for={@account_form} phx-submit="save-account">
-              <.input field={@account_form[:name]} type="text" label="Account Name" required />
-              <.input
+            <UI.simple_form for={@account_form} phx-submit="save-account">
+              <UI.input field={@account_form[:name]} type="text" label="Account Name" required />
+              <UI.input
                 field={@account_form[:timezone]}
                 type="text"
                 label="Timezone"
                 placeholder="America/New_York"
               />
-              <.input
+              <UI.input
                 field={@account_form[:send_hour]}
                 type="select"
                 label="Reminder Send Hour"
                 options={Enum.map(0..23, fn h -> {"#{String.pad_leading("#{h}", 2, "0")}:00", h} end)}
               />
-              <p class="text-xs text-base-content/50 -mt-2">
+              <p class="text-xs text-[var(--color-text-tertiary)] -mt-2">
                 Changing timezone affects when reminders are sent. Changes take effect starting the following day.
               </p>
               <:actions>
-                <.button>Save</.button>
+                <UI.button>Save</UI.button>
               </:actions>
-            </.simple_form>
+            </UI.simple_form>
           </div>
 
           <%!-- Feature module toggles --%>
-          <div class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+          <div class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
             <h2 class="text-lg font-semibold mb-1">Feature Modules</h2>
-            <p class="text-sm text-base-content/60 mb-4">
+            <p class="text-sm text-[var(--color-text-tertiary)] mb-4">
               Enable or disable feature modules for your account.
             </p>
 
-            <div class="divide-y divide-base-200">
+            <div class="divide-y divide-[var(--color-border-subtle)]">
               <div
                 :for={{key, label, description} <- @feature_modules}
                 class="flex items-center justify-between py-3"
               >
                 <div>
-                  <span class="text-sm font-medium text-base-content">{label}</span>
-                  <p class="text-xs text-base-content/50">{description}</p>
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">{label}</span>
+                  <p class="text-xs text-[var(--color-text-tertiary)]">{description}</p>
                 </div>
                 <button
                   phx-click="toggle-feature"
                   phx-value-feature={key}
                   class={[
                     "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                    if(Map.get(@feature_flags, key, true), do: "bg-primary", else: "bg-base-300")
+                    if(Map.get(@feature_flags, key, true), do: "bg-[var(--color-accent)]", else: "bg-[var(--color-border)]")
                   ]}
                 >
                   <span class={[
@@ -206,16 +206,16 @@ defmodule KithWeb.SettingsLive.Account do
           </div>
 
           <%!-- Notification Windows --%>
-          <div class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+          <div class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
             <h2 class="text-lg font-semibold mb-1">Notification Windows</h2>
-            <p class="text-sm text-base-content/60 mb-4">
+            <p class="text-sm text-[var(--color-text-tertiary)] mb-4">
               Control how far in advance reminders send pre-notifications.
               Changes affect newly scheduled reminders only.
             </p>
 
-            <div class="divide-y divide-base-200">
+            <div class="divide-y divide-[var(--color-border-subtle)]">
               <div :for={rule <- @rules} class="flex items-center justify-between py-3">
-                <span class="text-sm text-base-content">
+                <span class="text-sm text-[var(--color-text-primary)]">
                   {format_rule_label(rule.days_before)}
                 </span>
 
@@ -230,7 +230,7 @@ defmodule KithWeb.SettingsLive.Account do
                   }
                   class={[
                     "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                    if(rule.active, do: "bg-primary", else: "bg-base-300"),
+                    if(rule.active, do: "bg-[var(--color-accent)]", else: "bg-[var(--color-border)]"),
                     if(rule.days_before == 0, do: "opacity-50 cursor-not-allowed", else: "")
                   ]}
                 >
@@ -244,15 +244,15 @@ defmodule KithWeb.SettingsLive.Account do
           </div>
 
           <%!-- Account Deletion --%>
-          <div class="mt-6 bg-base-100 border border-error/30 rounded-lg p-6">
-            <h2 class="text-lg font-semibold text-error mb-1">Delete Account</h2>
-            <p class="text-sm text-base-content/60 mb-4">
+          <div class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-error)]/30 rounded-[var(--radius-lg)] p-6">
+            <h2 class="text-lg font-semibold text-[var(--color-error)] mb-1">Delete Account</h2>
+            <p class="text-sm text-[var(--color-text-tertiary)] mb-4">
               Permanently delete this account and all associated data. This action cannot be undone.
             </p>
 
             <form phx-submit="delete-account" phx-change="validate-delete">
-              <label class="block text-sm font-medium text-base-content mb-2">
-                Type <span class="font-bold">{@account.name}</span> to confirm
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
+                Type <span class="font-semibold">{@account.name}</span> to confirm
               </label>
               <input
                 type="text"
@@ -260,16 +260,12 @@ defmodule KithWeb.SettingsLive.Account do
                 value={@delete_confirmation}
                 placeholder={@account.name}
                 autocomplete="off"
-                class="input input-bordered input-sm w-full max-w-xs"
+                class="w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               />
               <div class="mt-4">
-                <button
-                  type="submit"
-                  disabled={@delete_confirmation != @account.name}
-                  class="btn btn-error btn-sm disabled:opacity-50"
-                >
+                <UI.button type="submit" variant="danger" size="sm" disabled={@delete_confirmation != @account.name}>
                   Delete Account Permanently
-                </button>
+                </UI.button>
               </div>
             </form>
           </div>

@@ -100,46 +100,50 @@ defmodule KithWeb.ContactLive.FormComponent do
         phx-submit="save"
       >
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">First Name *</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">First Name *</label>
             <input
               type="text"
               name="contact[first_name]"
               value={Ecto.Changeset.get_field(@changeset, :first_name)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               required
             />
-            <span
+            <p
               :for={msg <- changeset_errors(@changeset, :first_name)}
-              class="label-text-alt text-error"
+              class="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--color-error)]"
             >
+              <.icon name="hero-exclamation-circle-mini" class="size-4 shrink-0" />
               {msg}
-            </span>
+            </p>
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Last Name</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Last Name</label>
             <input
               type="text"
               name="contact[last_name]"
               value={Ecto.Changeset.get_field(@changeset, :last_name)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Nickname</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Nickname</label>
             <input
               type="text"
               name="contact[nickname]"
               value={Ecto.Changeset.get_field(@changeset, :nickname)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Gender</span></label>
-            <select name="contact[gender_id]" class="select select-bordered">
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Gender</label>
+            <select
+              name="contact[gender_id]"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+            >
               <option value="">Select gender</option>
               <%= for gender <- @genders do %>
                 <option
@@ -152,75 +156,73 @@ defmodule KithWeb.ContactLive.FormComponent do
             </select>
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Birthdate</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Birthdate</label>
             <input
               type="date"
               name="contact[birthdate]"
               value={Ecto.Changeset.get_field(@changeset, :birthdate)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Occupation</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Occupation</label>
             <input
               type="text"
               name="contact[occupation]"
               value={Ecto.Changeset.get_field(@changeset, :occupation)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Company</span></label>
+          <div>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Company</label>
             <input
               type="text"
               name="contact[company]"
               value={Ecto.Changeset.get_field(@changeset, :company)}
-              class="input input-bordered"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-3">
-              <input
-                type="checkbox"
-                name="contact[deceased]"
-                value="true"
-                checked={Ecto.Changeset.get_field(@changeset, :deceased)}
-                class="checkbox"
-              />
-              <span class="label-text">Deceased</span>
-            </label>
+          <div class="flex items-start gap-3 pt-6">
+            <input
+              type="checkbox"
+              name="contact[deceased]"
+              value="true"
+              checked={Ecto.Changeset.get_field(@changeset, :deceased)}
+              class="mt-0.5 size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
+            />
+            <label class="text-sm font-medium text-[var(--color-text-primary)] cursor-pointer select-none">Deceased</label>
           </div>
 
           <%= if @show_deceased_at do %>
-            <div class="form-control">
-              <label class="label"><span class="label-text">Date of Death</span></label>
+            <div>
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Date of Death</label>
               <input
                 type="date"
                 name="contact[deceased_at]"
                 value={Ecto.Changeset.get_field(@changeset, :deceased_at)}
-                class="input input-bordered"
+                class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               />
             </div>
           <% end %>
         </div>
 
-        <div class="form-control mt-4">
-          <label class="label"><span class="label-text">Description</span></label>
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Description</label>
           <textarea
             name="contact[description]"
-            class="textarea textarea-bordered h-24"
+            class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
           >{Ecto.Changeset.get_field(@changeset, :description)}</textarea>
         </div>
 
         <div class="mt-6 flex justify-end gap-3">
-          <.link navigate={@return_to} class="btn btn-ghost">Cancel</.link>
-          <button type="submit" class="btn btn-primary" phx-disable-with="Saving...">
+          <UI.button variant="ghost" navigate={@return_to}>Cancel</UI.button>
+          <UI.button type="submit" phx-disable-with="Saving...">
             {if @action == :new, do: "Create Contact", else: "Save Changes"}
-          </button>
+          </UI.button>
         </div>
       </.form>
     </div>

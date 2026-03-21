@@ -134,7 +134,7 @@ defmodule KithWeb.ContactLive.NotesListComponent do
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Notes</h2>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="btn btn-sm btn-primary">
+          <button id={"add-note-#{@contact_id}"} phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
             <.icon name="hero-plus" class="size-4" /> Add Note
           </button>
         <% end %>
@@ -142,34 +142,34 @@ defmodule KithWeb.ContactLive.NotesListComponent do
 
       <%!-- Add note form --%>
       <%= if @show_form do %>
-        <div class="card bg-base-100 shadow-sm mb-4">
-          <div class="card-body p-4">
+        <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-sm mb-4">
+          <div class="p-4">
             <.form for={%{}} phx-submit="save-note" phx-target={@myself}>
               <div id={"trix-new-note-#{@contact_id}"} phx-hook="TrixEditor" data-input="note[body]">
                 <input type="hidden" name="note[body]" value="" />
-                <trix-editor class="trix-content min-h-[100px] prose prose-sm max-w-none border rounded-lg p-2 bg-base-100">
+                <trix-editor class="trix-content min-h-[100px] prose prose-sm max-w-none border rounded-[var(--radius-lg)] p-2 bg-[var(--color-surface-elevated)]">
                 </trix-editor>
               </div>
-              <div class="form-control mt-2">
-                <label class="label cursor-pointer justify-start gap-2">
+              <div class="mt-2">
+                <label class="flex cursor-pointer justify-start gap-2">
                   <input
                     type="checkbox"
                     name="note[is_private]"
                     value="true"
-                    class="checkbox checkbox-sm"
+                    class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
                   />
-                  <span class="label-text flex items-center gap-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)] flex items-center gap-1">
                     <.icon name="hero-lock-closed" class="size-4" /> Private (only visible to you)
                   </span>
                 </label>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
                 <button
                   type="button"
                   phx-click="cancel-form"
                   phx-target={@myself}
-                  class="btn btn-sm btn-ghost"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -180,29 +180,40 @@ defmodule KithWeb.ContactLive.NotesListComponent do
       <% end %>
 
       <%!-- Notes list --%>
-      <%= if @notes == [] do %>
-        <p class="text-base-content/60">No notes yet.</p>
+      <%= if @notes == [] and not @show_form do %>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-document-text"
+          title="No notes yet"
+          message="Jot down something meaningful about this person."
+        >
+          <:actions :if={@can_edit}>
+            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+              Add Note
+            </button>
+          </:actions>
+        </KithUI.empty_state>
       <% end %>
 
       <div class="space-y-3">
         <%= for note <- @notes do %>
-          <div class="card bg-base-100 shadow-sm">
-            <div class="card-body p-4">
+          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-sm">
+            <div class="p-4">
               <%= if @editing_note_id == note.id do %>
                 <%!-- Inline edit form --%>
                 <.form for={%{}} phx-submit="update-note" phx-target={@myself}>
                   <div id={"trix-edit-note-#{note.id}"} phx-hook="TrixEditor" data-input="note[body]">
                     <input type="hidden" name="note[body]" value={note.body} />
-                    <trix-editor class="trix-content min-h-[100px] prose prose-sm max-w-none border rounded-lg p-2 bg-base-100">
+                    <trix-editor class="trix-content min-h-[100px] prose prose-sm max-w-none border rounded-[var(--radius-lg)] p-2 bg-[var(--color-surface-elevated)]">
                     </trix-editor>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
                     <button
                       type="button"
                       phx-click="cancel-form"
                       phx-target={@myself}
-                      class="btn btn-sm btn-ghost"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -214,34 +225,34 @@ defmodule KithWeb.ContactLive.NotesListComponent do
                   <div class="prose prose-sm max-w-none flex-1">
                     {raw(note.body)}
                   </div>
-                  <div class="flex items-center gap-1 ml-2 shrink-0">
+                  <div class="flex items-center gap-1 ms-2 shrink-0">
                     <%= if note.is_private do %>
-                      <span class="tooltip" data-tip="Private note">
-                        <.icon name="hero-lock-closed" class="size-4 text-warning" />
-                      </span>
+                      <UI.tooltip text="Private note">
+                        <.icon name="hero-lock-closed" class="size-4 text-[var(--color-warning)]" />
+                      </UI.tooltip>
                     <% end %>
                     <button
                       phx-click="toggle-favorite"
                       phx-value-id={note.id}
                       phx-target={@myself}
-                      class="btn btn-ghost btn-xs"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
                     >
                       <.icon
                         name={if note.favorite, do: "hero-star-solid", else: "hero-star"}
-                        class={["size-4", note.favorite && "text-warning"]}
+                        class={["size-4", note.favorite && "text-[var(--color-warning)]"]}
                       />
                     </button>
                   </div>
                 </div>
-                <div class="flex items-center justify-between mt-2 text-xs text-base-content/50">
-                  <span>{Calendar.strftime(note.inserted_at, "%b %d, %Y at %I:%M %p")}</span>
+                <div class="flex items-center justify-between mt-2 text-xs text-[var(--color-text-tertiary)]">
+                  <span><.datetime_display datetime={note.inserted_at} /></span>
                   <%= if @can_edit do %>
                     <div class="flex gap-2">
                       <button
                         phx-click="edit-note"
                         phx-value-id={note.id}
                         phx-target={@myself}
-                        class="link link-hover"
+                        class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
                       >
                         Edit
                       </button>
@@ -250,7 +261,7 @@ defmodule KithWeb.ContactLive.NotesListComponent do
                         phx-value-id={note.id}
                         phx-target={@myself}
                         data-confirm="Delete this note? This cannot be undone."
-                        class="link link-hover text-error"
+                        class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors"
                       >
                         Delete
                       </button>

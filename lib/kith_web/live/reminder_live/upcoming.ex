@@ -6,10 +6,6 @@ defmodule KithWeb.ReminderLive.Upcoming do
 
   use KithWeb, :live_view
 
-  # Exclude reminder_row/1 from the blanket KithComponents import
-  # since this module renders reminder rows inline.
-  import KithWeb.KithComponents, only: []
-
   alias Kith.Reminders
 
   @windows [30, 60, 90]
@@ -68,6 +64,22 @@ defmodule KithWeb.ReminderLive.Upcoming do
      |> load_pending_instances()}
   end
 
+  def handle_event("snooze-instance", %{"id" => id, "duration" => duration}, socket) do
+    instance = Kith.Repo.get!(Kith.Reminders.ReminderInstance, id)
+
+    case Reminders.snooze_instance(instance, duration) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Reminder snoozed for #{snooze_label(duration)}")
+         |> load_reminders()
+         |> load_pending_instances()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not snooze reminder")}
+    end
+  end
+
   defp load_reminders(socket) do
     reminders = Reminders.upcoming(socket.assigns.account_id, socket.assigns.window)
 
@@ -91,20 +103,21 @@ defmodule KithWeb.ReminderLive.Upcoming do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <div class="max-w-4xl mx-auto">
-        <div class="flex items-center justify-between mb-6">
-          <h1 class="text-2xl font-bold">Upcoming Reminders</h1>
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Upcoming Reminders</h1>
 
-          <div class="flex gap-2">
+          <%!-- Pill-shaped button group --%>
+          <div class="inline-flex rounded-[var(--radius-full)] border border-[var(--color-border)] p-0.5 bg-[var(--color-surface-sunken)]">
             <button
               :for={w <- [30, 60, 90]}
               phx-click="change-window"
               phx-value-window={w}
               class={[
-                "px-3 py-1 rounded-md text-sm font-medium",
+                "px-3.5 py-1 rounded-[var(--radius-full)] text-sm font-medium transition-all duration-200 cursor-pointer",
                 if(@window == w,
-                  do: "bg-indigo-600 text-white",
-                  else: "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  do: "bg-[var(--color-accent)] text-[var(--color-accent-foreground)] shadow-sm",
+                  else: "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                 )
               ]}
             >
@@ -114,42 +127,44 @@ defmodule KithWeb.ReminderLive.Upcoming do
         </div>
 
         <div :if={@reminders == []}>
-          <KithWeb.KithComponents.empty_state
+          <KithUI.empty_state
             icon="hero-bell-slash"
             title="No upcoming reminders"
-            message={"No reminders in the next #{@window} days."}
+            message={"No reminders in the next #{@window} days. Enjoy the quiet!"}
           />
         </div>
 
         <div :if={@reminders != []} class="space-y-6">
           <div :for={{date, reminders_on_date} <- @grouped_reminders}>
-            <h2 class="text-sm font-semibold text-gray-500 mb-2">
-              {Calendar.strftime(date, "%A, %B %d, %Y")}
+            <h2 class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)] mb-3">
+              <.date_display date={date} format={:full} />
             </h2>
             <div class="space-y-2">
               <div
                 :for={reminder <- reminders_on_date}
-                class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
+                class="flex items-center justify-between p-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-focus)]/30 transition-colors duration-150"
               >
                 <div class="flex items-center gap-4">
-                  <span class="text-lg">{type_icon(reminder.type)}</span>
+                  <div class="flex items-center justify-center size-9 rounded-[var(--radius-lg)] bg-[var(--color-accent-subtle)]">
+                    <.icon name={type_icon(reminder.type)} class="size-4 text-[var(--color-accent)]" />
+                  </div>
                   <div>
                     <.link
                       navigate={~p"/contacts/#{reminder.contact_id}"}
-                      class="font-medium text-indigo-600 hover:text-indigo-800"
+                      class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
                     >
                       {reminder.contact.display_name || reminder.contact.first_name}
                     </.link>
-                    <p class="text-sm text-gray-500">
+                    <p class="text-sm text-[var(--color-text-tertiary)]">
                       {type_label(reminder.type)}
-                      <span :if={reminder.title}> —  {reminder.title}</span>
+                      <span :if={reminder.title}> — {reminder.title}</span>
                     </p>
                   </div>
                 </div>
 
                 <div class="flex items-center gap-4">
-                  <span class="text-sm text-gray-600">
-                    {Calendar.strftime(reminder.next_reminder_date, "%b %d, %Y")}
+                  <span class="text-sm text-[var(--color-text-secondary)]">
+                    <.date_display date={reminder.next_reminder_date} />
                   </span>
                   <%= if authorized?(@current_scope.user, :update, :reminder) do %>
                     <div
@@ -159,17 +174,33 @@ defmodule KithWeb.ReminderLive.Upcoming do
                       <button
                         phx-click="resolve"
                         phx-value-id={instance.id}
-                        class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        class="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1 text-xs font-medium bg-[var(--color-success-subtle)] text-[var(--color-success)] hover:bg-[var(--color-success)]/20 transition-colors cursor-pointer"
                       >
                         Resolve
                       </button>
                       <button
                         phx-click="dismiss"
                         phx-value-id={instance.id}
-                        class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                        class="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
                       >
                         Dismiss
                       </button>
+                      <details class="relative">
+                        <summary class="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] transition-colors cursor-pointer list-none">
+                          <.icon name="hero-clock" class="size-3.5" /> Snooze
+                        </summary>
+                        <div class="absolute end-0 top-full mt-1 z-10 w-36 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-lg py-1">
+                          <button
+                            :for={{duration, label} <- [{"15_minutes", "15 minutes"}, {"1_hour", "1 hour"}, {"1_day", "1 day"}, {"3_days", "3 days"}]}
+                            phx-click="snooze-instance"
+                            phx-value-id={instance.id}
+                            phx-value-duration={duration}
+                            class="block w-full text-left px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+                          >
+                            {label}
+                          </button>
+                        </div>
+                      </details>
                     </div>
                   <% end %>
                 </div>
@@ -182,15 +213,21 @@ defmodule KithWeb.ReminderLive.Upcoming do
     """
   end
 
-  defp type_icon("birthday"), do: "🎂"
-  defp type_icon("stay_in_touch"), do: "👋"
-  defp type_icon("one_time"), do: "📌"
-  defp type_icon("recurring"), do: "🔁"
-  defp type_icon(_), do: "⏰"
+  defp type_icon("birthday"), do: "hero-cake"
+  defp type_icon("stay_in_touch"), do: "hero-hand-raised"
+  defp type_icon("one_time"), do: "hero-map-pin"
+  defp type_icon("recurring"), do: "hero-arrow-path"
+  defp type_icon(_), do: "hero-bell"
 
   defp type_label("birthday"), do: "Birthday"
   defp type_label("stay_in_touch"), do: "Stay in touch"
   defp type_label("one_time"), do: "One-time"
   defp type_label("recurring"), do: "Recurring"
   defp type_label(_), do: "Reminder"
+
+  defp snooze_label("15_minutes"), do: "15 minutes"
+  defp snooze_label("1_hour"), do: "1 hour"
+  defp snooze_label("1_day"), do: "1 day"
+  defp snooze_label("3_days"), do: "3 days"
+  defp snooze_label(_), do: "a while"
 end

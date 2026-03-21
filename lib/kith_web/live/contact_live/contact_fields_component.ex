@@ -108,140 +108,145 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Contact Info</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Contact Info</h3>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="btn btn-sm btn-primary">
-            <.icon name="hero-plus" class="size-4" /> Add Field
+          <button phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+            <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
       </div>
 
       <%= if @show_form do %>
-        <div class="card bg-base-100 shadow-sm mb-4">
-          <div class="card-body p-4">
-            <.form for={%{}} phx-submit="save" phx-target={@myself}>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Type</span></label>
-                  <select
-                    name="contact_field[contact_field_type_id]"
-                    class="select select-bordered"
-                    required
-                  >
-                    <option value="">Select type...</option>
-                    <%= for type <- @field_types do %>
-                      <option value={type.id}>{type.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Value</span></label>
-                  <input
-                    type="text"
-                    name="contact_field[value]"
-                    class="input input-bordered"
-                    required
-                  />
-                </div>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Label (optional)</span></label>
-                  <input
-                    type="text"
-                    name="contact_field[label]"
-                    class="input input-bordered"
-                    placeholder="e.g. Work, Personal"
-                  />
-                </div>
-              </div>
-              <div class="flex gap-2 mt-3">
-                <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                <button
-                  type="button"
-                  phx-click="cancel-form"
-                  phx-target={@myself}
-                  class="btn btn-sm btn-ghost"
+        <div class="mb-4">
+          <.form for={%{}} phx-submit="save" phx-target={@myself}>
+            <div class="space-y-2">
+              <div>
+                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Type</span></label>
+                <select
+                  name="contact_field[contact_field_type_id]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  required
                 >
-                  Cancel
-                </button>
+                  <option value="">Select type...</option>
+                  <%= for type <- @field_types do %>
+                    <option value={type.id}>{type.name}</option>
+                  <% end %>
+                </select>
               </div>
-            </.form>
-          </div>
+              <div>
+                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Value</span></label>
+                <input
+                  type="text"
+                  name="contact_field[value]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  required
+                />
+              </div>
+              <div>
+                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Label (optional)</span></label>
+                <input
+                  type="text"
+                  name="contact_field[label]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  placeholder="e.g. Work, Personal"
+                />
+              </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+              <button
+                type="button"
+                phx-click="cancel-form"
+                phx-target={@myself}
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </.form>
         </div>
       <% end %>
 
-      <%= if @fields == [] do %>
-        <p class="text-base-content/60">No contact info yet.</p>
+      <%= if @fields == [] and not @show_form do %>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-identification"
+          title="No contact info"
+          message="Add phone numbers, emails, and social profiles."
+        >
+          <:actions :if={@can_edit}>
+            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+              Add Info
+            </button>
+          </:actions>
+        </KithUI.empty_state>
       <% end %>
 
       <div class="space-y-2">
         <%= for field <- @fields do %>
           <%= if @editing_id == field.id do %>
-            <div class="card bg-base-100 shadow-sm">
-              <div class="card-body p-4">
-                <.form for={%{}} phx-submit="update" phx-target={@myself}>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div class="form-control">
-                      <select
-                        name="contact_field[contact_field_type_id]"
-                        class="select select-bordered"
-                        required
-                      >
-                        <%= for type <- @field_types do %>
-                          <option value={type.id} selected={type.id == field.contact_field_type_id}>
-                            {type.name}
-                          </option>
-                        <% end %>
-                      </select>
-                    </div>
-                    <div class="form-control">
-                      <input
-                        type="text"
-                        name="contact_field[value]"
-                        class="input input-bordered"
-                        required
-                        value={field.value}
-                      />
-                    </div>
-                    <div class="form-control">
-                      <input
-                        type="text"
-                        name="contact_field[label]"
-                        class="input input-bordered"
-                        value={field.label}
-                      />
-                    </div>
-                  </div>
-                  <div class="flex gap-2 mt-3">
-                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                    <button
-                      type="button"
-                      phx-click="cancel-form"
-                      phx-target={@myself}
-                      class="btn btn-sm btn-ghost"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </.form>
+            <.form for={%{}} phx-submit="update" phx-target={@myself}>
+              <div class="space-y-2">
+                <div>
+                  <select
+                    name="contact_field[contact_field_type_id]"
+                    class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                    required
+                  >
+                    <%= for type <- @field_types do %>
+                      <option value={type.id} selected={type.id == field.contact_field_type_id}>
+                        {type.name}
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    name="contact_field[value]"
+                    class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                    required
+                    value={field.value}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    name="contact_field[label]"
+                    class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                    value={field.label}
+                  />
+                </div>
               </div>
-            </div>
+              <div class="flex gap-2 mt-3">
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="button"
+                  phx-click="cancel-form"
+                  phx-target={@myself}
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </.form>
           <% else %>
             <div class="flex items-center justify-between py-2">
               <div class="flex items-center gap-3">
-                <.icon name={field_icon(field)} class="size-5 text-base-content/40" />
+                <.icon name={field_icon(field)} class="size-5 text-[var(--color-text-disabled)]" />
                 <div>
                   <div class="flex items-center gap-2">
                     <%= if link = field_link(field) do %>
-                      <a href={link} class="link link-primary">{field.value}</a>
+                      <a href={link} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors">{field.value}</a>
                     <% else %>
                       <span>{field.value}</span>
                     <% end %>
                     <%= if field.label do %>
-                      <span class="badge badge-xs badge-outline">{field.label}</span>
+                      <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">{field.label}</span>
                     <% end %>
                   </div>
-                  <div class="text-xs text-base-content/50">{field.contact_field_type.name}</div>
+                  <div class="text-xs text-[var(--color-text-tertiary)]">{field.contact_field_type.name}</div>
                 </div>
               </div>
               <%= if @can_edit do %>
@@ -250,7 +255,7 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                     phx-click="edit"
                     phx-value-id={field.id}
                     phx-target={@myself}
-                    class="link link-hover"
+                    class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
                   >
                     Edit
                   </button>
@@ -259,7 +264,7 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                     phx-value-id={field.id}
                     phx-target={@myself}
                     data-confirm="Delete this field?"
-                    class="link link-hover text-error"
+                    class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors"
                   >
                     Delete
                   </button>

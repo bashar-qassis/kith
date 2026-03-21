@@ -6,31 +6,40 @@ defmodule KithWeb.UserLive.ConfirmEmailPending do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm text-center space-y-6">
-        <.header>
-          Check your email
-          <:subtitle>
-            We sent a verification link to <strong>{@current_scope.user.email}</strong>.
+    <Layouts.auth flash={@flash}>
+      <div class="text-center space-y-6">
+        <div>
+          <div class="flex justify-center mb-4">
+            <div class="flex items-center justify-center size-14 rounded-full bg-[var(--color-accent-subtle)]">
+              <.icon name="hero-envelope" class="size-7 text-[var(--color-accent)]" />
+            </div>
+          </div>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Check your email</h1>
+          <p class="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            We sent a verification link to <strong class="text-[var(--color-text-primary)]">{@current_scope.user.email}</strong>.
             Please click the link to verify your account.
-          </:subtitle>
-        </.header>
+          </p>
+        </div>
 
-        <p class="text-sm text-zinc-600">
+        <p class="text-sm text-[var(--color-text-tertiary)]">
           Didn't receive the email? Check your spam folder, or click below to resend.
         </p>
 
-        <.button phx-click="resend" phx-disable-with="Sending..." class="btn btn-primary w-full">
+        <UI.button phx-click="resend" phx-disable-with="Sending..." class="w-full">
           Resend verification email
-        </.button>
+        </UI.button>
 
-        <p class="text-sm text-zinc-500 mt-4">
-          <.link href={~p"/users/log-out"} method="delete" class="text-brand hover:underline">
+        <p class="text-sm text-[var(--color-text-tertiary)]">
+          <.link
+            href={~p"/users/log-out"}
+            method="delete"
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+          >
             Log out
           </.link>
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

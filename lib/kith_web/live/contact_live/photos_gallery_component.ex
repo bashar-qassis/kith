@@ -31,6 +31,10 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
     {:noreply, socket}
   end
 
+  def handle_event("cancel-upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :photo, ref)}
+  end
+
   def handle_event("upload", _params, socket) do
     contact = Contacts.get_contact!(socket.assigns.account_id, socket.assigns.contact_id)
 
@@ -109,11 +113,11 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
           <div class="flex items-center gap-3">
             <.live_file_input
               upload={@uploads.photo}
-              class="file-input file-input-bordered file-input-sm"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] file:me-3 file:rounded-[var(--radius-md)] file:border-0 file:bg-[var(--color-surface-sunken)] file:px-3 file:py-1 file:text-sm file:font-medium file:text-[var(--color-text-primary)]"
             />
             <button
               type="submit"
-              class="btn btn-sm btn-primary"
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
               disabled={@uploads.photo.entries == []}
             >
               Upload
@@ -122,7 +126,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
           <%= for entry <- @uploads.photo.entries do %>
             <div class="text-sm mt-1 flex items-center gap-2">
               <span>{entry.client_name}</span>
-              <progress value={entry.progress} max="100" class="progress progress-primary w-24">
+              <progress value={entry.progress} max="100" class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]">
                 {entry.progress}%
               </progress>
               <button
@@ -130,20 +134,25 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                 phx-click="cancel-upload"
                 phx-value-ref={entry.ref}
                 phx-target={@myself}
-                class="text-error text-xs"
+                class="text-[var(--color-error)] text-xs"
               >
                 &times;
               </button>
             </div>
             <%= for err <- upload_errors(@uploads.photo, entry) do %>
-              <p class="text-error text-xs">{error_to_string(err)}</p>
+              <p class="text-[var(--color-error)] text-xs">{error_to_string(err)}</p>
             <% end %>
           <% end %>
         </form>
       <% end %>
 
       <%= if @photos == [] do %>
-        <p class="text-base-content/60">No photos yet.</p>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-photo"
+          title="No photos yet"
+          message="Upload photos to keep faces and memories close."
+        />
       <% end %>
 
       <%!-- Photo grid with Alpine.js lightbox --%>
@@ -157,20 +166,20 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
               <img
                 src={photo_url(photo)}
                 alt={photo.file_name}
-                class="w-full aspect-square object-cover rounded-lg cursor-pointer"
+                class="w-full aspect-square object-cover rounded-[var(--radius-lg)] cursor-pointer"
                 x-on:click={"show('#{photo_url(photo)}', '#{photo.file_name}')"}
               />
               <%= if photo.is_cover do %>
-                <span class="absolute top-1 left-1 badge badge-sm badge-primary">Cover</span>
+                <span class="absolute top-1 start-1 inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">Cover</span>
               <% end %>
               <%= if @can_edit do %>
-                <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <div class="absolute top-1 end-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                   <%= unless photo.is_cover do %>
                     <button
                       phx-click="set-cover"
                       phx-value-id={photo.id}
                       phx-target={@myself}
-                      class="btn btn-xs btn-circle bg-base-100/80"
+                      class="inline-flex items-center justify-center size-6 rounded-full bg-[var(--color-surface-elevated)]/80 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
                       title="Set as cover"
                     >
                       <.icon name="hero-star" class="size-3" />
@@ -181,7 +190,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                     phx-value-id={photo.id}
                     phx-target={@myself}
                     data-confirm="Delete this photo?"
-                    class="btn btn-xs btn-circle bg-base-100/80 text-error"
+                    class="inline-flex items-center justify-center size-6 rounded-full bg-[var(--color-surface-elevated)]/80 text-[var(--color-error)] hover:bg-[var(--color-error-subtle)] transition-colors cursor-pointer"
                     title="Delete"
                   >
                     <.icon name="hero-trash" class="size-3" />
@@ -204,11 +213,11 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
             <img
               x-bind:src="currentSrc"
               x-bind:alt="currentName"
-              class="max-w-full max-h-[85vh] object-contain rounded-lg"
+              class="max-w-full max-h-[85vh] object-contain rounded-[var(--radius-lg)]"
             />
             <button
               x-on:click="close"
-              class="absolute -top-3 -right-3 btn btn-circle btn-sm"
+              class="absolute -top-3 -end-3 inline-flex items-center justify-center size-8 rounded-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
             >
               &times;
             </button>

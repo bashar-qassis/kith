@@ -1,33 +1,41 @@
 <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">{@page_title}</h1>
+  <div class="space-y-6">
+    <%!-- Header --%>
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">{@page_title}</h1>
       <div class="flex items-center gap-3">
         <%= if can?(assigns, :create, :contact) do %>
-          <.link navigate={~p"/contacts/new"} class="btn btn-primary btn-sm">
+          <UI.button size="sm" navigate={~p"/contacts/new"}>
             <.icon name="hero-plus" class="size-4" /> New Contact
-          </.link>
+          </UI.button>
         <% end %>
       </div>
     </div>
 
     <%!-- Search and filters --%>
-    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+    <div class="flex flex-col sm:flex-row gap-4">
       <div class="flex-1">
         <form phx-change="search" phx-submit="search">
-          <input
-            type="text"
-            name="search"
-            value={@search}
-            placeholder="Search contacts..."
-            phx-debounce="300"
-            class="input input-bordered w-full"
-          />
+          <div class="relative">
+            <.icon name="hero-magnifying-glass" class="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-text-tertiary)]" />
+            <input
+              type="text"
+              name="search"
+              value={@search}
+              placeholder="Search contacts..."
+              phx-debounce="300"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] ps-10 pe-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+            />
+          </div>
         </form>
       </div>
 
-      <div class="flex items-center gap-2 flex-wrap">
-        <select name="sort" phx-change="sort" class="select select-bordered select-sm">
+      <div class="flex items-center gap-3 flex-wrap">
+        <select
+          name="sort"
+          phx-change="sort"
+          class="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
+        >
           <option value="name_asc" selected={@sort == "name_asc"}>Name A-Z</option>
           <option value="name_desc" selected={@sort == "name_desc"}>Name Z-A</option>
           <option value="recently_added" selected={@sort == "recently_added"}>Recently Added</option>
@@ -36,42 +44,42 @@
           </option>
         </select>
 
-        <label class="label cursor-pointer gap-2">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={@show_archived}
             phx-click="toggle-archived"
-            class="checkbox checkbox-sm"
+            class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
           />
-          <span class="label-text text-sm">Archived</span>
+          <span class="text-sm text-[var(--color-text-secondary)]">Archived</span>
         </label>
 
-        <label class="label cursor-pointer gap-2">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={@show_deceased}
             phx-click="toggle-deceased"
-            class="checkbox checkbox-sm"
+            class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
           />
-          <span class="label-text text-sm">Deceased</span>
+          <span class="text-sm text-[var(--color-text-secondary)]">Deceased</span>
         </label>
 
-        <label class="label cursor-pointer gap-2">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={@show_favorites_only}
             phx-click="toggle-favorites"
-            class="checkbox checkbox-sm"
+            class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
           />
-          <span class="label-text text-sm">Favorites</span>
+          <span class="text-sm text-[var(--color-text-secondary)]">Favorites</span>
         </label>
       </div>
     </div>
 
     <%!-- Tag filter --%>
     <%= if @tags != [] do %>
-      <div class="mb-4 flex flex-wrap gap-2">
-        <span class="text-sm font-medium self-center">Tags:</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Tags:</span>
         <%= for tag <- @tags do %>
           <label class="cursor-pointer">
             <input
@@ -83,8 +91,11 @@
               class="hidden"
             />
             <span class={[
-              "badge badge-sm",
-              if(to_string(tag.id) in @selected_tag_ids, do: "badge-primary", else: "badge-outline")
+              "inline-flex items-center rounded-[var(--radius-full)] px-2.5 py-1 text-xs font-medium transition-colors duration-150",
+              if(to_string(tag.id) in @selected_tag_ids,
+                do: "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]",
+                else: "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
+              )
             ]}>
               {tag.name}
             </span>
@@ -93,157 +104,179 @@
       </div>
     <% end %>
 
-    <%!-- Bulk action bar --%>
+    <%!-- Bulk action bar (Linear-style floating) --%>
     <%= if MapSet.size(@selected_ids) > 0 and can?(assigns, :update, :contact) do %>
-      <div class="bg-base-200 rounded-lg p-3 mb-4 flex items-center gap-3 flex-wrap">
-        <span class="text-sm font-medium">{MapSet.size(@selected_ids)} selected</span>
-        <div class="divider divider-horizontal mx-0"></div>
-        <button phx-click="bulk-favorite" class="btn btn-ghost btn-xs">
-          <.icon name="hero-star" class="size-4" /> Favorite
-        </button>
-        <button phx-click="bulk-archive" class="btn btn-ghost btn-xs">
-          <.icon name="hero-archive-box" class="size-4" /> Archive
-        </button>
-        <button
-          phx-click="bulk-delete"
-          class="btn btn-ghost btn-xs text-error"
-          data-confirm="Move selected contacts to trash?"
-        >
-          <.icon name="hero-trash" class="size-4" /> Delete
-        </button>
+      <div class="sticky bottom-4 z-30 mx-auto max-w-fit animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div class="flex items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-overlay)] shadow-[var(--shadow-dropdown)] px-4 py-2.5">
+          <span class="text-sm font-medium text-[var(--color-text-primary)]">{MapSet.size(@selected_ids)} selected</span>
+          <div class="w-px h-5 bg-[var(--color-border)]" />
+          <button phx-click="bulk-favorite" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
+            <.icon name="hero-star" class="size-3.5" /> Favorite
+          </button>
+          <button phx-click="bulk-archive" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
+            <.icon name="hero-archive-box" class="size-3.5" /> Archive
+          </button>
+          <button
+            phx-click="bulk-delete"
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error-subtle)] transition-colors cursor-pointer"
+            data-confirm="Move selected contacts to trash?"
+          >
+            <.icon name="hero-trash" class="size-3.5" /> Delete
+          </button>
 
-        <%!-- Bulk tag assign --%>
-        <%= if @tags != [] do %>
-          <div class="dropdown">
-            <label tabindex="0" class="btn btn-ghost btn-xs">
-              <.icon name="hero-tag" class="size-4" /> Add Tag
-            </label>
-            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-              <%= for tag <- @tags do %>
-                <li>
-                  <button phx-click="bulk-assign-tag" phx-value-tag_id={tag.id}>
+          <%!-- Bulk tag dropdowns --%>
+          <%= if @tags != [] do %>
+            <div class="w-px h-5 bg-[var(--color-border)]" />
+            <div class="relative inline-block" x-data="{ open: false }">
+              <button
+                x-on:click="open = !open"
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                <.icon name="hero-tag" class="size-3.5" /> Add Tag
+              </button>
+              <div
+                x-show="open"
+                x-on:click.outside="open = false"
+                x-transition
+                class="absolute bottom-full mb-2 start-0 z-50 min-w-[10rem] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-overlay)] shadow-[var(--shadow-dropdown)] py-1"
+                style="display: none;"
+              >
+                <%= for tag <- @tags do %>
+                  <button
+                    phx-click="bulk-assign-tag"
+                    phx-value-tag_id={tag.id}
+                    class="block w-full text-start px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+                    x-on:click="open = false"
+                  >
                     {tag.name}
                   </button>
-                </li>
-              <% end %>
-            </ul>
-          </div>
-          <div class="dropdown">
-            <label tabindex="0" class="btn btn-ghost btn-xs">
-              <.icon name="hero-tag" class="size-4" /> Remove Tag
-            </label>
-            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-              <%= for tag <- @tags do %>
-                <li>
-                  <button phx-click="bulk-remove-tag" phx-value-tag_id={tag.id}>
+                <% end %>
+              </div>
+            </div>
+            <div class="relative inline-block" x-data="{ open: false }">
+              <button
+                x-on:click="open = !open"
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                <.icon name="hero-tag" class="size-3.5" /> Remove Tag
+              </button>
+              <div
+                x-show="open"
+                x-on:click.outside="open = false"
+                x-transition
+                class="absolute bottom-full mb-2 start-0 z-50 min-w-[10rem] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-overlay)] shadow-[var(--shadow-dropdown)] py-1"
+                style="display: none;"
+              >
+                <%= for tag <- @tags do %>
+                  <button
+                    phx-click="bulk-remove-tag"
+                    phx-value-tag_id={tag.id}
+                    class="block w-full text-start px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+                    x-on:click="open = false"
+                  >
                     {tag.name}
                   </button>
-                </li>
-              <% end %>
-            </ul>
-          </div>
-        <% end %>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
       </div>
     <% end %>
 
-    <%!-- Contact list --%>
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
+    <%!-- Contact table --%>
+    <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+      <table class="w-full text-sm">
         <thead>
-          <tr>
+          <tr class="border-b border-[var(--color-border)]">
             <%= if can?(assigns, :update, :contact) do %>
-              <th class="w-10">
+              <th class="w-10 px-4 py-3">
                 <input
                   type="checkbox"
-                  class="checkbox checkbox-sm"
+                  class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
                   phx-click="select-all"
                   checked={MapSet.size(@selected_ids) > 0 and MapSet.size(@selected_ids) == length(@contacts)}
                 />
               </th>
             <% end %>
-            <th></th>
-            <th>Name</th>
-            <th class="hidden md:table-cell">Company</th>
-            <th class="hidden md:table-cell">Tags</th>
-            <th class="hidden lg:table-cell">Last Contacted</th>
-            <th class="w-10"></th>
+            <th class="w-12 px-4 py-3"></th>
+            <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Name</th>
+            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Company</th>
+            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Tags</th>
+            <th class="hidden lg:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Last Contacted</th>
+            <th class="w-10 px-4 py-3"></th>
           </tr>
         </thead>
         <tbody>
           <%= if @contacts == [] do %>
             <tr>
-              <td colspan="7" class="text-center py-12 text-base-content/60">
-                <.icon name="hero-user-group" class="size-12 mb-2 mx-auto block opacity-40" />
-                <p class="text-lg">No contacts found</p>
-                <p class="text-sm mt-1">
-                  <%= if @search != "" do %>
-                    Try a different search term.
-                  <% else %>
-                    <.link navigate={~p"/contacts/new"} class="link link-primary">
-                      Add your first contact
-                    </.link>
-                  <% end %>
-                </p>
+              <td colspan="7" class="py-16">
+                <KithUI.empty_state
+                  icon="hero-user-group"
+                  title="No contacts found"
+                  message={if @search != "", do: "Try a different search term.", else: "Add your first contact to get started."}
+                >
+                  <:actions>
+                    <UI.button :if={@search == ""} size="sm" navigate={~p"/contacts/new"}>
+                      Add contact
+                    </UI.button>
+                  </:actions>
+                </KithUI.empty_state>
               </td>
             </tr>
           <% end %>
           <%= for contact <- @contacts do %>
             <tr class={[
-              "hover cursor-pointer",
+              "border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors duration-150",
               contact.is_archived && "opacity-60"
             ]}>
               <%= if can?(assigns, :update, :contact) do %>
-                <td phx-click="toggle-select" phx-value-id={contact.id}>
+                <td class="px-4 py-3">
                   <input
                     type="checkbox"
-                    class="checkbox checkbox-sm"
+                    class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
                     checked={MapSet.member?(@selected_ids, contact.id)}
                     phx-click="toggle-select"
                     phx-value-id={contact.id}
                   />
                 </td>
               <% end %>
-              <td class="w-12">
+              <td class="px-4 py-3">
                 <.link navigate={~p"/contacts/#{contact.id}"}>
-                  <.avatar name={contact.display_name} size={:sm} />
+                  <KithUI.avatar name={contact.display_name} size={:sm} />
                 </.link>
               </td>
-              <td>
-                <.link navigate={~p"/contacts/#{contact.id}"} class="font-medium hover:underline">
+              <td class="px-4 py-3">
+                <.link
+                  navigate={~p"/contacts/#{contact.id}"}
+                  class="font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
+                >
                   {contact.display_name}
                 </.link>
-                <%= if contact.is_archived do %>
-                  <span class="badge badge-ghost badge-xs ms-1">archived</span>
-                <% end %>
-                <%= if contact.deceased do %>
-                  <span class="badge badge-ghost badge-xs ms-1">deceased</span>
-                <% end %>
+                <UI.badge :if={contact.is_archived} variant="default" class="ms-1.5">archived</UI.badge>
+                <UI.badge :if={contact.deceased} variant="default" class="ms-1.5">deceased</UI.badge>
               </td>
-              <td class="hidden md:table-cell text-base-content/70">
+              <td class="hidden md:table-cell px-4 py-3 text-[var(--color-text-secondary)]">
                 {contact.company}
               </td>
-              <td class="hidden md:table-cell">
+              <td class="hidden md:table-cell px-4 py-3">
                 <div class="flex flex-wrap gap-1">
-                  <%= for tag <- (contact.tags || []) do %>
-                    <.tag_badge tag={tag} />
-                  <% end %>
+                  <KithUI.tag_badge :for={tag <- (contact.tags || [])} tag={tag} />
                 </div>
               </td>
-              <td class="hidden lg:table-cell text-base-content/70 text-sm">
-                <%= if contact.last_talked_to do %>
-                  <.relative_time datetime={contact.last_talked_to} />
-                <% end %>
+              <td class="hidden lg:table-cell px-4 py-3 text-sm">
+                <KithUI.relative_time :if={contact.last_talked_to} datetime={contact.last_talked_to} />
               </td>
-              <td>
+              <td class="px-4 py-3">
                 <button
                   phx-click="toggle-favorite"
                   phx-value-id={contact.id}
-                  class="btn btn-ghost btn-xs"
+                  class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-warning)] transition-colors cursor-pointer"
                   title={if contact.favorite, do: "Unfavorite", else: "Favorite"}
                 >
                   <.icon
                     name={if contact.favorite, do: "hero-star-solid", else: "hero-star"}
-                    class={["size-5", contact.favorite && "text-warning"]}
+                    class={["size-5", contact.favorite && "text-[var(--color-warning)]"]}
                   />
                 </button>
               </td>
@@ -254,24 +287,33 @@
     </div>
 
     <%!-- Load more --%>
-    <div :if={@has_more} class="flex justify-center mt-6">
-      <button phx-click="load-more" class="btn btn-outline btn-sm">
+    <div :if={@meta && @meta.has_next_page?} class="flex justify-center">
+      <UI.button variant="secondary" size="sm" phx-click="load-more">
         Load more
-      </button>
+      </UI.button>
     </div>
 
     <%!-- Navigation links --%>
-    <div class="flex justify-center gap-4 mt-6 text-sm">
+    <div class="flex justify-center gap-6 text-sm">
       <%= if @live_action != :archived do %>
-        <.link navigate={~p"/contacts/archived"} class="link link-hover">
+        <.link
+          navigate={~p"/contacts/archived"}
+          class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+        >
           View Archived Contacts
         </.link>
       <% else %>
-        <.link navigate={~p"/contacts"} class="link link-hover">
+        <.link
+          navigate={~p"/contacts"}
+          class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+        >
           &larr; Back to Contacts
         </.link>
       <% end %>
-      <.link navigate={~p"/contacts/trash"} class="link link-hover">
+      <.link
+        navigate={~p"/contacts/trash"}
+        class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+      >
         Trash
       </.link>
     </div>

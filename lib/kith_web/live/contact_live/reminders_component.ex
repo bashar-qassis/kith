@@ -39,7 +39,10 @@ defmodule KithWeb.ContactLive.RemindersComponent do
     <div>
       <h3 class="text-sm font-medium mb-2">Reminders</h3>
       <%= if @reminders == [] do %>
-        <p class="text-xs text-base-content/50">No reminders set.</p>
+        <p class="text-xs text-[var(--color-text-tertiary)] flex items-center gap-1.5">
+          <.icon name="hero-bell" class="size-3.5 text-[var(--color-text-disabled)]" />
+          No reminders set.
+        </p>
       <% else %>
         <div class="space-y-2">
           <%= for reminder <- @reminders do %>
@@ -48,20 +51,20 @@ defmodule KithWeb.ContactLive.RemindersComponent do
                 name={if reminder.active, do: "hero-bell", else: "hero-bell-slash"}
                 class={[
                   "size-4 mt-0.5",
-                  reminder.active && "text-primary",
-                  !reminder.active && "text-base-content/30"
+                  reminder.active && "text-[var(--color-accent)]",
+                  !reminder.active && "text-[var(--color-text-disabled)]"
                 ]}
               />
               <div>
-                <div class={[!reminder.active && "text-base-content/50"]}>
+                <div class={[!reminder.active && "text-[var(--color-text-tertiary)]"]}>
                   {reminder.title || type_label(reminder.type)}
                 </div>
-                <div class="text-xs text-base-content/50">
+                <div class="text-xs text-[var(--color-text-tertiary)]">
                   {type_label(reminder.type)}
                   <span :if={reminder.frequency}> ·  {frequency_label(reminder.frequency)}</span>
                 </div>
-                <div class="text-xs text-base-content/50">
-                  Next: {Calendar.strftime(reminder.next_reminder_date, "%b %d, %Y")}
+                <div class="text-xs text-[var(--color-text-tertiary)]">
+                  Next: <.date_display date={reminder.next_reminder_date} />
                 </div>
               </div>
             </div>

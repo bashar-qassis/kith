@@ -110,70 +110,70 @@ defmodule KithWeb.ContactLive.AddressesComponent do
   defp address_form(assigns) do
     ~H"""
     <.form for={%{}} phx-submit={@action} phx-target={@target}>
-      <div class="form-control">
-        <label class="label"><span class="label-text">Label</span></label>
-        <select name="address[label]" class="select select-bordered select-sm">
+      <div>
+        <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Label</span></label>
+        <select name="address[label]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
           <option value="">—</option>
           <%= for label <- @labels do %>
             <option value={label} selected={@address_label == label}>{label}</option>
           <% end %>
         </select>
       </div>
-      <div class="form-control mt-2">
-        <label class="label"><span class="label-text">Street</span></label>
-        <input type="text" name="address[line1]" class="input input-bordered input-sm" value={@line1} />
+      <div class="mt-2">
+        <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Street</span></label>
+        <input type="text" name="address[line1]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150" value={@line1} />
       </div>
-      <div class="form-control mt-2">
+      <div class="mt-2">
         <input
           type="text"
           name="address[line2]"
-          class="input input-bordered input-sm"
+          class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
           placeholder="Apt, suite, etc."
           value={@line2}
         />
       </div>
       <div class="grid grid-cols-2 gap-3 mt-2">
-        <div class="form-control">
-          <label class="label"><span class="label-text">City</span></label>
-          <input type="text" name="address[city]" class="input input-bordered input-sm" value={@city} />
+        <div>
+          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">City</span></label>
+          <input type="text" name="address[city]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150" value={@city} />
         </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Province/State</span></label>
+        <div>
+          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Province/State</span></label>
           <input
             type="text"
             name="address[province]"
-            class="input input-bordered input-sm"
+            class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             value={@province}
           />
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3 mt-2">
-        <div class="form-control">
-          <label class="label"><span class="label-text">Postal Code</span></label>
+        <div>
+          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Postal Code</span></label>
           <input
             type="text"
             name="address[postal_code]"
-            class="input input-bordered input-sm"
+            class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             value={@postal_code}
           />
         </div>
-        <div class="form-control">
-          <label class="label"><span class="label-text">Country</span></label>
+        <div>
+          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Country</span></label>
           <input
             type="text"
             name="address[country]"
-            class="input input-bordered input-sm"
+            class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             value={@country}
           />
         </div>
       </div>
       <div class="flex gap-2 mt-3">
-        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+        <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
         <button
           type="button"
           phx-click="cancel-form"
           phx-target={@target}
-          class="btn btn-sm btn-ghost"
+          class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
         >
           Cancel
         </button>
@@ -188,98 +188,103 @@ defmodule KithWeb.ContactLive.AddressesComponent do
 
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Addresses</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Addresses</h3>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="btn btn-sm btn-primary">
-            <.icon name="hero-plus" class="size-4" /> Add Address
+          <button id={"add-address-#{@contact_id}"} phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+            <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
       </div>
 
       <%= if @show_form do %>
-        <div class="card bg-base-100 shadow-sm mb-4">
-          <div class="card-body p-4">
-            <.address_form
-              action="save"
-              target={@myself}
-              labels={@labels}
-              address_label=""
-              line1=""
-              line2=""
-              city=""
-              province=""
-              postal_code=""
-              country=""
-            />
-          </div>
+        <div class="mb-4">
+          <.address_form
+            action="save"
+            target={@myself}
+            labels={@labels}
+            address_label=""
+            line1=""
+            line2=""
+            city=""
+            province=""
+            postal_code=""
+            country=""
+          />
         </div>
       <% end %>
 
-      <%= if @addresses == [] do %>
-        <p class="text-base-content/60">No addresses yet.</p>
+      <%= if @addresses == [] and not @show_form do %>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-map-pin"
+          title="No addresses"
+          message="Add a home, work, or other address for this person."
+        >
+          <:actions :if={@can_edit}>
+            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+              Add Address
+            </button>
+          </:actions>
+        </KithUI.empty_state>
       <% end %>
 
       <div class="space-y-3">
         <%= for addr <- @addresses do %>
-          <div class="card bg-base-100 shadow-sm">
-            <div class="card-body p-4">
-              <%= if @editing_id == addr.id do %>
-                <.address_form
-                  action="update"
-                  target={@myself}
-                  labels={@labels}
-                  address_label={addr.label || ""}
-                  line1={addr.line1 || ""}
-                  line2={addr.line2 || ""}
-                  city={addr.city || ""}
-                  province={addr.province || ""}
-                  postal_code={addr.postal_code || ""}
-                  country={addr.country || ""}
-                />
-              <% else %>
-                <div class="flex items-start justify-between">
-                  <div class="flex items-start gap-3">
-                    <.icon name="hero-map-pin" class="size-5 text-primary mt-0.5" />
-                    <div>
-                      <%= if addr.label do %>
-                        <span class="badge badge-sm badge-outline mb-1">{addr.label}</span>
-                      <% end %>
-                      <p class="text-sm">{format_address(addr)}</p>
-                      <a
-                        href={maps_url(addr)}
-                        target="_blank"
-                        class="link link-primary text-xs mt-1 inline-block"
-                      >
-                        Open in Maps
-                      </a>
-                    </div>
-                  </div>
-                  <%= if @can_edit do %>
-                    <div class="flex gap-2 text-xs shrink-0">
-                      <button
-                        phx-click="edit"
-                        phx-value-id={addr.id}
-                        phx-target={@myself}
-                        class="link link-hover"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        phx-click="delete"
-                        phx-value-id={addr.id}
-                        phx-target={@myself}
-                        data-confirm="Delete this address?"
-                        class="link link-hover text-error"
-                      >
-                        Delete
-                      </button>
-                    </div>
+          <%= if @editing_id == addr.id do %>
+            <.address_form
+              action="update"
+              target={@myself}
+              labels={@labels}
+              address_label={addr.label || ""}
+              line1={addr.line1 || ""}
+              line2={addr.line2 || ""}
+              city={addr.city || ""}
+              province={addr.province || ""}
+              postal_code={addr.postal_code || ""}
+              country={addr.country || ""}
+            />
+          <% else %>
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-2 min-w-0">
+                <.icon name="hero-map-pin" class="size-4 text-[var(--color-accent)] mt-0.5 shrink-0" />
+                <div class="min-w-0">
+                  <%= if addr.label do %>
+                    <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] mb-1">{addr.label}</span>
                   <% end %>
+                  <p class="text-sm text-[var(--color-text-primary)] break-words">{format_address(addr)}</p>
+                  <a
+                    href={maps_url(addr)}
+                    target="_blank"
+                    class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors text-xs mt-0.5 inline-block"
+                  >
+                    Open in Maps
+                  </a>
+                </div>
+              </div>
+              <%= if @can_edit do %>
+                <div class="flex gap-2 text-xs shrink-0 ms-2">
+                  <button
+                    phx-click="edit"
+                    phx-value-id={addr.id}
+                    phx-target={@myself}
+                    class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    phx-click="delete"
+                    phx-value-id={addr.id}
+                    phx-target={@myself}
+                    data-confirm="Delete this address?"
+                    class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
+                  >
+                    Delete
+                  </button>
                 </div>
               <% end %>
             </div>
-          </div>
+          <% end %>
         <% end %>
       </div>
     </div>

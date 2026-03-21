@@ -7,19 +7,19 @@ defmodule KithWeb.UserLive.Registration do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+    <Layouts.auth flash={@flash}>
+      <div class="space-y-6">
         <div class="text-center">
-          <.header>
-            Register for an account
-            <:subtitle>
-              Already registered?
-              <.link navigate={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
-                Log in
-              </.link>
-              to your account now.
-            </:subtitle>
-          </.header>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Create an account</h1>
+          <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
+            Already registered?
+            <.link
+              navigate={~p"/users/log-in"}
+              class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+            >
+              Log in
+            </.link>
+          </p>
         </div>
 
         <.form
@@ -31,62 +31,76 @@ defmodule KithWeb.UserLive.Registration do
           action={~p"/users/log-in?_action=registered"}
           method="post"
         >
-          <.input
-            field={@form[:email]}
-            type="email"
-            label="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-            phx-mounted={JS.focus()}
-          />
-          <div
-            x-data="passwordStrength"
-            class="space-y-1"
-          >
-            <div class="fieldset mb-2">
-              <label for={@form[:password].id}>
-                <span class="label mb-1">Password</span>
+          <div class="space-y-1">
+            <UI.input
+              field={@form[:email]}
+              type="email"
+              label="Email"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              phx-mounted={JS.focus()}
+            />
+            <div x-data="passwordStrength" class="space-y-1">
+              <div class="mb-3">
+                <label for={@form[:password].id} class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                  Password
+                </label>
                 <input
                   type="password"
                   name={@form[:password].name}
                   id={@form[:password].id}
                   value={Phoenix.HTML.Form.normalize_value("password", @form[:password].value)}
-                  class="w-full input"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
                   autocomplete="new-password"
                   required
                   x-model="pw"
                 />
-              </label>
-            </div>
-            <div
-              class="h-1.5 w-full rounded-full bg-base-200 overflow-hidden"
-              x-show="visible"
-              x-cloak
-            >
-              <div
-                class="h-full rounded-full transition-all duration-300"
-                x-bind:class="barClass"
-              >
+                <%= for error <- Enum.map((@form[:password].errors || []), &UI.translate_error/1) do %>
+                  <p class="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--color-error)]">
+                    <.icon name="hero-exclamation-circle-mini" class="size-4 shrink-0" />
+                    {error}
+                  </p>
+                <% end %>
               </div>
+              <div
+                class="h-1.5 w-full rounded-[var(--radius-full)] bg-[var(--color-surface-sunken)] overflow-hidden"
+                x-show="visible"
+                x-cloak
+              >
+                <div
+                  class="h-full rounded-[var(--radius-full)] transition-all duration-300"
+                  x-bind:class="barClass"
+                >
+                </div>
+              </div>
+              <p
+                class="text-xs"
+                x-show="visible"
+                x-cloak
+                x-bind:class="textClass"
+                x-text="label"
+              >
+              </p>
             </div>
-
-            <p
-              class="text-xs"
-              x-show="visible"
-              x-cloak
-              x-bind:class="textClass"
-              x-text="label"
-            >
-            </p>
           </div>
 
-          <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
+          <%= if Application.get_env(:kith, :require_tos_acceptance, false) do %>
+            <div class="flex items-start gap-2 mt-3">
+              <UI.input
+                field={@form[:tos_accepted]}
+                type="checkbox"
+                label={~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'}
+              />
+            </div>
+          <% end %>
+
+          <UI.button phx-disable-with="Creating account..." class="w-full mt-4">
             Create an account
-          </.button>
+          </UI.button>
         </.form>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 
@@ -119,8 +133,6 @@ defmodule KithWeb.UserLive.Registration do
           &url(~p"/users/confirm/#{&1}")
         )
 
-        # Keep original params in the form so phx-trigger-action can POST
-        # the email+password to the session controller for auto-login.
         changeset = Accounts.change_user_registration(%User{}, user_params)
 
         {:noreply,

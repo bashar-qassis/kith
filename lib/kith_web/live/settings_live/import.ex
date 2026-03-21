@@ -132,65 +132,65 @@ defmodule KithWeb.SettingsLive.Import do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
-        <.header>
+        <UI.header>
           Import Contacts
           <:subtitle>Import contacts from a vCard (.vcf) file</:subtitle>
-        </.header>
+        </UI.header>
 
         <%!-- Warning banner --%>
-        <div class="mt-6 bg-warning/10 border border-warning/30 rounded-lg p-4">
-          <p class="text-warning font-medium">Before you import</p>
-          <p class="text-base-content/70 text-sm mt-1">
+        <div class="mt-6 bg-[var(--color-warning-subtle)] border border-[var(--color-warning)]/30 rounded-[var(--radius-lg)] p-4">
+          <p class="text-[var(--color-warning)] font-medium">Before you import</p>
+          <p class="text-[var(--color-text-secondary)] text-sm mt-1">
             Import creates new contacts. Existing contacts are not updated.
             Review for duplicates after import.
           </p>
         </div>
 
         <%!-- Results --%>
-        <div :if={@results} class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+        <div :if={@results} class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
           <h3 class="text-lg font-semibold mb-3">Import Results</h3>
 
           <div class="space-y-2">
-            <p class="text-success">
+            <p class="text-[var(--color-success)]">
               <span class="font-semibold">{@results.imported}</span> contacts imported successfully
             </p>
-            <p :if={@results.skipped > 0} class="text-warning">
+            <p :if={@results.skipped > 0} class="text-[var(--color-warning)]">
               <span class="font-semibold">{@results.skipped}</span> entries skipped
             </p>
-            <p :if={@results.skipped_duplicates > 0} class="text-warning text-sm">
+            <p :if={@results.skipped_duplicates > 0} class="text-[var(--color-warning)] text-sm">
               {@results.duplicate_message}
             </p>
           </div>
 
           <div :if={@results.errors != []} class="mt-4">
             <details class="text-sm">
-              <summary class="cursor-pointer text-base-content/60 hover:text-base-content">
+              <summary class="cursor-pointer text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]">
                 Show error details ({length(@results.errors)} errors)
               </summary>
-              <ul class="mt-2 space-y-1 text-error">
+              <ul class="mt-2 space-y-1 text-[var(--color-error)]">
                 <li :for={error <- @results.errors}>{error}</li>
               </ul>
             </details>
           </div>
 
           <div class="mt-4">
-            <.link navigate={~p"/contacts"} class="text-primary hover:underline text-sm">
+            <.link navigate={~p"/contacts"} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline text-sm">
               View imported contacts
             </.link>
           </div>
         </div>
 
         <%!-- Progress --%>
-        <div :if={@progress} class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
-          <p class="text-base-content/70 mb-2">Processing import... This may take a few minutes.</p>
-          <div class="w-full bg-base-300 rounded-full h-2">
+        <div :if={@progress} class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
+          <p class="text-[var(--color-text-secondary)] mb-2">Processing import... This may take a few minutes.</p>
+          <div class="w-full bg-[var(--color-border)] rounded-full h-2">
             <div
-              class="bg-primary h-2 rounded-full transition-all duration-300"
+              class="bg-[var(--color-accent)] h-2 rounded-full transition-all duration-300"
               style={"width: #{if @progress.total > 0, do: round(@progress.current / @progress.total * 100), else: 0}%"}
             >
             </div>
           </div>
-          <p class="text-sm text-base-content/50 mt-1">
+          <p class="text-sm text-[var(--color-text-tertiary)] mt-1">
             {@progress.current} / {@progress.total} contacts
           </p>
         </div>
@@ -198,22 +198,22 @@ defmodule KithWeb.SettingsLive.Import do
         <%!-- Upload form --%>
         <div
           :if={!@results && !@progress}
-          class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6"
+          class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6"
         >
           <form id="import-form" phx-submit="import" phx-change="validate">
             <div
-              class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center hover:border-base-content/30 transition-colors"
+              class="border-2 border-dashed border-[var(--color-border)] rounded-[var(--radius-lg)] p-8 text-center hover:border-[var(--color-text-tertiary)] transition-colors"
               phx-drop-target={@uploads.vcf_file.ref}
             >
               <.live_file_input upload={@uploads.vcf_file} class="hidden" />
-              <p class="text-base-content/60">
+              <p class="text-[var(--color-text-tertiary)]">
                 Drag and drop a <span class="font-semibold">.vcf</span>
                 file here, or
-                <label for={@uploads.vcf_file.ref} class="text-primary hover:underline cursor-pointer">
+                <label for={@uploads.vcf_file.ref} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline cursor-pointer">
                   browse
                 </label>
               </p>
-              <p class="text-xs text-base-content/40 mt-1">Maximum file size: 10 MB</p>
+              <p class="text-xs text-[var(--color-text-disabled)] mt-1">Maximum file size: 10 MB</p>
             </div>
 
             <%!-- Show selected file --%>
@@ -221,25 +221,21 @@ defmodule KithWeb.SettingsLive.Import do
               :for={entry <- @uploads.vcf_file.entries}
               class="mt-4 flex items-center justify-between"
             >
-              <span class="text-sm text-base-content/70">{entry.client_name}</span>
-              <span class="text-xs text-base-content/50">
+              <span class="text-sm text-[var(--color-text-secondary)]">{entry.client_name}</span>
+              <span class="text-xs text-[var(--color-text-tertiary)]">
                 {Float.round(entry.client_size / 1024, 1)} KB
               </span>
             </div>
 
             <%!-- Upload errors --%>
-            <p :for={err <- upload_errors(@uploads.vcf_file)} class="mt-2 text-sm text-error">
+            <p :for={err <- upload_errors(@uploads.vcf_file)} class="mt-2 text-sm text-[var(--color-error)]">
               {upload_error_message(err)}
             </p>
 
             <div class="mt-4">
-              <button
-                type="submit"
-                disabled={@importing || @uploads.vcf_file.entries == []}
-                class="btn btn-primary btn-sm disabled:opacity-50"
-              >
+              <UI.button type="submit" size="sm" disabled={@importing || @uploads.vcf_file.entries == []}>
                 {if @importing, do: "Importing...", else: "Import Contacts"}
-              </button>
+              </UI.button>
             </div>
           </form>
         </div>

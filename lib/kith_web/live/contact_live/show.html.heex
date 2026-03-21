@@ -2,7 +2,10 @@
   <%= if @contact do %>
     <%!-- Back link --%>
     <div class="mb-4">
-      <.link navigate={~p"/contacts"} class="link link-hover text-sm inline-flex items-center gap-1">
+      <.link
+        navigate={~p"/contacts"}
+        class="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+      >
         <.icon name="hero-arrow-left" class="size-4 rtl:rotate-180" /> Back to Contacts
       </.link>
     </div>
@@ -11,116 +14,102 @@
       <%!-- Sidebar --%>
       <aside class="lg:w-80 shrink-0 space-y-4">
         <%!-- Main info card --%>
-        <.card>
+        <UI.card>
           <div class="flex flex-col items-center text-center">
-            <%!-- Avatar --%>
-            <.avatar name={@contact.display_name} size={:lg} />
+            <KithUI.avatar name={@contact.display_name} size={:lg} />
 
-            <%!-- Name & favorite --%>
             <div class="flex items-center gap-2 mt-3">
-              <h1 class="text-xl font-bold">{@contact.display_name}</h1>
+              <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">{@contact.display_name}</h1>
               <button
                 phx-click="toggle-favorite"
-                class="btn btn-ghost btn-xs"
+                class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-warning)] transition-colors cursor-pointer"
                 title={if @contact.favorite, do: "Unfavorite", else: "Favorite"}
               >
                 <.icon
                   name={if @contact.favorite, do: "hero-star-solid", else: "hero-star"}
-                  class={["size-5", @contact.favorite && "text-warning"]}
+                  class={["size-5", @contact.favorite && "text-[var(--color-warning)]"]}
                 />
               </button>
             </div>
 
-            <%= if @contact.nickname do %>
-              <p class="text-sm text-base-content/60">"{@contact.nickname}"</p>
-            <% end %>
-
-            <%= if @contact.is_archived do %>
-              <span class="badge badge-warning mt-1">Archived</span>
-            <% end %>
-
-            <%= if @contact.deceased do %>
-              <span class="badge badge-error mt-1">Deceased</span>
-            <% end %>
+            <p :if={@contact.nickname} class="text-sm text-[var(--color-text-tertiary)]">"{@contact.nickname}"</p>
+            <UI.badge :if={@contact.is_archived} variant="warning" class="mt-2">Archived</UI.badge>
+            <UI.badge :if={@contact.deceased} variant="error" class="mt-2">Deceased</UI.badge>
+            <UI.badge :if={@contact.immich_status == "linked"} variant="success" class="mt-2">Immich linked</UI.badge>
+            <UI.badge :if={@contact.immich_status == "needs_review"} variant="warning" class="mt-2">Immich review needed</UI.badge>
           </div>
 
           <%!-- Metadata --%>
-          <div class="w-full mt-4 space-y-2 text-start text-sm">
-            <%= if @contact.gender do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Gender</span>
-                <span>{@contact.gender.name}</span>
-              </div>
-            <% end %>
+          <dl class="w-full mt-4 space-y-2.5 text-sm">
+            <div :if={@contact.gender} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Gender</dt>
+              <dd class="text-[var(--color-text-primary)]">{@contact.gender.name}</dd>
+            </div>
 
-            <%= if @contact.birthdate do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Birthday</span>
-                <span>
-                  <.date_display date={@contact.birthdate} />
-                  <%= if age = compute_age(@contact.birthdate) do %>
-                    <span class="text-base-content/60">({age}y)</span>
-                  <% end %>
-                </span>
-              </div>
-            <% end %>
+            <div :if={@contact.birthdate} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Birthday</dt>
+              <dd class="text-[var(--color-text-primary)]">
+                <KithUI.date_display date={@contact.birthdate} />
+                <span :if={age = compute_age(@contact.birthdate)} class="text-[var(--color-text-tertiary)]">({age}y)</span>
+              </dd>
+            </div>
 
-            <%= if @contact.occupation do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Occupation</span>
-                <span>{@contact.occupation}</span>
-              </div>
-            <% end %>
+            <div :if={@contact.occupation} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Occupation</dt>
+              <dd class="text-[var(--color-text-primary)]">{@contact.occupation}</dd>
+            </div>
 
-            <%= if @contact.company do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Company</span>
-                <span>{@contact.company}</span>
-              </div>
-            <% end %>
+            <div :if={@contact.company} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Company</dt>
+              <dd class="text-[var(--color-text-primary)]">{@contact.company}</dd>
+            </div>
 
-            <%= if @contact.last_talked_to do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Last Contacted</span>
-                <.relative_time datetime={@contact.last_talked_to} />
-              </div>
-            <% end %>
+            <div :if={@contact.last_talked_to} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Last Contacted</dt>
+              <dd><KithUI.relative_time datetime={@contact.last_talked_to} /></dd>
+            </div>
 
-            <%= if @contact.deceased && @contact.deceased_at do %>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Deceased</span>
-                <.date_display date={@contact.deceased_at} />
-              </div>
-            <% end %>
+            <div :if={@contact.deceased && @contact.deceased_at} class="flex justify-between">
+              <dt class="text-[var(--color-text-tertiary)]">Deceased</dt>
+              <dd><KithUI.date_display date={@contact.deceased_at} /></dd>
+            </div>
 
             <%= if @contact.immich_status == "linked" and @contact.immich_person_url do %>
               <div class="mt-2">
-                <a href={@contact.immich_person_url} target="_blank" rel="noopener" class="btn btn-sm btn-outline w-full">
+                <a
+                  href={@contact.immich_person_url}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center justify-center gap-2 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+                >
                   <.icon name="hero-photo" class="size-4" /> View in Immich
                 </a>
               </div>
             <% end %>
-          </div>
+          </dl>
 
           <%!-- Tags --%>
-          <div class="w-full mt-4 border-t border-base-200 pt-4">
+          <div class="w-full mt-4 border-t border-[var(--color-border-subtle)] pt-4">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium">Tags</span>
+              <span class="text-sm font-medium text-[var(--color-text-primary)]">Tags</span>
               <%= if can?(assigns, :update, :tag) do %>
-                <button phx-click="toggle-tag-dropdown" class="btn btn-ghost btn-xs">
+                <button
+                  phx-click="toggle-tag-dropdown"
+                  class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+                >
                   <.icon name="hero-plus" class="size-4" />
                 </button>
               <% end %>
             </div>
 
-            <div class="flex flex-wrap gap-1">
+            <div class="flex flex-wrap gap-1.5">
               <span :for={tag <- @contact.tags} class="inline-flex items-center gap-1">
-                <.tag_badge tag={tag} />
+                <KithUI.tag_badge tag={tag} />
                 <%= if can?(assigns, :update, :tag) do %>
                   <button
                     phx-click="remove-tag"
                     phx-value-tag_id={tag.id}
-                    class="text-base-content/40 hover:text-error text-xs"
+                    class="text-[var(--color-text-disabled)] hover:text-[var(--color-error)] text-xs transition-colors cursor-pointer"
                     title="Remove tag"
                   >
                     &times;
@@ -131,14 +120,14 @@
 
             <%!-- Tag dropdown --%>
             <%= if @show_tag_dropdown do %>
-              <div class="mt-2 p-2 border rounded-lg bg-base-100 shadow-sm">
+              <div class="mt-2 p-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-overlay)] shadow-[var(--shadow-dropdown)]">
                 <input
                   type="text"
                   placeholder="Search tags..."
                   value={@tag_search}
                   phx-keyup="search-tags"
                   phx-value-tag_search={@tag_search}
-                  class="input input-bordered input-sm w-full mb-2"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 mb-2"
                   name="tag_search"
                 />
                 <div class="max-h-32 overflow-y-auto">
@@ -146,9 +135,9 @@
                     :for={tag <- filtered_tags(@tags, @contact.tags, @tag_search)}
                     phx-click="add-tag"
                     phx-value-tag_id={tag.id}
-                    class="block w-full text-start px-2 py-1 text-sm hover:bg-base-200 rounded"
+                    class="block w-full text-start px-2 py-1.5 text-sm hover:bg-[var(--color-surface-sunken)] rounded-[var(--radius-md)] transition-colors cursor-pointer"
                   >
-                    <.tag_badge tag={tag} />
+                    <KithUI.tag_badge tag={tag} />
                   </button>
                 </div>
               </div>
@@ -157,16 +146,15 @@
 
           <%!-- Description --%>
           <%= if @contact.description do %>
-            <div class="w-full mt-4 border-t border-base-200 pt-4">
-              <span class="text-sm font-medium">About</span>
-              <p class="text-sm text-base-content/70 mt-1">{@contact.description}</p>
+            <div class="w-full mt-4 border-t border-[var(--color-border-subtle)] pt-4">
+              <span class="text-sm font-medium text-[var(--color-text-primary)]">About</span>
+              <p class="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">{@contact.description}</p>
             </div>
           <% end %>
-        </.card>
+        </UI.card>
 
-        <%!-- Sidebar sub-sections: Addresses, Contact Fields, Relationships --%>
-        <.card>
-          <.section_header title="Addresses" />
+        <%!-- Sidebar sub-sections --%>
+        <UI.card>
           <.live_component
             module={KithWeb.ContactLive.AddressesComponent}
             id={"addresses-#{@contact.id}"}
@@ -174,10 +162,9 @@
             account_id={@account_id}
             can_edit={can?(assigns, :create, :address)}
           />
-        </.card>
+        </UI.card>
 
-        <.card>
-          <.section_header title="Contact Info" />
+        <UI.card>
           <.live_component
             module={KithWeb.ContactLive.ContactFieldsComponent}
             id={"contact-fields-#{@contact.id}"}
@@ -185,10 +172,9 @@
             account_id={@account_id}
             can_edit={can?(assigns, :create, :contact_field)}
           />
-        </.card>
+        </UI.card>
 
-        <.card>
-          <.section_header title="Relationships" />
+        <UI.card>
           <.live_component
             module={KithWeb.ContactLive.RelationshipsComponent}
             id={"relationships-#{@contact.id}"}
@@ -196,68 +182,93 @@
             account_id={@account_id}
             can_edit={can?(assigns, :create, :relationship)}
           />
-        </.card>
+        </UI.card>
 
-        <%!-- Reminders sidebar widget --%>
-        <.card>
-          <.section_header title="Reminders" />
+        <UI.card>
           <.live_component
             module={KithWeb.ContactLive.RemindersComponent}
             id={"reminders-#{@contact.id}"}
             contact_id={@contact.id}
             account_id={@account_id}
           />
-        </.card>
+        </UI.card>
+
+        <UI.card>
+          <.live_component
+            module={KithWeb.ContactLive.PetsComponent}
+            id={"pets-#{@contact.id}"}
+            contact_id={@contact.id}
+            account_id={@account_id}
+            can_edit={can?(assigns, :create, :pet)}
+          />
+        </UI.card>
+
+        <UI.card>
+          <.live_component
+            module={KithWeb.ContactLive.DebtsComponent}
+            id={"debts-#{@contact.id}"}
+            contact_id={@contact.id}
+            account_id={@account_id}
+            current_user_id={@current_user_id}
+            can_edit={can?(assigns, :create, :debt)}
+          />
+        </UI.card>
 
         <%!-- Action buttons --%>
         <%= if can?(assigns, :update, :contact) do %>
-          <.card>
+          <UI.card>
             <div class="space-y-2">
-              <.link navigate={~p"/contacts/#{@contact.id}/edit"} class="btn btn-sm btn-outline w-full">
+              <UI.button variant="secondary" size="sm" navigate={~p"/contacts/#{@contact.id}/edit"} class="w-full">
                 <.icon name="hero-pencil-square" class="size-4" /> Edit
-              </.link>
+              </UI.button>
 
               <%= if @contact.is_archived do %>
-                <button phx-click="unarchive" class="btn btn-sm btn-outline w-full">
+                <UI.button variant="secondary" size="sm" phx-click="unarchive" class="w-full">
                   <.icon name="hero-archive-box-arrow-down" class="size-4" /> Unarchive
-                </button>
+                </UI.button>
               <% else %>
-                <button phx-click="archive" class="btn btn-sm btn-outline w-full">
+                <UI.button variant="secondary" size="sm" phx-click="archive" class="w-full">
                   <.icon name="hero-archive-box" class="size-4" /> Archive
-                </button>
+                </UI.button>
               <% end %>
 
-              <button
+              <UI.button
+                variant="danger"
+                size="sm"
                 phx-click="delete"
-                class="btn btn-sm btn-outline btn-error w-full"
+                class="w-full"
                 data-confirm={"Move #{@contact.display_name} to trash?"}
               >
                 <.icon name="hero-trash" class="size-4" /> Delete
-              </button>
+              </UI.button>
 
-              <.link navigate={~p"/contacts/#{@contact.id}/merge"} class="btn btn-sm btn-outline w-full">
+              <UI.button variant="secondary" size="sm" navigate={~p"/contacts/#{@contact.id}/merge"} class="w-full">
                 <.icon name="hero-arrows-right-left" class="size-4" /> Merge
-              </.link>
+              </UI.button>
             </div>
-          </.card>
+          </UI.card>
         <% end %>
       </aside>
 
       <%!-- Main content area with tabs --%>
       <main class="flex-1 min-w-0">
-        <%!-- Tab bar: Notes / Life Events / Photos --%>
-        <div class="tabs tabs-bordered mb-6">
-          <button
-            :for={tab <- [:notes, :life_events, :photos]}
-            class={["tab", @active_tab == tab && "tab-active"]}
-            phx-click="switch-tab"
-            phx-value-tab={tab}
-          >
-            {tab_label(tab)}
-          </button>
+        <div class="border-b border-[var(--color-border)] mb-6">
+          <nav class="flex gap-6 -mb-px">
+            <button
+              :for={tab <- [:notes, :life_events, :activities, :calls, :tasks, :gifts, :conversations, :photos]}
+              class={[
+                "py-3 text-sm font-medium border-b-2 transition-colors duration-200 cursor-pointer",
+                @active_tab == tab && "border-[var(--color-accent)] text-[var(--color-accent)]",
+                @active_tab != tab && "border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
+              ]}
+              phx-click="switch-tab"
+              phx-value-tab={tab}
+            >
+              {tab_label(tab)}
+            </button>
+          </nav>
         </div>
 
-        <%!-- Tab content — each tab is a lazy-loaded LiveComponent --%>
         <div>
           <%= case @active_tab do %>
             <% :notes -> %>
@@ -277,6 +288,54 @@
                 contact_id={@contact.id}
                 account_id={@account_id}
                 can_edit={can?(assigns, :create, :life_event)}
+              />
+
+            <% :activities -> %>
+              <.live_component
+                module={KithWeb.ContactLive.ActivitiesListComponent}
+                id={"activities-#{@contact.id}"}
+                contact_id={@contact.id}
+                account_id={@account_id}
+                can_edit={can?(assigns, :create, :activity)}
+              />
+
+            <% :calls -> %>
+              <.live_component
+                module={KithWeb.ContactLive.CallsListComponent}
+                id={"calls-#{@contact.id}"}
+                contact_id={@contact.id}
+                account_id={@account_id}
+                can_edit={can?(assigns, :create, :call)}
+              />
+
+            <% :tasks -> %>
+              <.live_component
+                module={KithWeb.ContactLive.TasksComponent}
+                id={"tasks-#{@contact.id}"}
+                contact_id={@contact.id}
+                account_id={@account_id}
+                current_user_id={@current_user_id}
+                can_edit={can?(assigns, :create, :task)}
+              />
+
+            <% :gifts -> %>
+              <.live_component
+                module={KithWeb.ContactLive.GiftsComponent}
+                id={"gifts-#{@contact.id}"}
+                contact_id={@contact.id}
+                account_id={@account_id}
+                current_user_id={@current_user_id}
+                can_edit={can?(assigns, :create, :gift)}
+              />
+
+            <% :conversations -> %>
+              <.live_component
+                module={KithWeb.ContactLive.ConversationsComponent}
+                id={"conversations-#{@contact.id}"}
+                contact_id={@contact.id}
+                account_id={@account_id}
+                current_user_id={@current_user_id}
+                can_edit={can?(assigns, :create, :conversation)}
               />
 
             <% :photos -> %>

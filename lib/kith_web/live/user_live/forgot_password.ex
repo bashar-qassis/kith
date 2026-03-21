@@ -6,17 +6,17 @@ defmodule KithWeb.UserLive.ForgotPassword do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+    <Layouts.auth flash={@flash}>
+      <div class="space-y-6">
         <div class="text-center">
-          <.header>
-            Forgot your password?
-            <:subtitle>We'll send a password reset link to your inbox.</:subtitle>
-          </.header>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Forgot your password?</h1>
+          <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
+            We'll send a password reset link to your inbox.
+          </p>
         </div>
 
         <.form for={@form} id="reset_password_form" phx-submit="send_email">
-          <.input
+          <UI.input
             field={@form[:email]}
             type="email"
             label="Email"
@@ -25,18 +25,21 @@ defmodule KithWeb.UserLive.ForgotPassword do
             required
             phx-mounted={JS.focus()}
           />
-          <.button class="btn btn-primary w-full" phx-disable-with="Sending...">
+          <UI.button class="w-full" phx-disable-with="Sending...">
             Send password reset instructions
-          </.button>
+          </UI.button>
         </.form>
 
-        <p class="text-center mt-4 text-sm text-zinc-600">
-          <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
+        <p class="text-center text-sm text-[var(--color-text-secondary)]">
+          <.link
+            navigate={~p"/users/log-in"}
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+          >
             Back to log in
           </.link>
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

@@ -48,12 +48,12 @@ defmodule KithWeb.ContactLive.Edit do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 class="text-2xl font-bold mb-6">
+      <div class="max-w-3xl mx-auto">
+        <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight mb-6">
           {if @contact, do: "Edit #{@contact.display_name}", else: "Edit Contact"}
         </h1>
-        
-        <.simple_form
+
+        <UI.simple_form
           :let={f}
           for={@changeset}
           id="contact-form"
@@ -62,42 +62,35 @@ defmodule KithWeb.ContactLive.Edit do
           phx-submit="save"
         >
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <.input
-              field={f[:first_name]}
-              type="text"
-              label="First Name *"
-              required
-            /> <.input field={f[:last_name]} type="text" label="Last Name" />
-            <.input field={f[:nickname]} type="text" label="Nickname" />
-            <.input
+            <UI.input field={f[:first_name]} type="text" label="First Name *" required />
+            <UI.input field={f[:last_name]} type="text" label="Last Name" />
+            <UI.input field={f[:nickname]} type="text" label="Nickname" />
+            <UI.input
               field={f[:gender_id]}
               type="select"
               label="Gender"
               prompt="Select gender"
               options={Enum.map(@genders, &{&1.name, &1.id})}
-            /> <.input field={f[:birthdate]} type="date" label="Birthdate" />
-            <.input field={f[:occupation]} type="text" label="Occupation" />
-            <.input field={f[:company]} type="text" label="Company" />
-            <.input field={f[:deceased]} type="checkbox" label="Deceased" />
-            <.input field={f[:favorite]} type="checkbox" label="Favorite" />
+            />
+            <UI.input field={f[:birthdate]} type="date" label="Birthdate" />
+            <UI.input field={f[:occupation]} type="text" label="Occupation" />
+            <UI.input field={f[:company]} type="text" label="Company" />
+            <UI.input field={f[:deceased]} type="checkbox" label="Deceased" />
+            <UI.input field={f[:favorite]} type="checkbox" label="Favorite" />
           </div>
-          
-          <%= if @show_deceased_at do %>
-            <.input field={f[:deceased_at]} type="date" label="Date of Death" />
-          <% end %>
-          
+
+          <UI.input :if={@show_deceased_at} field={f[:deceased_at]} type="date" label="Date of Death" />
+
           <:actions>
-            <.link
+            <UI.button
+              variant="ghost"
               navigate={if @contact, do: ~p"/contacts/#{@contact.id}", else: ~p"/contacts"}
-              class="btn btn-ghost"
             >
               Cancel
-            </.link>
-            <button type="submit" class="btn btn-primary" phx-disable-with="Saving...">
-              Save Changes
-            </button>
+            </UI.button>
+            <UI.button type="submit" phx-disable-with="Saving...">Save Changes</UI.button>
           </:actions>
-        </.simple_form>
+        </UI.simple_form>
       </div>
     </Layouts.app>
     """

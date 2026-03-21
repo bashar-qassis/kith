@@ -82,49 +82,52 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center bg-base-200 px-4">
-      <div class="w-full max-w-md">
-        <div class="text-center mb-6">
-          <h1 class="text-2xl font-bold">Kith</h1>
+    <Layouts.auth flash={@flash}>
+      <%= if @error do %>
+        <div class="text-center space-y-5">
+          <div class="flex justify-center">
+            <div class="flex items-center justify-center size-14 rounded-full bg-[var(--color-error-subtle)]">
+              <.icon name="hero-exclamation-triangle" class="size-7 text-[var(--color-error)]" />
+            </div>
+          </div>
+          <h2 class="text-lg font-semibold text-[var(--color-text-primary)]">Invitation Invalid</h2>
+          <p class="text-sm text-[var(--color-text-secondary)]">{@error}</p>
+          <UI.button navigate={~p"/users/log-in"} size="sm">
+            Go to Login
+          </UI.button>
         </div>
+      <% else %>
+        <div class="space-y-6">
+          <div class="text-center">
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">You've been invited!</h1>
+            <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
+              Join as <strong class="text-[var(--color-text-primary)]">{@invitation.email}</strong>
+            </p>
+          </div>
 
-        <.card>
-          <%= if @error do %>
-            <div class="text-center space-y-4">
-              <.icon name="hero-exclamation-triangle" class="size-12 text-error mx-auto" />
-              <h2 class="text-lg font-semibold">Invitation Invalid</h2>
-              <p class="text-base-content/70">{@error}</p>
-              <.link navigate={~p"/users/log-in"} class="btn btn-primary btn-sm">
-                Go to Login
-              </.link>
-            </div>
-          <% else %>
-            <div class="text-center mb-6">
-              <h2 class="text-lg font-semibold">You've been invited!</h2>
-              <p class="text-sm text-base-content/70 mt-1">
-                Join as <strong>{@invitation.email}</strong>
-              </p>
-            </div>
+          <UI.simple_form for={@form} id="invitation-form" phx-change="validate" phx-submit="accept">
+            <UI.input field={@form[:password]} type="password" label="Create your password" required />
+            <UI.input field={@form[:password_confirmation]} type="password" label="Confirm password" required />
 
-            <.simple_form for={@form} id="invitation-form" phx-change="validate" phx-submit="accept">
-              <.input field={@form[:password]} type="password" label="Create your password" required />
-              <.input
-                field={@form[:password_confirmation]}
-                type="password"
-                label="Confirm password"
-                required
-              />
+            <%= if Application.get_env(:kith, :require_tos_acceptance, false) do %>
+              <div class="flex items-start gap-2">
+                <UI.input
+                  field={@form[:tos_accepted]}
+                  type="checkbox"
+                  label={~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'}
+                />
+              </div>
+            <% end %>
 
-              <:actions>
-                <.button phx-disable-with="Joining..." class="w-full">
-                  Accept invitation and join
-                </.button>
-              </:actions>
-            </.simple_form>
-          <% end %>
-        </.card>
-      </div>
-    </div>
+            <:actions>
+              <UI.button phx-disable-with="Joining..." class="w-full">
+                Accept invitation and join
+              </UI.button>
+            </:actions>
+          </UI.simple_form>
+        </div>
+      <% end %>
+    </Layouts.auth>
     """
   end
 end

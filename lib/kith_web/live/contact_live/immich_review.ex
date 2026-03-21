@@ -95,56 +95,58 @@ defmodule KithWeb.ContactLive.ImmichReview do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <div class="max-w-4xl mx-auto px-4 py-8">
-        <.section_header title="Immich Photo Review" />
-        <p class="text-sm text-gray-500 -mt-2 mb-4">
-          Review photo suggestions for {@contact && @contact.display_name}
-        </p>
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Immich Photo Review</h1>
+          <p class="text-sm text-[var(--color-text-tertiary)] mt-1">
+            Review photo suggestions for {@contact && @contact.display_name}
+          </p>
+        </div>
 
-        <div :if={@contact} class="mt-6">
-          <.card>
-            <div class="flex items-center gap-4 mb-6">
-              <.avatar name={@contact.display_name} size={:lg} />
+        <div :if={@contact}>
+          <UI.card>
+            <div class="flex items-center gap-4">
+              <KithUI.avatar name={@contact.display_name} size={:lg} />
               <div>
-                <h3 class="text-lg font-semibold">{@contact.display_name}</h3>
-                <p class="text-sm text-gray-500">
+                <h3 class="text-lg font-semibold text-[var(--color-text-primary)]">{@contact.display_name}</h3>
+                <p class="text-sm text-[var(--color-text-tertiary)]">
                   {length(@candidates)} pending suggestion(s)
                 </p>
               </div>
             </div>
-          </.card>
+          </UI.card>
 
-          <.empty_state
+          <KithUI.empty_state
             :if={@candidates == []}
             icon="hero-photo"
             title="No photo suggestions"
             message="There are no pending Immich photo suggestions for this contact."
           >
             <:actions>
-              <.link
-                navigate={~p"/contacts/#{@contact.id}"}
-                class="text-blue-600 hover:underline mt-2 inline-block"
-              >
+              <UI.button variant="secondary" size="sm" navigate={~p"/contacts/#{@contact.id}"}>
                 Back to contact
-              </.link>
+              </UI.button>
             </:actions>
-          </.empty_state>
+          </KithUI.empty_state>
 
           <div :if={@candidates != []} class="mt-6">
             <div class="flex justify-between items-center mb-4">
-              <p class="text-sm text-gray-600">{length(@candidates)} pending suggestion(s)</p>
+              <p class="text-sm text-[var(--color-text-secondary)]">{length(@candidates)} pending suggestion(s)</p>
               <button
                 phx-click="reject-all"
                 data-confirm="Reject all candidates?"
-                class="text-sm text-red-600 hover:text-red-800"
+                class="text-sm text-[var(--color-error)] hover:text-[var(--color-error)]/80 transition-colors cursor-pointer"
               >
                 Reject All
               </button>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <.card :for={candidate <- @candidates}>
-                <div class="aspect-square bg-gray-100 flex items-center justify-center rounded-t-lg overflow-hidden">
+              <div
+                :for={candidate <- @candidates}
+                class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-[var(--shadow-card)] overflow-hidden"
+              >
+                <div class="aspect-square bg-[var(--color-surface-sunken)] flex items-center justify-center overflow-hidden">
                   <img
                     src={candidate.thumbnail_url}
                     alt="Immich suggestion"
@@ -153,27 +155,27 @@ defmodule KithWeb.ContactLive.ImmichReview do
                   />
                 </div>
                 <div class="p-4">
-                  <p class="text-sm text-gray-600 mb-3">
-                    Suggested {Calendar.strftime(candidate.suggested_at, "%b %d, %Y")}
+                  <p class="text-sm text-[var(--color-text-tertiary)] mb-3">
+                    Suggested <.date_display date={candidate.suggested_at} />
                   </p>
                   <div class="flex gap-2">
                     <button
                       phx-click="accept"
                       phx-value-candidate-id={candidate.id}
-                      class="flex-1 bg-green-600 text-white text-sm py-2 px-3 rounded hover:bg-green-700"
+                      class="flex-1 inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-success)] text-[var(--color-success-foreground)] text-sm py-2 px-3 font-medium hover:bg-[var(--color-success)]/90 transition-colors cursor-pointer"
                     >
                       Accept
                     </button>
                     <button
                       phx-click="reject"
                       phx-value-candidate-id={candidate.id}
-                      class="flex-1 bg-red-100 text-red-700 text-sm py-2 px-3 rounded hover:bg-red-200"
+                      class="flex-1 inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-error-subtle)] text-[var(--color-error)] text-sm py-2 px-3 font-medium hover:bg-[var(--color-error)]/20 transition-colors cursor-pointer"
                     >
                       Reject
                     </button>
                   </div>
                 </div>
-              </.card>
+              </div>
             </div>
           </div>
         </div>

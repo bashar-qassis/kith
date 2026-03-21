@@ -6,38 +6,43 @@ defmodule KithWeb.UserLive.ResetPassword do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+    <Layouts.auth flash={@flash}>
+      <div class="space-y-6">
         <div class="text-center">
-          <.header>Reset password</.header>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Reset password</h1>
         </div>
 
         <.form for={@form} id="reset_password_form" phx-submit="reset" phx-change="validate">
-          <.input
-            field={@form[:password]}
-            type="password"
-            label="New password"
-            autocomplete="new-password"
-            required
-          />
-          <.input
-            field={@form[:password_confirmation]}
-            type="password"
-            label="Confirm new password"
-            autocomplete="new-password"
-          />
-          <.button class="btn btn-primary w-full" phx-disable-with="Resetting...">
+          <div class="space-y-1">
+            <UI.input
+              field={@form[:password]}
+              type="password"
+              label="New password"
+              autocomplete="new-password"
+              required
+            />
+            <UI.input
+              field={@form[:password_confirmation]}
+              type="password"
+              label="Confirm new password"
+              autocomplete="new-password"
+            />
+          </div>
+          <UI.button class="w-full mt-2" phx-disable-with="Resetting...">
             Reset password
-          </.button>
+          </UI.button>
         </.form>
 
-        <p class="text-center mt-4 text-sm text-zinc-600">
-          <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
+        <p class="text-center text-sm text-[var(--color-text-secondary)]">
+          <.link
+            navigate={~p"/users/log-in"}
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+          >
             Back to log in
           </.link>
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

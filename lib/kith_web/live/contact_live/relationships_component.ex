@@ -10,6 +10,9 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
      |> assign(:relationships, [])
      |> assign(:relationship_types, [])
      |> assign(:show_form, false)
+     |> assign(:selected_type_id, nil)
+     |> assign(:selected_contact_id, nil)
+     |> assign(:confirming_delete_id, nil)
      |> assign(:contact_search, "")
      |> assign(:contact_results, [])}
   end
@@ -31,12 +34,21 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
     {:noreply,
      socket
      |> assign(:show_form, true)
+     |> assign(:selected_type_id, nil)
+     |> assign(:selected_contact_id, nil)
      |> assign(:contact_search, "")
      |> assign(:contact_results, [])}
   end
 
   def handle_event("cancel-form", _params, socket) do
     {:noreply, socket |> assign(:show_form, false)}
+  end
+
+  def handle_event("validate", %{"relationship" => params}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_type_id, params["relationship_type_id"])
+     |> assign(:selected_contact_id, params["related_contact_id"])}
   end
 
   def handle_event("search-contacts", %{"value" => query}, socket) do
@@ -74,6 +86,14 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
     end
   end
 
+  def handle_event("confirm-delete", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :confirming_delete_id, String.to_integer(id))}
+  end
+
+  def handle_event("cancel-delete", _params, socket) do
+    {:noreply, assign(socket, :confirming_delete_id, nil)}
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
     rel = Contacts.get_relationship!(socket.assigns.account_id, String.to_integer(id))
     {:ok, _} = Contacts.delete_relationship(rel)
@@ -82,6 +102,7 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
     {:noreply,
      socket
      |> assign(:relationships, relationships)
+     |> assign(:confirming_delete_id, nil)
      |> put_flash(:info, "Relationship removed.")}
   end
 
@@ -89,106 +110,136 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Relationships</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Relationships</h3>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="btn btn-sm btn-primary">
-            <.icon name="hero-plus" class="size-4" /> Add Relationship
+          <button phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+            <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
       </div>
 
       <%= if @show_form do %>
-        <div class="card bg-base-100 shadow-sm mb-4">
-          <div class="card-body p-4">
-            <.form for={%{}} phx-submit="save" phx-target={@myself}>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Relationship Type</span></label>
-                  <select
-                    name="relationship[relationship_type_id]"
-                    class="select select-bordered"
-                    required
-                  >
-                    <option value="">Select type...</option>
-                    <%= for type <- @relationship_types do %>
-                      <option value={type.id}>{type.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div class="form-control">
-                  <label class="label"><span class="label-text">Related Contact</span></label>
-                  <input
-                    type="text"
-                    placeholder="Search contacts..."
-                    value={@contact_search}
-                    phx-keyup="search-contacts"
-                    phx-target={@myself}
-                    class="input input-bordered"
-                    autocomplete="off"
-                  />
-                  <%= if @contact_results != [] do %>
-                    <div class="mt-1 border rounded-lg bg-base-100 shadow-sm max-h-32 overflow-y-auto">
-                      <%= for c <- @contact_results do %>
-                        <label class="block w-full text-start px-3 py-1.5 text-sm hover:bg-base-200 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="relationship[related_contact_id]"
-                            value={c.id}
-                            class="radio radio-sm mr-2"
-                          />
-                          {c.display_name}
-                        </label>
-                      <% end %>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-              <div class="flex gap-2 mt-3">
-                <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                <button
-                  type="button"
-                  phx-click="cancel-form"
-                  phx-target={@myself}
-                  class="btn btn-sm btn-ghost"
+        <div class="mb-4">
+          <.form for={%{}} phx-submit="save" phx-change="validate" phx-target={@myself}>
+            <div class="space-y-2">
+              <div>
+                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Relationship Type</span></label>
+                <select
+                  name="relationship[relationship_type_id]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  required
                 >
-                  Cancel
-                </button>
+                  <option value="">Select type...</option>
+                  <%= for type <- @relationship_types do %>
+                    <option value={type.id} selected={to_string(type.id) == @selected_type_id}>{type.name}</option>
+                  <% end %>
+                </select>
               </div>
-            </.form>
-          </div>
+              <div>
+                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Related Contact</span></label>
+                <input
+                  type="text"
+                  placeholder="Search contacts..."
+                  value={@contact_search}
+                  phx-keyup="search-contacts"
+                  phx-target={@myself}
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  autocomplete="off"
+                />
+                <%= if @contact_results != [] do %>
+                  <div class="mt-1 border border-[var(--color-border)] rounded-[var(--radius-lg)] bg-[var(--color-surface-elevated)] shadow-sm max-h-32 overflow-y-auto">
+                    <%= for c <- @contact_results do %>
+                      <label class="block w-full text-start px-3 py-1.5 text-sm hover:bg-[var(--color-surface-sunken)] cursor-pointer">
+                        <input
+                          type="radio"
+                          name="relationship[related_contact_id]"
+                          value={c.id}
+                          checked={to_string(c.id) == @selected_contact_id}
+                          class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer me-2"
+                        />
+                        {c.display_name}
+                      </label>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+              <button
+                type="button"
+                phx-click="cancel-form"
+                phx-target={@myself}
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </.form>
         </div>
       <% end %>
 
-      <%= if @relationships == [] do %>
-        <p class="text-base-content/60">No relationships yet.</p>
+      <%= if @relationships == [] and not @show_form do %>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-users"
+          title="No relationships"
+          message="Link family members, friends, and other connections."
+        >
+          <:actions :if={@can_edit}>
+            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+              Add Relationship
+            </button>
+          </:actions>
+        </KithUI.empty_state>
       <% end %>
 
       <div class="space-y-2">
         <%= for rel <- @relationships do %>
           <div class="flex items-center justify-between py-2">
             <div class="flex items-center gap-3">
-              <.icon name="hero-users" class="size-5 text-base-content/40" />
+              <.icon name="hero-users" class="size-5 text-[var(--color-text-disabled)]" />
               <div>
                 <.link
                   navigate={~p"/contacts/#{rel.related_contact.id}"}
-                  class="link link-hover font-medium"
+                  class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors font-medium"
                 >
                   {rel.related_contact.display_name}
                 </.link>
-                <span class="badge badge-sm badge-outline ml-2">{rel.label}</span>
+                <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] ms-2">{rel.label}</span>
               </div>
             </div>
             <%= if @can_edit do %>
-              <button
-                phx-click="delete"
-                phx-value-id={rel.relationship.id}
-                phx-target={@myself}
-                data-confirm="Remove this relationship?"
-                class="link link-hover text-error text-xs"
-              >
-                Remove
-              </button>
+              <%= if @confirming_delete_id == rel.relationship.id do %>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs text-[var(--color-text-secondary)]">Remove?</span>
+                  <button
+                    phx-click="delete"
+                    phx-value-id={rel.relationship.id}
+                    phx-target={@myself}
+                    class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors text-xs font-medium cursor-pointer"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    phx-click="cancel-delete"
+                    phx-target={@myself}
+                    class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-xs cursor-pointer"
+                  >
+                    No
+                  </button>
+                </div>
+              <% else %>
+                <button
+                  phx-click="confirm-delete"
+                  phx-value-id={rel.relationship.id}
+                  phx-target={@myself}
+                  class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors text-xs cursor-pointer"
+                >
+                  Remove
+                </button>
+              <% end %>
             <% end %>
           </div>
         <% end %>

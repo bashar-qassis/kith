@@ -4,21 +4,19 @@ defmodule KithWeb.UserLive.TotpChallenge do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.auth flash={@flash}>
       <div
-        class="mx-auto max-w-sm space-y-4"
+        class="space-y-6"
         x-data="totpChallenge"
       >
         <div class="text-center">
-          <.header>
-            Two-factor authentication
-            <:subtitle>
-              <span x-show="!recoveryMode">Enter the 6-digit code from your authenticator app.</span>
-              <span x-show="recoveryMode" x-cloak>
-                Enter one of your recovery codes (format: XXXX-XXXX).
-              </span>
-            </:subtitle>
-          </.header>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Two-factor authentication</h1>
+          <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
+            <span x-show="!recoveryMode">Enter the 6-digit code from your authenticator app.</span>
+            <span x-show="recoveryMode" x-cloak>
+              Enter one of your recovery codes (format: XXXX-XXXX).
+            </span>
+          </p>
         </div>
 
         <form
@@ -30,29 +28,30 @@ defmodule KithWeb.UserLive.TotpChallenge do
           <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
           <input type="hidden" name="totp_token" value={@totp_token} />
           <input type="hidden" name="remember_me" value={to_string(@remember_me)} />
+
           <div x-show="!recoveryMode">
-            <div class="fieldset mb-2">
-              <label for="totp_code">
-                <span class="label mb-1">Authentication code</span>
-                <input
-                  type="text"
-                  name="totp[code]"
-                  id="totp_code"
-                  inputmode="numeric"
-                  pattern="[0-9]{6}"
-                  autocomplete="one-time-code"
-                  maxlength="6"
-                  required
-                  phx-mounted={JS.focus()}
-                  class="w-full input"
-                  x-on:input="autoSubmit"
-                />
+            <div class="mb-3">
+              <label for="totp_code" class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                Authentication code
               </label>
+              <input
+                type="text"
+                name="totp[code]"
+                id="totp_code"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                autocomplete="one-time-code"
+                maxlength="6"
+                required
+                phx-mounted={JS.focus()}
+                class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] text-center font-mono text-lg tracking-[0.5em] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                x-on:input="autoSubmit"
+              />
             </div>
           </div>
 
           <div x-show="recoveryMode" x-cloak>
-            <.input
+            <UI.input
               field={@form[:code]}
               name="totp[code]"
               type="text"
@@ -64,26 +63,30 @@ defmodule KithWeb.UserLive.TotpChallenge do
               required
             />
           </div>
-          <.button class="btn btn-primary w-full" phx-disable-with="Verifying...">Verify</.button>
+
+          <UI.button class="w-full" phx-disable-with="Verifying...">Verify</UI.button>
         </form>
 
-        <p class="text-center text-sm text-zinc-500">
+        <p class="text-center text-sm text-[var(--color-text-tertiary)]">
           <button
             type="button"
-            class="text-brand hover:underline"
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors cursor-pointer"
             x-on:click="toggleMode"
             x-text="modeLabel"
           >
           </button>
         </p>
 
-        <p class="text-center text-sm text-zinc-500">
-          <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
+        <p class="text-center text-sm text-[var(--color-text-tertiary)]">
+          <.link
+            navigate={~p"/users/log-in"}
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+          >
             Back to log in
           </.link>
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

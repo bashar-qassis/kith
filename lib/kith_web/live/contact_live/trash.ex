@@ -23,80 +23,73 @@ defmodule KithWeb.ContactLive.Trash do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex items-center justify-between mb-6">
-          <h1 class="text-2xl font-bold">Trash</h1>
-
-          <.link navigate={~p"/contacts"} class="link link-hover text-sm">
+      <div class="space-y-6">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Trash</h1>
+          <.link
+            navigate={~p"/contacts"}
+            class="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+          >
             <.icon name="hero-arrow-left" class="size-4" /> Back to Contacts
           </.link>
         </div>
 
-        <div class="alert alert-warning mb-6">
-          <.icon name="hero-exclamation-triangle" class="size-5" />
-          <span>Contacts in trash are permanently deleted after 30 days.</span>
+        <div class="flex items-center gap-3 rounded-[var(--radius-lg)] bg-[var(--color-warning-subtle)] border-s-4 border-[var(--color-warning)] p-4">
+          <.icon name="hero-exclamation-triangle" class="size-5 text-[var(--color-warning)] shrink-0" />
+          <span class="text-sm text-[var(--color-text-primary)]">Contacts in trash are permanently deleted after 30 days.</span>
         </div>
 
         <%= if @contacts == [] do %>
-          <.empty_state icon="hero-trash" title="Trash is empty." />
+          <KithUI.empty_state icon="hero-trash" title="Trash is empty" message="Deleted contacts will appear here for 30 days before permanent removal." />
         <% else %>
-          <div class="overflow-x-auto">
-            <table class="table table-zebra w-full">
+          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+            <table class="w-full text-sm">
               <thead>
-                <tr>
-                  <th>Name</th>
-
-                  <th>Deleted On</th>
-
-                  <th>Days Until Permanent Deletion</th>
-
+                <tr class="border-b border-[var(--color-border)]">
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Name</th>
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Deleted On</th>
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Time Remaining</th>
                   <%= if authorized?(@current_scope.user, :update, :contact) do %>
-                    <th>Actions</th>
+                    <th class="px-4 py-3 text-end text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Actions</th>
                   <% end %>
                 </tr>
               </thead>
-
               <tbody>
                 <%= for contact <- @contacts do %>
-                  <tr>
-                    <td class="font-medium">
+                  <tr class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors duration-150">
+                    <td class="px-4 py-3">
                       <div class="flex items-center gap-3">
-                        <.avatar name={contact.display_name} size={:sm} />
-                        <span>{contact.display_name}</span>
+                        <KithUI.avatar name={contact.display_name} size={:sm} />
+                        <span class="font-medium text-[var(--color-text-primary)]">{contact.display_name}</span>
                       </div>
                     </td>
-
-                    <td class="text-base-content/70"><.date_display date={contact.deleted_at} /></td>
-
-                    <td>
-                      <span class={[
-                        "badge badge-sm",
-                        if(days_until_deletion(contact.deleted_at) <= 0,
-                          do: "badge-error",
-                          else: "badge-warning"
-                        )
-                      ]}>
-                        {days_remaining_label(contact.deleted_at)}
-                      </span>
+                    <td class="px-4 py-3">
+                      <KithUI.date_display date={contact.deleted_at} />
                     </td>
-
+                    <td class="px-4 py-3">
+                      <UI.badge variant={if(days_until_deletion(contact.deleted_at) <= 7, do: "error", else: "warning")}>
+                        {days_remaining_label(contact.deleted_at)}
+                      </UI.badge>
+                    </td>
                     <%= if authorized?(@current_scope.user, :update, :contact) do %>
-                      <td class="flex gap-2">
-                        <button
-                          phx-click="restore"
-                          phx-value-id={contact.id}
-                          class="btn btn-ghost btn-xs"
-                        >
-                          <.icon name="hero-arrow-uturn-left" class="size-4" /> Restore
-                        </button>
-                        <button
-                          phx-click="permanent-delete"
-                          phx-value-id={contact.id}
-                          class="btn btn-ghost btn-xs text-error"
-                          data-confirm={"Permanently delete #{contact.display_name}? This action cannot be undone."}
-                        >
-                          <.icon name="hero-x-circle" class="size-4" /> Delete Forever
-                        </button>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center justify-end gap-2">
+                          <button
+                            phx-click="restore"
+                            phx-value-id={contact.id}
+                            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+                          >
+                            <.icon name="hero-arrow-uturn-left" class="size-3.5" /> Restore
+                          </button>
+                          <button
+                            phx-click="permanent-delete"
+                            phx-value-id={contact.id}
+                            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error-subtle)] transition-colors cursor-pointer"
+                            data-confirm={"Permanently delete #{contact.display_name}? This action cannot be undone."}
+                          >
+                            <.icon name="hero-x-circle" class="size-3.5" /> Delete Forever
+                          </button>
+                        </div>
                       </td>
                     <% end %>
                   </tr>

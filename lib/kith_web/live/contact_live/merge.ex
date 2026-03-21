@@ -184,256 +184,209 @@ defmodule KithWeb.ContactLive.Merge do
 
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <div class="max-w-4xl mx-auto px-4 py-8">
-        <.section_header title="Merge Contacts">
-          Step {@step} of 4 — {step_label(@step)}
-        </.section_header>
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Merge Contacts</h1>
+          <span class="text-sm text-[var(--color-text-tertiary)]">Step {@step} of 4 — {step_label(@step)}</span>
+        </div>
 
-        <%!-- Step indicator --%>
-        <div class="mt-4 flex gap-2">
+        <%!-- Step indicator (horizontal stepper) --%>
+        <div class="flex gap-2">
           <div
             :for={s <- 1..4}
             class={[
-              "h-1 flex-1 rounded",
-              if(s <= @step, do: "bg-blue-600", else: "bg-gray-200")
+              "h-1 flex-1 rounded-[var(--radius-full)] transition-colors duration-300",
+              if(s <= @step, do: "bg-[var(--color-accent)]", else: "bg-[var(--color-border)]")
             ]}
-          >
-          </div>
+          />
         </div>
 
         <%!-- Step 1: Search --%>
-        <div :if={@step == 1 && @contact_a} class="mt-6">
-          <.card>
-            <div class="p-6">
-              <div class="flex items-center gap-4 mb-4">
-                <.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:md} />
-                <div>
-                  <p class="text-sm text-gray-600">Merging from:</p>
-                  <span class="font-semibold">{@contact_a.display_name}</span>
-                </div>
+        <div :if={@step == 1 && @contact_a}>
+          <UI.card>
+            <div class="flex items-center gap-4 mb-4">
+              <KithUI.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:md} />
+              <div>
+                <p class="text-sm text-[var(--color-text-tertiary)]">Merging from:</p>
+                <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>
               </div>
-
-              <p class="text-sm text-gray-600 mb-4">
-                Search for the contact to merge with:
-              </p>
-
-              <form phx-change="search" phx-submit="search">
-                <input
-                  type="text"
-                  name="query"
-                  value={@search_query}
-                  placeholder="Search by name, email, or phone..."
-                  phx-debounce="300"
-                  autofocus
-                  class="w-full border-gray-300 rounded-md shadow-sm"
-                />
-              </form>
-
-              <div :if={@search_results != []} class="mt-4 border rounded-md divide-y">
-                <button
-                  :for={contact <- @search_results}
-                  phx-click="select-contact"
-                  phx-value-id={contact.id}
-                  class="w-full text-start px-4 py-3 hover:bg-gray-50 flex items-center justify-between"
-                >
-                  <div>
-                    <span class="font-medium">{contact.display_name}</span>
-                    <span :if={contact.company} class="text-sm text-gray-500 ms-2">
-                      {contact.company}
-                    </span>
-                  </div>
-                  <span class="text-xs text-gray-400">Select</span>
-                </button>
-              </div>
-
-              <.empty_state
-                :if={@search_query != "" && @search_results == []}
-                icon="hero-magnifying-glass"
-                title="No matches"
-                message="No matching contacts found."
-              />
             </div>
-          </.card>
+
+            <p class="text-sm text-[var(--color-text-secondary)] mb-4">
+              Search for the contact to merge with:
+            </p>
+
+            <form phx-change="search" phx-submit="search">
+              <input
+                type="text"
+                name="query"
+                value={@search_query}
+                placeholder="Search by name, email, or phone..."
+                phx-debounce="300"
+                autofocus
+                class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+              />
+            </form>
+
+            <div :if={@search_results != []} class="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] divide-y divide-[var(--color-border-subtle)] overflow-hidden">
+              <button
+                :for={contact <- @search_results}
+                phx-click="select-contact"
+                phx-value-id={contact.id}
+                class="w-full text-start px-4 py-3 hover:bg-[var(--color-surface-sunken)] flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <div>
+                  <span class="font-medium text-[var(--color-text-primary)]">{contact.display_name}</span>
+                  <span :if={contact.company} class="text-sm text-[var(--color-text-tertiary)] ms-2">
+                    {contact.company}
+                  </span>
+                </div>
+                <span class="text-xs text-[var(--color-accent)]">Select</span>
+              </button>
+            </div>
+
+            <KithUI.empty_state
+              :if={@search_query != "" && @search_results == []}
+              icon="hero-magnifying-glass"
+              title="No matches"
+              message="No matching contacts found."
+            />
+          </UI.card>
         </div>
 
         <%!-- Step 2: Field Selection --%>
-        <div :if={@step == 2 && @contact_b} class="mt-6">
-          <.card>
-            <div class="p-6">
-              <div class="grid grid-cols-3 gap-4 mb-4 text-sm font-semibold text-gray-700">
-                <div>Field</div>
-                <div class="flex items-center gap-2">
-                  <.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:sm} />
-                  {@contact_a.display_name} (A)
-                </div>
-                <div class="flex items-center gap-2">
-                  <.avatar name={@contact_b.display_name} src={@contact_b.avatar} size={:sm} />
-                  {@contact_b.display_name} (B)
-                </div>
+        <div :if={@step == 2 && @contact_b}>
+          <UI.card>
+            <div class="grid grid-cols-3 gap-4 mb-4 text-sm font-semibold text-[var(--color-text-secondary)]">
+              <div>Field</div>
+              <div class="flex items-center gap-2">
+                <KithUI.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:sm} />
+                {@contact_a.display_name} (A)
               </div>
-
-              <div
-                :for={field <- @mergeable_fields}
-                class="grid grid-cols-3 gap-4 py-3 border-t items-center"
-              >
-                <div class="text-sm font-medium text-gray-600">{humanize(field)}</div>
-                <button
-                  phx-click="choose-field"
-                  phx-value-field={field}
-                  phx-value-source="survivor"
-                  class={[
-                    "text-start text-sm px-3 py-2 rounded border",
-                    if(Map.get(@field_choices, field) == "survivor",
-                      do: "border-blue-500 bg-blue-50 text-blue-700",
-                      else: "border-gray-200 hover:border-gray-300"
-                    )
-                  ]}
-                >
-                  {field_value(@contact_a, field) || "-"}
-                </button>
-                <button
-                  phx-click="choose-field"
-                  phx-value-field={field}
-                  phx-value-source="non_survivor"
-                  class={[
-                    "text-start text-sm px-3 py-2 rounded border",
-                    if(Map.get(@field_choices, field) == "non_survivor",
-                      do: "border-blue-500 bg-blue-50 text-blue-700",
-                      else: "border-gray-200 hover:border-gray-300"
-                    )
-                  ]}
-                >
-                  {field_value(@contact_b, field) || "-"}
-                </button>
-              </div>
-
-              <div class="mt-6 flex gap-3">
-                <button
-                  phx-click="back"
-                  class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 text-sm"
-                >
-                  Back
-                </button>
-                <button
-                  phx-click="go-to-preview"
-                  class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-                >
-                  Preview Merge
-                </button>
+              <div class="flex items-center gap-2">
+                <KithUI.avatar name={@contact_b.display_name} src={@contact_b.avatar} size={:sm} />
+                {@contact_b.display_name} (B)
               </div>
             </div>
-          </.card>
+
+            <div
+              :for={field <- @mergeable_fields}
+              class="grid grid-cols-3 gap-4 py-3 border-t border-[var(--color-border-subtle)] items-center"
+            >
+              <div class="text-sm font-medium text-[var(--color-text-secondary)]">{humanize(field)}</div>
+              <button
+                phx-click="choose-field"
+                phx-value-field={field}
+                phx-value-source="survivor"
+                class={[
+                  "text-start text-sm px-3 py-2 rounded-[var(--radius-md)] border transition-colors cursor-pointer",
+                  if(Map.get(@field_choices, field) == "survivor",
+                    do: "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
+                    else: "border-[var(--color-border)] hover:border-[var(--color-border-focus)]/50"
+                  )
+                ]}
+              >
+                {field_value(@contact_a, field) || "-"}
+              </button>
+              <button
+                phx-click="choose-field"
+                phx-value-field={field}
+                phx-value-source="non_survivor"
+                class={[
+                  "text-start text-sm px-3 py-2 rounded-[var(--radius-md)] border transition-colors cursor-pointer",
+                  if(Map.get(@field_choices, field) == "non_survivor",
+                    do: "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
+                    else: "border-[var(--color-border)] hover:border-[var(--color-border-focus)]/50"
+                  )
+                ]}
+              >
+                {field_value(@contact_b, field) || "-"}
+              </button>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+              <UI.button variant="secondary" phx-click="back">Back</UI.button>
+              <UI.button phx-click="go-to-preview">Preview Merge</UI.button>
+            </div>
+          </UI.card>
         </div>
 
         <%!-- Step 3: Dry-run Preview --%>
-        <div :if={@step == 3 && @preview} class="mt-6">
-          <.card>
-            <div class="p-6">
-              <h3 class="text-lg font-semibold mb-4">Merge Preview</h3>
-              <p class="text-sm text-gray-600 mb-4">
-                This is what will happen when you merge
-                <span class="font-semibold">{@contact_b.display_name}</span>
-                into <span class="font-semibold">{@contact_a.display_name}</span>:
-              </p>
+        <div :if={@step == 3 && @preview}>
+          <UI.card>
+            <:header>Merge Preview</:header>
+            <p class="text-sm text-[var(--color-text-secondary)] mb-4">
+              This is what will happen when you merge
+              <span class="font-semibold text-[var(--color-text-primary)]">{@contact_b.display_name}</span>
+              into <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>:
+            </p>
 
-              <ul class="space-y-2 text-sm">
-                <li :if={@preview.notes > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.notes} notes will be combined
-                </li>
-                <li :if={@preview.activities > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.activities} activities will be combined
-                </li>
-                <li :if={@preview.calls > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.calls} calls will be combined
-                </li>
-                <li :if={@preview.life_events > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.life_events} life events will be combined
-                </li>
-                <li :if={@preview.addresses > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.addresses} addresses will be combined
-                </li>
-                <li :if={@preview.contact_fields > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.contact_fields} contact fields will be combined
-                </li>
-                <li :if={@preview.reminders > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.reminders} reminders will be combined
-                </li>
-                <li :if={@preview.tags_to_merge > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                  {@preview.tags_to_merge} new tags will be added
-                </li>
-                <li :if={@preview.tags_duplicate > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
-                  {@preview.tags_duplicate} duplicate tags will be removed
-                </li>
-                <li :if={@preview.relationships_to_dedup > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-amber-500 rounded-full"></span>
-                  {@preview.relationships_to_dedup} duplicate relationships will be removed
-                </li>
-                <li :if={@preview.relationships_to_remap > 0} class="flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  {@preview.relationships_to_remap} relationships will be transferred
-                </li>
-              </ul>
+            <ul class="space-y-2 text-sm">
+              <li :if={@preview.notes > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.notes} notes will be combined
+              </li>
+              <li :if={@preview.activities > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.activities} activities will be combined
+              </li>
+              <li :if={@preview.calls > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.calls} calls will be combined
+              </li>
+              <li :if={@preview.life_events > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.life_events} life events will be combined
+              </li>
+              <li :if={@preview.addresses > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.addresses} addresses will be combined
+              </li>
+              <li :if={@preview.contact_fields > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.contact_fields} contact fields will be combined
+              </li>
+              <li :if={@preview.reminders > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.reminders} reminders will be combined
+              </li>
+              <li :if={@preview.tags_to_merge > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-success)] rounded-full" />{@preview.tags_to_merge} new tags will be added
+              </li>
+              <li :if={@preview.tags_duplicate > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-text-disabled)] rounded-full" />{@preview.tags_duplicate} duplicate tags will be removed
+              </li>
+              <li :if={@preview.relationships_to_dedup > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-warning)] rounded-full" />{@preview.relationships_to_dedup} duplicate relationships will be removed
+              </li>
+              <li :if={@preview.relationships_to_remap > 0} class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-[var(--color-info)] rounded-full" />{@preview.relationships_to_remap} relationships will be transferred
+              </li>
+            </ul>
 
-              <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-                {@contact_b.display_name} will be moved to trash (recoverable for 30 days).
-              </div>
-
-              <div class="mt-6 flex gap-3">
-                <button
-                  phx-click="back"
-                  class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 text-sm"
-                >
-                  Back
-                </button>
-                <button
-                  phx-click="confirm-merge"
-                  class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
-                >
-                  Confirm Merge
-                </button>
-              </div>
+            <div class="mt-4 p-3 rounded-[var(--radius-md)] bg-[var(--color-warning-subtle)] border-s-4 border-[var(--color-warning)] text-sm text-[var(--color-text-primary)]">
+              {@contact_b.display_name} will be moved to trash (recoverable for 30 days).
             </div>
-          </.card>
+
+            <div class="mt-6 flex gap-3">
+              <UI.button variant="secondary" phx-click="back">Back</UI.button>
+              <UI.button variant="danger" phx-click="confirm-merge">Confirm Merge</UI.button>
+            </div>
+          </UI.card>
         </div>
 
         <%!-- Step 4: Confirm & Execute --%>
-        <div :if={@step == 4} class="mt-6">
-          <.card>
-            <div class="p-6 text-center">
-              <h3 class="text-lg font-semibold mb-4">Final Confirmation</h3>
-              <p class="text-gray-600 mb-6">
+        <div :if={@step == 4}>
+          <UI.card>
+            <div class="text-center py-4">
+              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Final Confirmation</h3>
+              <p class="text-[var(--color-text-secondary)] mb-6">
                 This action cannot be easily undone. Are you sure you want to merge
-                <span class="font-semibold">{@contact_b.display_name}</span>
-                into <span class="font-semibold">{@contact_a.display_name}</span>?
+                <span class="font-semibold text-[var(--color-text-primary)]">{@contact_b.display_name}</span>
+                into <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>?
               </p>
 
               <div class="flex justify-center gap-3">
-                <button
-                  phx-click="back"
-                  disabled={@merging}
-                  class="bg-gray-100 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-200 text-sm disabled:opacity-50"
-                >
-                  Go Back
-                </button>
-                <button
-                  phx-click="execute-merge"
-                  disabled={@merging}
-                  class="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 text-sm disabled:opacity-50"
-                >
+                <UI.button variant="secondary" phx-click="back" disabled={@merging}>Go Back</UI.button>
+                <UI.button variant="danger" phx-click="execute-merge" disabled={@merging}>
                   {if @merging, do: "Merging...", else: "Merge Contacts"}
-                </button>
+                </UI.button>
               </div>
             </div>
-          </.card>
+          </UI.card>
         </div>
       </div>
     </Layouts.app>

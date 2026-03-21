@@ -1,44 +1,44 @@
 <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
   <.settings_shell current_path={@current_path} current_scope={@current_scope}>
-    <.header>
+    <UI.header>
       Tags
       <:subtitle>Manage tags for organizing contacts</:subtitle>
-    </.header>
+    </UI.header>
 
     <%!-- Tag form (create or edit) --%>
     <%= if @can_edit do %>
-      <div class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
+      <div class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
         <h2 class="text-lg font-semibold mb-4">
           {if @editing_tag, do: "Edit Tag", else: "New Tag"}
         </h2>
         <.form for={@changeset} phx-change="validate" phx-submit="save" class="flex gap-3 items-end flex-wrap">
-          <div class="form-control flex-1 min-w-[200px]">
-            <label class="label"><span class="label-text">Name</span></label>
+          <div class="flex-1 min-w-[200px]">
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Name</label>
             <input
               type="text"
               name="tag[name]"
               value={Ecto.Changeset.get_field(@changeset, :name)}
-              class="input input-bordered input-sm"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               required
             />
           </div>
-          <div class="form-control w-32">
-            <label class="label"><span class="label-text">Color</span></label>
+          <div class="w-32">
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Color</label>
             <input
               type="color"
               name="tag[color]"
               value={Ecto.Changeset.get_field(@changeset, :color) || "#6366f1"}
-              class="input input-bordered input-sm h-10 p-1"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm h-10 p-1"
             />
           </div>
           <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary btn-sm" phx-disable-with="Saving...">
+            <UI.button type="submit" size="sm" phx-disable-with="Saving...">
               {if @editing_tag, do: "Update", else: "Create"}
-            </button>
+            </UI.button>
             <%= if @editing_tag do %>
-              <button type="button" phx-click="cancel-edit" class="btn btn-ghost btn-sm">
+              <UI.button type="button" variant="ghost" size="sm" phx-click="cancel-edit">
                 Cancel
-              </button>
+              </UI.button>
             <% end %>
           </div>
         </.form>
@@ -47,34 +47,36 @@
 
     <%!-- Tag list --%>
     <%= if @tags == [] do %>
-      <div class="text-center py-12 text-base-content/60">
-        <.icon name="hero-tag" class="size-12 mb-2 mx-auto block opacity-40" />
+      <div class="text-center py-12 text-[var(--color-text-tertiary)]">
+        <UI.icon name="hero-tag" class="size-12 mb-2 mx-auto block opacity-40" />
         <p class="text-lg">No tags yet</p>
         <p class="text-sm mt-1">Create your first tag above.</p>
       </div>
     <% else %>
       <div class="mt-6 space-y-2">
         <%= for tag <- @tags do %>
-          <div class="flex items-center justify-between p-3 bg-base-100 border border-base-300 rounded-lg">
+          <div class="flex items-center justify-between p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)]">
             <div class="flex items-center gap-3">
               <span class="badge" style={tag_style(tag)}>{tag.name}</span>
               <%= if tag.color do %>
-                <span class="text-xs text-base-content/50">{tag.color}</span>
+                <span class="text-xs text-[var(--color-text-tertiary)]">{tag.color}</span>
               <% end %>
             </div>
             <%= if @can_edit do %>
               <div class="flex gap-1">
-                <button phx-click="edit" phx-value-id={tag.id} class="btn btn-ghost btn-xs">
-                  <.icon name="hero-pencil-square" class="size-4" />
-                </button>
-                <button
+                <UI.button variant="ghost" size="sm" phx-click="edit" phx-value-id={tag.id} class="!px-2">
+                  <UI.icon name="hero-pencil-square" class="size-4" />
+                </UI.button>
+                <UI.button
+                  variant="ghost"
+                  size="sm"
                   phx-click="delete"
                   phx-value-id={tag.id}
-                  class="btn btn-ghost btn-xs text-error"
+                  class="!px-2 text-[var(--color-error)]"
                   data-confirm={"Delete tag '#{tag.name}'? This will remove it from all contacts."}
                 >
-                  <.icon name="hero-trash" class="size-4" />
-                </button>
+                  <UI.icon name="hero-trash" class="size-4" />
+                </UI.button>
               </div>
             <% end %>
           </div>

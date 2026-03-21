@@ -12,20 +12,20 @@ defmodule KithWeb.UserLive.Settings do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
-        <.header>
+        <UI.header>
           Profile Settings
           <:subtitle>Manage your email address and password</:subtitle>
-        </.header>
+        </UI.header>
 
-        <div class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
-          <h2 class="text-lg font-semibold mb-4">Email</h2>
+        <UI.card class="mt-6">
+          <:header>Email</:header>
           <.form
             for={@email_form}
             id="email_form"
             phx-submit="update_email"
             phx-change="validate_email"
           >
-            <.input
+            <UI.input
               field={@email_form[:email]}
               type="email"
               label="Email"
@@ -33,12 +33,12 @@ defmodule KithWeb.UserLive.Settings do
               spellcheck="false"
               required
             />
-            <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
+            <UI.button phx-disable-with="Changing...">Change Email</UI.button>
           </.form>
-        </div>
+        </UI.card>
 
-        <div class="mt-6 bg-base-100 border border-base-300 rounded-lg p-6">
-          <h2 class="text-lg font-semibold mb-4">Password</h2>
+        <UI.card class="mt-6">
+          <:header>Password</:header>
           <.form
             for={@password_form}
             id="password_form"
@@ -55,7 +55,7 @@ defmodule KithWeb.UserLive.Settings do
               spellcheck="false"
               value={@current_email}
             />
-            <.input
+            <UI.input
               field={@password_form[:password]}
               type="password"
               label="New password"
@@ -63,18 +63,18 @@ defmodule KithWeb.UserLive.Settings do
               spellcheck="false"
               required
             />
-            <.input
+            <UI.input
               field={@password_form[:password_confirmation]}
               type="password"
               label="Confirm new password"
               autocomplete="new-password"
               spellcheck="false"
             />
-            <.button variant="primary" phx-disable-with="Saving...">
+            <UI.button phx-disable-with="Saving...">
               Save Password
-            </.button>
+            </UI.button>
           </.form>
-        </div>
+        </UI.card>
       </.settings_shell>
     </Layouts.app>
     """

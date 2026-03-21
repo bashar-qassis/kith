@@ -116,7 +116,10 @@ defmodule KithWeb.SettingsLive.AuditLog do
   defp format_timestamp(nil), do: "-"
 
   defp format_timestamp(%DateTime{} = dt) do
-    Calendar.strftime(dt, "%Y-%m-%d %H:%M:%S UTC")
+    case Kith.Cldr.DateTime.to_string(dt, format: :medium) do
+      {:ok, str} -> str
+      _ -> to_string(dt)
+    end
   end
 
   defp metadata_summary(nil), do: ""
@@ -135,16 +138,19 @@ defmodule KithWeb.SettingsLive.AuditLog do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
-        <.header>
+        <UI.header>
           Audit Log
           <:subtitle>View a history of actions performed on this account</:subtitle>
-        </.header>
+        </UI.header>
 
         <%!-- Filters --%>
         <form phx-change="filter" phx-submit="filter" class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
-            <label class="label label-text text-xs">Event Type</label>
-            <select name="event_type" class="select select-bordered select-sm w-full">
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Event Type</label>
+            <select
+              name="event_type"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
+            >
               <option value="">All events</option>
               <option
                 :for={{label, value} <- @event_options}
@@ -156,90 +162,98 @@ defmodule KithWeb.SettingsLive.AuditLog do
             </select>
           </div>
           <div>
-            <label class="label label-text text-xs">Contact Name</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Contact Name</label>
             <input
               type="text"
               name="contact_name"
               value={@filters["contact_name"]}
               placeholder="Search..."
-              class="input input-bordered input-sm w-full"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
               phx-debounce="300"
             />
           </div>
           <div>
-            <label class="label label-text text-xs">User Name</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">User Name</label>
             <input
               type="text"
               name="user_name"
               value={@filters["user_name"]}
               placeholder="Search..."
-              class="input input-bordered input-sm w-full"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
               phx-debounce="300"
             />
           </div>
           <div>
-            <label class="label label-text text-xs">From</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">From</label>
             <input
               type="date"
               name="date_from"
               value={@filters["date_from"]}
-              class="input input-bordered input-sm w-full"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
             />
           </div>
           <div>
-            <label class="label label-text text-xs">To</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">To</label>
             <input
               type="date"
               name="date_to"
               value={@filters["date_to"]}
-              class="input input-bordered input-sm w-full"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
             />
           </div>
         </form>
 
         <div class="mt-2">
-          <button phx-click="clear-filters" class="btn btn-ghost btn-xs">Clear filters</button>
+          <button
+            phx-click="clear-filters"
+            class="text-xs font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+          >
+            Clear filters
+          </button>
         </div>
 
         <%!-- Table --%>
-        <div class="mt-4 overflow-x-auto">
-          <table class="table table-sm">
+        <div class="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+          <table class="w-full text-sm">
             <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Event</th>
-                <th>Contact</th>
-                <th>Details</th>
+              <tr class="border-b border-[var(--color-border)]">
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Timestamp</th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">User</th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Event</th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Contact</th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Details</th>
               </tr>
             </thead>
             <tbody>
               <%= if @entries == [] do %>
                 <tr>
-                  <td colspan="5" class="text-center text-base-content/50 py-8">
+                  <td colspan="5" class="text-center text-[var(--color-text-tertiary)] py-12">
                     No audit log entries found.
                   </td>
                 </tr>
               <% else %>
-                <tr :for={entry <- @entries} class="hover">
-                  <td class="text-xs whitespace-nowrap">{format_timestamp(entry.inserted_at)}</td>
-                  <td class="text-sm">{entry.user_name}</td>
-                  <td>
-                    <span class="badge badge-sm badge-ghost">{event_label(entry.event)}</span>
+                <tr
+                  :for={entry <- @entries}
+                  class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors duration-150"
+                >
+                  <td class="px-4 py-3 text-xs whitespace-nowrap text-[var(--color-text-secondary)]">{format_timestamp(entry.inserted_at)}</td>
+                  <td class="px-4 py-3 text-[var(--color-text-primary)]">{entry.user_name}</td>
+                  <td class="px-4 py-3">
+                    <UI.badge>{event_label(entry.event)}</UI.badge>
                   </td>
-                  <td class="text-sm">
+                  <td class="px-4 py-3">
                     <%= if entry.contact_id && entry.contact_name do %>
                       <.link
                         navigate={~p"/contacts/#{entry.contact_id}"}
-                        class="link link-primary link-hover"
+                        class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
                       >
                         {entry.contact_name}
                       </.link>
                     <% else %>
-                      <span class="text-base-content/50">{entry.contact_name || "-"}</span>
+                      <span class="text-[var(--color-text-tertiary)]">{entry.contact_name || "-"}</span>
                     <% end %>
                   </td>
-                  <td class="text-xs text-base-content/60 max-w-xs truncate">
+                  <td class="px-4 py-3 text-xs text-[var(--color-text-tertiary)] max-w-xs truncate">
                     {metadata_summary(entry.metadata)}
                   </td>
                 </tr>
@@ -250,9 +264,7 @@ defmodule KithWeb.SettingsLive.AuditLog do
 
         <%!-- Pagination --%>
         <div :if={@has_more} class="mt-4 flex justify-center">
-          <button phx-click="next-page" class="btn btn-sm btn-ghost">
-            Load more
-          </button>
+          <UI.button variant="ghost" size="sm" phx-click="next-page">Load more</UI.button>
         </div>
       </.settings_shell>
     </Layouts.app>

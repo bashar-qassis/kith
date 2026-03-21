@@ -108,19 +108,22 @@ defmodule KithWeb.AdminLive.ObanDashboard do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
-      <.header>
+      <UI.header>
         Oban Dashboard
         <:subtitle>Background job monitoring (refreshes every 5s)</:subtitle>
-      </.header>
+      </UI.header>
 
       <%!-- Queue Overview --%>
       <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div :for={{queue, states} <- @queue_stats} class="bg-base-100 border border-base-300 rounded-lg p-4">
-          <h3 class="font-semibold text-sm mb-2">{queue}</h3>
+        <div
+          :for={{queue, states} <- @queue_stats}
+          class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4"
+        >
+          <h3 class="font-semibold text-sm text-[var(--color-text-primary)] mb-2">{queue}</h3>
           <div class="space-y-1">
             <div :for={s <- states} class="flex justify-between text-xs">
               <span class={state_color(s.state)}>{s.state}</span>
-              <span class="font-mono">{s.count}</span>
+              <span class="font-mono text-[var(--color-text-primary)]">{s.count}</span>
             </div>
           </div>
         </div>
@@ -128,39 +131,43 @@ defmodule KithWeb.AdminLive.ObanDashboard do
 
       <%!-- Recent Failures --%>
       <div class="mt-8">
-        <h2 class="text-lg font-semibold mb-3">Recent Failures</h2>
+        <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-3">Recent Failures</h2>
         <%= if @recent_failures == [] do %>
-          <p class="text-sm text-base-content/50">No recent failures.</p>
+          <p class="text-sm text-[var(--color-text-tertiary)]">No recent failures.</p>
         <% else %>
-          <div class="overflow-x-auto">
-            <table class="table table-xs">
+          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+            <table class="w-full text-sm">
               <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Worker</th>
-                  <th>Queue</th>
-                  <th>State</th>
-                  <th>Attempt</th>
-                  <th>Last Run</th>
-                  <th>Actions</th>
+                <tr class="border-b border-[var(--color-border)]">
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">ID</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Worker</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Queue</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">State</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Attempt</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Last Run</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={job <- @recent_failures}>
-                  <td class="font-mono text-xs">{job.id}</td>
-                  <td class="text-xs">{short_worker(job.worker)}</td>
-                  <td class="text-xs">{job.queue}</td>
-                  <td><span class={["badge badge-xs", state_badge(job.state)]}>{job.state}</span></td>
-                  <td class="text-xs">{job.attempt}/{job.max_attempts}</td>
-                  <td class="text-xs">{format_time(job.attempted_at)}</td>
-                  <td class="space-x-1">
-                    <button phx-click="retry-job" phx-value-id={job.id} class="btn btn-xs btn-ghost">
+                <tr :for={job <- @recent_failures} class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors">
+                  <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">{job.id}</td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">{short_worker(job.worker)}</td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.queue}</td>
+                  <td class="px-3 py-2"><UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge></td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.attempt}/{job.max_attempts}</td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{format_time(job.attempted_at)}</td>
+                  <td class="px-3 py-2 space-x-1">
+                    <button
+                      phx-click="retry-job"
+                      phx-value-id={job.id}
+                      class="inline-flex items-center rounded-[var(--radius-md)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+                    >
                       Retry
                     </button>
                     <button
                       phx-click="discard-job"
                       phx-value-id={job.id}
-                      class="btn btn-xs btn-ghost text-error"
+                      class="inline-flex items-center rounded-[var(--radius-md)] px-2 py-1 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error-subtle)] transition-colors cursor-pointer"
                       data-confirm="Discard this job?"
                     >
                       Discard
@@ -175,27 +182,27 @@ defmodule KithWeb.AdminLive.ObanDashboard do
 
       <%!-- Recent Jobs --%>
       <div class="mt-8">
-        <h2 class="text-lg font-semibold mb-3">Recent Jobs</h2>
-        <div class="overflow-x-auto">
-          <table class="table table-xs">
+        <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-3">Recent Jobs</h2>
+        <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+          <table class="w-full text-sm">
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Worker</th>
-                <th>Queue</th>
-                <th>State</th>
-                <th>Attempt</th>
-                <th>Inserted</th>
+              <tr class="border-b border-[var(--color-border)]">
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">ID</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Worker</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Queue</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">State</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Attempt</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Inserted</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={job <- @recent_jobs}>
-                <td class="font-mono text-xs">{job.id}</td>
-                <td class="text-xs">{short_worker(job.worker)}</td>
-                <td class="text-xs">{job.queue}</td>
-                <td><span class={["badge badge-xs", state_badge(job.state)]}>{job.state}</span></td>
-                <td class="text-xs">{job.attempt}/{job.max_attempts}</td>
-                <td class="text-xs">{format_time(job.inserted_at)}</td>
+              <tr :for={job <- @recent_jobs} class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors">
+                <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">{job.id}</td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">{short_worker(job.worker)}</td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.queue}</td>
+                <td class="px-3 py-2"><UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge></td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.attempt}/{job.max_attempts}</td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{format_time(job.inserted_at)}</td>
               </tr>
             </tbody>
           </table>
@@ -211,30 +218,36 @@ defmodule KithWeb.AdminLive.ObanDashboard do
     |> List.last()
   end
 
-  defp state_color("completed"), do: "text-success"
-  defp state_color("available"), do: "text-info"
-  defp state_color("scheduled"), do: "text-base-content/60"
-  defp state_color("executing"), do: "text-warning"
-  defp state_color("retryable"), do: "text-error"
-  defp state_color("discarded"), do: "text-error/50"
-  defp state_color(_), do: "text-base-content"
+  defp state_color("completed"), do: "text-[var(--color-success)]"
+  defp state_color("available"), do: "text-[var(--color-info)]"
+  defp state_color("scheduled"), do: "text-[var(--color-text-tertiary)]"
+  defp state_color("executing"), do: "text-[var(--color-warning)]"
+  defp state_color("retryable"), do: "text-[var(--color-error)]"
+  defp state_color("discarded"), do: "text-[var(--color-error)]/50"
+  defp state_color(_), do: "text-[var(--color-text-primary)]"
 
-  defp state_badge("completed"), do: "badge-success"
-  defp state_badge("available"), do: "badge-info"
-  defp state_badge("scheduled"), do: "badge-ghost"
-  defp state_badge("executing"), do: "badge-warning"
-  defp state_badge("retryable"), do: "badge-error"
-  defp state_badge("discarded"), do: "badge-error badge-outline"
-  defp state_badge(_), do: "badge-ghost"
+  defp state_variant("completed"), do: "success"
+  defp state_variant("available"), do: "info"
+  defp state_variant("scheduled"), do: "default"
+  defp state_variant("executing"), do: "warning"
+  defp state_variant("retryable"), do: "error"
+  defp state_variant("discarded"), do: "error"
+  defp state_variant(_), do: "default"
 
   defp format_time(nil), do: "-"
 
   defp format_time(%NaiveDateTime{} = ndt) do
-    Calendar.strftime(ndt, "%Y-%m-%d %H:%M:%S")
+    case Kith.Cldr.DateTime.to_string(ndt, format: :medium) do
+      {:ok, str} -> str
+      _ -> to_string(ndt)
+    end
   end
 
   defp format_time(%DateTime{} = dt) do
-    Calendar.strftime(dt, "%Y-%m-%d %H:%M:%S")
+    case Kith.Cldr.DateTime.to_string(dt, format: :medium) do
+      {:ok, str} -> str
+      _ -> to_string(dt)
+    end
   end
 
   defp format_time(_), do: "-"

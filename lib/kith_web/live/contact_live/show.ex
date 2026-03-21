@@ -9,7 +9,7 @@ defmodule KithWeb.ContactLive.Show do
   alias Kith.Contacts
   alias Kith.AuditLogs
 
-  @tabs ~w(notes life_events photos)a
+  @tabs ~w(notes life_events activities calls tasks gifts conversations photos)a
 
   @impl true
   def mount(_params, _session, socket) do
@@ -168,6 +168,11 @@ defmodule KithWeb.ContactLive.Show do
 
   defp tab_label(:notes), do: "Notes"
   defp tab_label(:life_events), do: "Life Events"
+  defp tab_label(:activities), do: "Activities"
+  defp tab_label(:calls), do: "Calls"
+  defp tab_label(:tasks), do: "Tasks"
+  defp tab_label(:gifts), do: "Gifts"
+  defp tab_label(:conversations), do: "Conversations"
   defp tab_label(:photos), do: "Photos"
 
   defp filtered_tags(tags, contact_tags, search) do

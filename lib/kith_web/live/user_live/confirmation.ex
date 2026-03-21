@@ -6,26 +6,29 @@ defmodule KithWeb.UserLive.Confirmation do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+    <Layouts.auth flash={@flash}>
+      <div class="space-y-6">
         <div class="text-center">
-          <.header>Confirm your account</.header>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Confirm your account</h1>
         </div>
 
         <.form for={@form} id="confirmation_form" phx-submit="confirm">
           <input type="hidden" name="token" value={@token} />
-          <.button class="btn btn-primary w-full" phx-disable-with="Confirming...">
+          <UI.button class="w-full" phx-disable-with="Confirming...">
             Confirm my account
-          </.button>
+          </UI.button>
         </.form>
 
-        <p class="text-center mt-4 text-sm text-zinc-600">
-          <.link navigate={~p"/users/log-in"} class="text-brand hover:underline">
+        <p class="text-center text-sm text-[var(--color-text-secondary)]">
+          <.link
+            navigate={~p"/users/log-in"}
+            class="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+          >
             Back to log in
           </.link>
         </p>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

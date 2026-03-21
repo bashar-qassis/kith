@@ -49,9 +49,10 @@ defmodule KithWeb.DashboardLive.Index do
     _ -> []
   end
 
-  defp immich_review_count(_account_id) do
-    # Returns 0 if Immich integration is not configured or module doesn't exist
-    0
+  defp immich_review_count(account_id) do
+    Contacts.count_needs_review(account_id)
+  rescue
+    _ -> 0
   end
 
   defp activity_icon("note"), do: "hero-document-text"
@@ -64,28 +65,30 @@ defmodule KithWeb.DashboardLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
       <div class="space-y-6">
-        <h1 class="text-2xl font-bold">Dashboard</h1>
+        <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+          Dashboard
+        </h1>
 
         <%!-- Immich needs_review banner --%>
         <%= if @immich_review_count > 0 and not @immich_dismissed do %>
           <div
-            class="flex items-center justify-between p-4 rounded-lg bg-warning/10 border border-warning/30"
+            class="flex items-center justify-between p-4 rounded-[var(--radius-lg)] bg-[var(--color-warning-subtle)] border-s-4 border-[var(--color-warning)]"
             x-data="dismissible"
             x-show="visible"
           >
             <div class="flex items-center gap-3">
-              <.icon name="hero-photo" class="size-5 text-warning" />
-              <span class="text-sm font-medium">
+              <.icon name="hero-photo" class="size-5 text-[var(--color-warning)]" />
+              <span class="text-sm font-medium text-[var(--color-text-primary)]">
                 {@immich_review_count} contact(s) need Immich review
               </span>
             </div>
             <div class="flex items-center gap-2">
-              <.link navigate={~p"/contacts/immich-review"} class="btn btn-sm btn-warning">
+              <UI.button size="sm" navigate={~p"/contacts/immich-review"}>
                 Review
-              </.link>
+              </UI.button>
               <button
                 phx-click="dismiss-immich"
-                class="btn btn-sm btn-ghost"
+                class="rounded-[var(--radius-md)] p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors cursor-pointer"
                 aria-label="Dismiss"
               >
                 <.icon name="hero-x-mark" class="size-4" />
@@ -96,117 +99,95 @@ defmodule KithWeb.DashboardLive.Index do
 
         <%!-- Stats summary --%>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <.stat_card value={@contact_count} label="Total contacts" icon="hero-user-group" />
-          <.stat_card value={@note_count} label="Total notes" icon="hero-document-text" />
-          <.link navigate={~p"/reminders/upcoming"} class="block">
-            <.stat_card value={@upcoming_count} label="Upcoming reminders" icon="hero-bell" highlight />
-          </.link>
-          <.stat_card value={length(@activity_feed)} label="Recent activity" icon="hero-clock" />
+          <KithUI.stat_card title="Total contacts" value={@contact_count} icon="hero-user-group" />
+          <KithUI.stat_card title="Total notes" value={@note_count} icon="hero-document-text" />
+          <KithUI.stat_card
+            title="Upcoming reminders"
+            value={@upcoming_count}
+            icon="hero-bell"
+            href={~p"/reminders/upcoming"}
+          />
+          <KithUI.stat_card title="Recent activity" value={length(@activity_feed)} icon="hero-clock" />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <%!-- Recent contacts --%>
-          <.card>
+          <UI.card>
             <:header>
-              <.section_header title="Recent Contacts">
-                <:actions>
-                  <.link navigate={~p"/contacts"} class="text-sm text-primary hover:underline">
-                    View all
-                  </.link>
-                </:actions>
-              </.section_header>
+              <div class="flex items-center justify-between">
+                <span>Recent Contacts</span>
+                <.link
+                  navigate={~p"/contacts"}
+                  class="text-xs font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                >
+                  View all
+                </.link>
+              </div>
             </:header>
             <%= if @recent_contacts == [] do %>
-              <.empty_state
+              <KithUI.empty_state
                 icon="hero-user-group"
                 title="No contacts yet"
-                message="Add your first contact to get started."
+                message="Your relationships start here. Add your first contact to get going."
               >
                 <:actions>
-                  <.link navigate={~p"/contacts/new"} class="btn btn-primary btn-sm">
+                  <UI.button size="sm" navigate={~p"/contacts/new"}>
                     Add contact
-                  </.link>
+                  </UI.button>
                 </:actions>
-              </.empty_state>
+              </KithUI.empty_state>
             <% else %>
-              <div class="divide-y divide-base-200">
+              <div class="divide-y divide-[var(--color-border-subtle)] -mx-5">
                 <.link
                   :for={contact <- @recent_contacts}
                   navigate={~p"/contacts/#{contact.id}"}
-                  class="flex items-center gap-3 p-3 hover:bg-base-200/50 transition-colors"
+                  class="flex items-center gap-3 px-5 py-3 hover:bg-[var(--color-surface-sunken)] transition-colors duration-150"
                 >
-                  <.avatar name={contact.display_name} size={:sm} />
+                  <KithUI.avatar name={contact.display_name} size={:sm} />
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate">{contact.display_name}</p>
+                    <p class="text-sm font-medium text-[var(--color-text-primary)] truncate">{contact.display_name}</p>
                     <div class="flex gap-1 mt-0.5">
-                      <.tag_badge :for={tag <- Enum.take(contact.tags, 3)} tag={tag} />
+                      <KithUI.tag_badge :for={tag <- Enum.take(contact.tags, 3)} tag={tag} />
                     </div>
                   </div>
-                  <.relative_time datetime={contact.updated_at} />
+                  <KithUI.relative_time datetime={contact.updated_at} />
                 </.link>
               </div>
             <% end %>
-          </.card>
+          </UI.card>
 
           <%!-- Activity feed --%>
-          <.card>
-            <:header>
-              <.section_header title="Activity Feed" />
-            </:header>
+          <UI.card>
+            <:header>Activity Feed</:header>
             <%= if @activity_feed == [] do %>
-              <.empty_state
+              <KithUI.empty_state
                 icon="hero-clock"
                 title="No recent activity"
                 message="Activity will appear here as you add notes, calls, and activities."
               />
             <% else %>
-              <div class="divide-y divide-base-200">
-                <div :for={item <- @activity_feed} class="flex items-start gap-3 p-3">
-                  <.icon
-                    name={activity_icon(item.type)}
-                    class="size-4 mt-0.5 text-base-content/50 shrink-0"
-                  />
+              <div class="divide-y divide-[var(--color-border-subtle)] -mx-5">
+                <div :for={item <- @activity_feed} class="flex items-start gap-3 px-5 py-3">
+                  <div class="flex items-center justify-center size-7 rounded-[var(--radius-md)] bg-[var(--color-surface-sunken)] shrink-0 mt-0.5">
+                    <.icon
+                      name={activity_icon(item.type)}
+                      class="size-3.5 text-[var(--color-text-tertiary)]"
+                    />
+                  </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm truncate">{item.title}</p>
-                    <p class="text-xs text-base-content/50 mt-0.5">
+                    <p class="text-sm text-[var(--color-text-primary)] truncate">{item.title}</p>
+                    <p class="text-xs text-[var(--color-text-tertiary)] mt-0.5">
                       <span class="capitalize">{item.type}</span>
-                      · <.relative_time datetime={item.inserted_at} />
+                      · <KithUI.relative_time datetime={item.inserted_at} />
                     </p>
                   </div>
                 </div>
               </div>
             <% end %>
-          </.card>
+          </UI.card>
         </div>
       </div>
     </Layouts.app>
-    """
-  end
-
-  attr :value, :any, required: true
-  attr :label, :string, required: true
-  attr :icon, :string, required: true
-  attr :highlight, :boolean, default: false
-
-  defp stat_card(assigns) do
-    ~H"""
-    <div class={[
-      "p-4 rounded-lg border transition-colors",
-      @highlight && "bg-primary/5 border-primary/20 hover:border-primary/40",
-      !@highlight && "bg-base-100 border-base-300"
-    ]}>
-      <div class="flex items-center gap-2 mb-1">
-        <.icon name={@icon} class="size-4 text-base-content/50" />
-        <span class="text-xs text-base-content/60">{@label}</span>
-      </div>
-      <p class={[
-        "text-2xl font-bold",
-        @highlight && "text-primary",
-        !@highlight && "text-base-content"
-      ]}>
-        {@value}
-      </p>
-    </div>
     """
   end
 end

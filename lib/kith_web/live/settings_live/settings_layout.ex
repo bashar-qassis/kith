@@ -11,10 +11,10 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
 
   def settings_shell(assigns) do
     ~H"""
-    <div class="flex flex-col md:flex-row gap-6">
+    <div class="flex flex-col md:flex-row gap-8">
       <%!-- Settings sidebar --%>
       <nav class="w-full md:w-56 shrink-0">
-        <ul class="space-y-1">
+        <ul class="space-y-0.5">
           <.settings_nav_item
             path={~p"/users/settings"}
             current_path={@current_path}
@@ -34,6 +34,24 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
             current_path={@current_path}
             icon="hero-tag"
             label="Tags"
+          />
+          <.settings_nav_item
+            path={~p"/settings/emotions"}
+            current_path={@current_path}
+            icon="hero-face-smile"
+            label="Emotions"
+          />
+          <.settings_nav_item
+            path={~p"/settings/activity-types"}
+            current_path={@current_path}
+            icon="hero-rectangle-group"
+            label="Activity Types"
+          />
+          <.settings_nav_item
+            path={~p"/settings/life-event-types"}
+            current_path={@current_path}
+            icon="hero-star"
+            label="Life Event Types"
           />
           <%= if authorized?(@current_scope.user, :manage, :account) do %>
             <.settings_nav_item
@@ -87,10 +105,11 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
     <li>
       <.link
         navigate={@path}
+        aria-current={@active && "page"}
         class={[
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-          @active && "bg-primary/10 text-primary",
-          !@active && "text-base-content/70 hover:bg-base-300 hover:text-base-content"
+          "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-150",
+          @active && "bg-[var(--color-surface-elevated)] text-[var(--color-accent)] border-s-2 border-[var(--color-accent)]",
+          !@active && "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
         ]}
       >
         <.icon name={@icon} class="size-5 shrink-0" />

@@ -3,13 +3,11 @@ defmodule KithWeb.ContactLive.Index do
 
   alias Kith.Contacts
 
-  @page_size 20
-
   @sort_options %{
-    "name_asc" => [asc: :display_name],
-    "name_desc" => [desc: :display_name],
-    "recently_added" => [desc: :inserted_at],
-    "recently_contacted" => [desc_nulls_last: :last_talked_to]
+    "name_asc" => %{order_by: [:display_name], order_directions: [:asc]},
+    "name_desc" => %{order_by: [:display_name], order_directions: [:desc]},
+    "recently_added" => %{order_by: [:inserted_at], order_directions: [:desc]},
+    "recently_contacted" => %{order_by: [:last_talked_to], order_directions: [:desc_nulls_last]}
   }
 
   @impl true
@@ -28,8 +26,7 @@ defmodule KithWeb.ContactLive.Index do
      |> assign(:selected_tag_ids, [])
      |> assign(:selected_ids, MapSet.new())
      |> assign(:contacts, [])
-     |> assign(:after_cursor, nil)
-     |> assign(:has_more, false)
+     |> assign(:meta, nil)
      |> assign(:tags, Contacts.list_tags(account_id))}
   end
 
@@ -48,7 +45,7 @@ defmodule KithWeb.ContactLive.Index do
   defp apply_action(socket, :archived, _params) do
     socket
     |> assign(:page_title, "Archived Contacts")
-    |> assign(:show_archived, true)
+    |> assign(:show_archived, :only)
     |> load_contacts()
   end
 
@@ -96,19 +93,31 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   def handle_event("load-more", _params, socket) do
-    %{entries: entries, has_more: has_more} = fetch_page(socket)
+    meta = socket.assigns.meta
 
-    after_cursor =
-      case List.last(entries) do
-        nil -> socket.assigns.after_cursor
-        contact -> contact.id
+    if meta && meta.has_next_page? do
+      next_offset = (meta.current_offset || 0) + (meta.page_size || 20)
+      sort_params = Map.get(@sort_options, socket.assigns.sort, %{order_by: [:display_name], order_directions: [:asc]})
+
+      flop_params = Map.merge(sort_params, %{offset: next_offset, limit: 20})
+
+      case Contacts.list_contacts_flop(
+        socket.assigns.account_id,
+        flop_params,
+        filter_opts(socket)
+      ) do
+        {:ok, entries, new_meta} ->
+          {:noreply,
+           socket
+           |> assign(:contacts, socket.assigns.contacts ++ entries)
+           |> assign(:meta, new_meta)}
+
+        {:error, _} ->
+          {:noreply, socket}
       end
-
-    {:noreply,
-     socket
-     |> assign(:contacts, socket.assigns.contacts ++ entries)
-     |> assign(:after_cursor, after_cursor)
-     |> assign(:has_more, has_more)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("toggle-favorite", %{"id" => id}, socket) do
@@ -236,37 +245,36 @@ defmodule KithWeb.ContactLive.Index do
     |> Enum.map(&Contacts.get_contact!(account_id, &1))
   end
 
-  defp fetch_page(socket) do
-    account_id = socket.assigns.account_id
-    sort = Map.get(@sort_options, socket.assigns.sort, asc: :display_name)
-
-    Contacts.list_contacts_paginated(account_id,
-      limit: @page_size,
-      after_cursor: socket.assigns.after_cursor,
-      order_by: sort,
-      preload: [:tags],
+  defp filter_opts(socket) do
+    [
       search: socket.assigns.search,
       archived: socket.assigns.show_archived,
       deceased: socket.assigns.show_deceased,
       favorites_only: socket.assigns.show_favorites_only,
-      tag_ids: socket.assigns.selected_tag_ids
-    )
+      tag_ids: socket.assigns.selected_tag_ids,
+      preload: [:tags]
+    ]
   end
 
   defp load_contacts(socket) do
-    socket = assign(socket, :after_cursor, nil)
-    %{entries: entries, has_more: has_more} = fetch_page(socket)
+    sort_params = Map.get(@sort_options, socket.assigns.sort, %{order_by: [:display_name], order_directions: [:asc]})
+    flop_params = Map.merge(sort_params, %{offset: 0, limit: 20})
 
-    after_cursor =
-      case List.last(entries) do
-        nil -> nil
-        contact -> contact.id
-      end
+    case Contacts.list_contacts_flop(
+      socket.assigns.account_id,
+      flop_params,
+      filter_opts(socket)
+    ) do
+      {:ok, entries, meta} ->
+        socket
+        |> assign(:contacts, entries)
+        |> assign(:meta, meta)
 
-    socket
-    |> assign(:contacts, entries)
-    |> assign(:after_cursor, after_cursor)
-    |> assign(:has_more, has_more)
+      {:error, _} ->
+        socket
+        |> assign(:contacts, [])
+        |> assign(:meta, nil)
+    end
   end
 
   defp can?(%{current_scope: scope}, action, resource) do

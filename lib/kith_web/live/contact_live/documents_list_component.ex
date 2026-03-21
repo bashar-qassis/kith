@@ -116,11 +116,11 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
           <div class="flex items-center gap-3">
             <.live_file_input
               upload={@uploads.document}
-              class="file-input file-input-bordered file-input-sm"
+              class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
             />
             <button
               type="submit"
-              class="btn btn-sm btn-primary"
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
               disabled={@uploads.document.entries == []}
             >
               Upload
@@ -129,7 +129,7 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
           <%= for entry <- @uploads.document.entries do %>
             <div class="text-sm mt-1 flex items-center gap-2">
               <span>{entry.client_name}</span>
-              <progress value={entry.progress} max="100" class="progress progress-primary w-24">
+              <progress value={entry.progress} max="100" class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]">
                 {entry.progress}%
               </progress>
               <button
@@ -137,36 +137,41 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
                 phx-click="cancel-upload"
                 phx-value-ref={entry.ref}
                 phx-target={@myself}
-                class="text-error text-xs"
+                class="text-[var(--color-error)] text-xs"
               >
                 &times;
               </button>
             </div>
             <%= for err <- upload_errors(@uploads.document, entry) do %>
-              <p class="text-error text-xs">{error_to_string(err)}</p>
+              <p class="text-[var(--color-error)] text-xs">{error_to_string(err)}</p>
             <% end %>
           <% end %>
         </form>
       <% end %>
 
       <%= if @documents == [] do %>
-        <p class="text-base-content/60">No documents yet.</p>
+        <KithUI.empty_state
+          size={:compact}
+          icon="hero-document"
+          title="No documents yet"
+          message="Attach files like letters, receipts, or important records."
+        />
       <% end %>
 
       <div class="space-y-2">
         <%= for doc <- @documents do %>
-          <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-base-200/50">
+          <div class="flex items-center justify-between py-2 px-3 rounded-[var(--radius-lg)] hover:bg-[var(--color-surface-sunken)]/50">
             <div class="flex items-center gap-3">
-              <.icon name={file_icon(doc.content_type)} class="size-5 text-base-content/40" />
+              <.icon name={file_icon(doc.content_type)} class="size-5 text-[var(--color-text-disabled)]" />
               <div>
                 <a
                   href={Storage.url(doc.storage_key)}
                   target="_blank"
-                  class="link link-hover text-sm font-medium"
+                  class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors text-sm font-medium"
                 >
                   {doc.file_name}
                 </a>
-                <div class="text-xs text-base-content/50">
+                <div class="text-xs text-[var(--color-text-tertiary)]">
                   {format_size(doc.file_size)} &middot; {Calendar.strftime(
                     doc.inserted_at,
                     "%b %d, %Y"
@@ -180,7 +185,7 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
                 phx-value-id={doc.id}
                 phx-target={@myself}
                 data-confirm="Delete this document?"
-                class="link link-hover text-error text-xs"
+                class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors text-xs"
               >
                 Delete
               </button>
