@@ -908,7 +908,7 @@ defmodule Kith.Contacts do
   source to target, then deletes source. Handles duplicates via ON CONFLICT.
   Uses Ecto.Multi for atomicity.
   """
-  def merge_tags(account_id, %Tag{} = source, %Tag{} = target) do
+  def merge_tags(_account_id, %Tag{} = source, %Tag{} = target) do
     Ecto.Multi.new()
     |> Ecto.Multi.run(:move_associations, fn repo, _changes ->
       # Get all contact_ids associated with source tag

@@ -106,7 +106,7 @@ defmodule KithWeb.API.ContactController do
     end
   end
 
-  def create(conn, _params) do
+  def create(_conn, _params) do
     {:error, :bad_request, "Missing 'contact' key in request body."}
   end
 
@@ -129,7 +129,7 @@ defmodule KithWeb.API.ContactController do
     end
   end
 
-  def update(conn, %{"id" => _id}) do
+  def update(_conn, %{"id" => _id}) do
     {:error, :bad_request, "Missing 'contact' key in request body."}
   end
 
@@ -250,7 +250,7 @@ defmodule KithWeb.API.ContactController do
     end
   end
 
-  def merge(conn, _params) do
+  def merge(_conn, _params) do
     {:error, :bad_request, "Missing survivor_id and non_survivor_id."}
   end
 

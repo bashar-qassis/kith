@@ -37,7 +37,7 @@ defmodule KithWeb.API.MeController do
     end
   end
 
-  def update(conn, _params) do
+  def update(_conn, _params) do
     {:error, :bad_request, "Missing 'user' key in request body."}
   end
 

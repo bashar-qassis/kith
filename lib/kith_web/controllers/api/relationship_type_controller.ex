@@ -4,7 +4,6 @@ defmodule KithWeb.API.RelationshipTypeController do
   alias Kith.Contacts
   alias Kith.Contacts.RelationshipType
   alias Kith.{Policy, Repo}
-  alias Kith.Scope, as: TenantScope
 
   import Ecto.Query
 

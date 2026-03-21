@@ -54,7 +54,7 @@ defmodule Kith.SentryEventHandler do
   @doc "Recursively scrubs sensitive keys from a map."
   def scrub_params(params) when is_map(params) do
     Map.new(params, fn
-      {key, value} when is_binary(key) and key in @scrub_keys ->
+      {key, _value} when is_binary(key) and key in @scrub_keys ->
         {key, "[FILTERED]"}
 
       {key, value} when is_atom(key) ->

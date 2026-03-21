@@ -92,7 +92,7 @@ defmodule Kith.Workers.ImmichSyncWorker do
     end)
   end
 
-  defp handle_matches(account, contact, [], now) do
+  defp handle_matches(_account, contact, [], now) do
     if contact.immich_status != "unlinked" do
       contact
       |> Contact.update_changeset(%{immich_status: "unlinked", immich_last_synced_at: now})

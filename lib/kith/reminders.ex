@@ -407,11 +407,11 @@ defmodule Kith.Reminders do
   @doc """
   Updates a reminder rule. The on-day rule (days_before: 0) cannot be deactivated.
   """
-  def update_reminder_rule(%ReminderRule{days_before: 0} = rule, %{active: false}) do
+  def update_reminder_rule(%ReminderRule{days_before: 0} = _rule, %{active: false}) do
     {:error, :cannot_deactivate_on_day_rule}
   end
 
-  def update_reminder_rule(%ReminderRule{days_before: 0} = rule, %{"active" => false}) do
+  def update_reminder_rule(%ReminderRule{days_before: 0} = _rule, %{"active" => false}) do
     {:error, :cannot_deactivate_on_day_rule}
   end
 

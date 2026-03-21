@@ -14,9 +14,6 @@ defmodule Kith.Contacts.Note do
     timestamps(type: :utc_datetime)
   end
 
-  @allowed_tags ~w(p br strong em ul ol li a h1 h2 h3 h4 h5 h6 blockquote)
-  @allowed_attributes ~w(href)
-
   def changeset(note, attrs) do
     note
     |> cast(attrs, [:body, :favorite, :is_private, :contact_id, :account_id, :author_id])

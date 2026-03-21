@@ -3,7 +3,6 @@ defmodule KithWeb.API.GenderController do
 
   alias Kith.{Contacts, Policy}
   alias Kith.Contacts.Gender
-  alias Kith.Scope, as: TenantScope
 
   import Ecto.Query
 

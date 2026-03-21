@@ -1,10 +1,8 @@
 defmodule KithWeb.API.StatisticsController do
   use KithWeb, :controller
 
-  alias Kith.{Contacts, Repo}
+  alias Kith.Repo
   alias Kith.Scope, as: TenantScope
-
-  import Ecto.Query
 
   action_fallback KithWeb.API.FallbackController
 
