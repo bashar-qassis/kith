@@ -2,18 +2,18 @@ defmodule KithWeb.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
+  require Logger
+
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   @impl true
   def init(_arg) do
+    attach_handlers()
+
     children = [
-      # Telemetry poller will execute the given period measurements
-      # every 10_000ms. Learn more here: https://hexdocs.pm/telemetry_metrics
       {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
-      # Add reporters as children of your supervision tree.
-      # {Telemetry.Metrics.ConsoleReporter, metrics: metrics()}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -84,10 +84,69 @@ defmodule KithWeb.Telemetry do
   end
 
   defp periodic_measurements do
-    [
-      # A module, function and arguments to be invoked periodically.
-      # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {KithWeb, :count_users, []}
+    []
+  end
+
+  ## Custom telemetry handlers
+
+  defp attach_handlers do
+    handlers = [
+      {"kith-db-slow-query", [:kith, :repo, :query], &__MODULE__.handle_slow_query/4},
+      {"kith-oban-job-stop", [:oban, :job, :stop], &__MODULE__.handle_oban_job_stop/4},
+      {"kith-oban-job-exception", [:oban, :job, :exception], &__MODULE__.handle_oban_job_exception/4}
     ]
+
+    for {id, event, handler} <- handlers do
+      :telemetry.attach(id, event, handler, %{})
+    end
+  end
+
+  @doc false
+  def handle_slow_query(_event, measurements, metadata, _config) do
+    duration_ms = System.convert_time_unit(measurements.total_time, :native, :millisecond)
+
+    if duration_ms > 500 do
+      Logger.warning(
+        "Slow query (#{duration_ms}ms): #{inspect(metadata.query)}",
+        duration_ms: duration_ms,
+        source: metadata[:source]
+      )
+    end
+  rescue
+    _ -> :ok
+  end
+
+  @doc false
+  def handle_oban_job_stop(_event, measurements, metadata, _config) do
+    duration_ms = System.convert_time_unit(measurements.duration, :native, :millisecond)
+    worker = metadata.job.worker
+    queue = metadata.job.queue
+
+    Logger.debug("Oban job completed",
+      worker: worker,
+      queue: queue,
+      duration_ms: duration_ms,
+      state: "success"
+    )
+  rescue
+    _ -> :ok
+  end
+
+  @doc false
+  def handle_oban_job_exception(_event, measurements, metadata, _config) do
+    duration_ms = System.convert_time_unit(measurements.duration, :native, :millisecond)
+    job = metadata.job
+
+    Logger.error(
+      "Oban job failed: #{job.worker} (attempt #{job.attempt}/#{job.max_attempts})",
+      worker: job.worker,
+      queue: job.queue,
+      duration_ms: duration_ms,
+      attempt: job.attempt,
+      max_attempts: job.max_attempts,
+      state: "failure"
+    )
+  rescue
+    _ -> :ok
   end
 end
