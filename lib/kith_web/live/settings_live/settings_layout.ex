@@ -55,6 +55,14 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
             icon="hero-arrow-down-tray"
             label="Export"
           />
+          <%= if authorized?(@current_scope.user, :manage, :account) do %>
+            <.settings_nav_item
+              path={~p"/settings/audit-log"}
+              current_path={@current_path}
+              icon="hero-clipboard-document-list"
+              label="Audit Log"
+            />
+          <% end %>
         </ul>
       </nav>
 

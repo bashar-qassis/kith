@@ -275,6 +275,10 @@ defmodule KithWeb.Router do
 
       # Immich review
       live "/contacts/:id/immich-review", ContactLive.ImmichReview, :index
+
+      # Admin pages
+      live "/admin/oban", AdminLive.ObanDashboard, :index
+      live "/settings/audit-log", SettingsLive.AuditLog, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password
