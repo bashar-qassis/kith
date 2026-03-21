@@ -52,7 +52,7 @@ defmodule KithWeb.API.CallController do
 
     with true <- Policy.can?(user, :create, :call),
          {:ok, contact} <- fetch_contact(account_id, contact_id),
-         {:ok, call} <- Activities.create_call(contact, account_id, attrs) do
+         {:ok, call} <- Activities.create_call(contact, attrs) do
       conn
       |> put_status(201)
       |> put_resp_header("location", "/api/calls/#{call.id}")

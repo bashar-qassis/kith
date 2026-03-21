@@ -83,6 +83,6 @@ defmodule KithWeb.API.RelationshipTypeController do
   end
 
   defp type_json(%RelationshipType{} = rt) do
-    %{id: rt.id, name: rt.name, name_reverse_relationship: rt.name_reverse_relationship}
+    %{id: rt.id, name: rt.name, reverse_name: rt.reverse_name}
   end
 end

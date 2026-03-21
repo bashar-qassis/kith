@@ -42,7 +42,8 @@ defmodule KithWeb.API.PhotoController do
           case Storage.upload(upload, account_id) do
             {:ok, storage_key, _metadata} ->
               attrs = %{
-                "filename" => upload.filename,
+                "file_name" => upload.filename,
+                "file_size" => upload.path && File.stat!(upload.path).size,
                 "storage_key" => storage_key,
                 "content_type" => ct
               }
@@ -92,6 +93,6 @@ defmodule KithWeb.API.PhotoController do
   end
 
   defp photo_json(%Photo{} = p) do
-    %{id: p.id, contact_id: p.contact_id, filename: p.filename, inserted_at: p.inserted_at}
+    %{id: p.id, contact_id: p.contact_id, file_name: p.file_name, inserted_at: p.inserted_at}
   end
 end

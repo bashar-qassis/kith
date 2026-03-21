@@ -115,7 +115,7 @@ defmodule KithWeb.API.ContactJSON do
       id: n.id,
       contact_id: n.contact_id,
       body: n.body,
-      is_favorite: n.is_favorite,
+      favorite: n.favorite,
       inserted_at: n.inserted_at,
       updated_at: n.updated_at
     }
@@ -174,9 +174,9 @@ defmodule KithWeb.API.ContactJSON do
     %{
       id: d.id,
       contact_id: d.contact_id,
-      filename: d.filename,
+      file_name: d.file_name,
       content_type: d.content_type,
-      size_bytes: d.size_bytes,
+      file_size: d.file_size,
       inserted_at: d.inserted_at
     }
   end
@@ -185,7 +185,7 @@ defmodule KithWeb.API.ContactJSON do
     %{
       id: p.id,
       contact_id: p.contact_id,
-      filename: p.filename,
+      file_name: p.file_name,
       inserted_at: p.inserted_at
     }
   end

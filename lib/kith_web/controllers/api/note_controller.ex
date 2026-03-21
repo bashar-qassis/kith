@@ -129,7 +129,7 @@ defmodule KithWeb.API.NoteController do
     with true <- Policy.can?(user, :update, :note),
          note when not is_nil(note) <-
            Note |> TenantScope.scope_to_account(account_id) |> Repo.get(id),
-         {:ok, updated} <- note |> Note.changeset(%{is_favorite: value}) |> Repo.update() do
+         {:ok, updated} <- note |> Note.changeset(%{favorite: value}) |> Repo.update() do
       json(conn, %{data: note_json(updated)})
     else
       false -> {:error, :forbidden}
@@ -152,7 +152,7 @@ defmodule KithWeb.API.NoteController do
       id: note.id,
       contact_id: note.contact_id,
       body: note.body,
-      is_favorite: note.is_favorite,
+      favorite: note.favorite,
       inserted_at: note.inserted_at,
       updated_at: note.updated_at
     }

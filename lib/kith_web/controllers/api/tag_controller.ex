@@ -88,10 +88,8 @@ defmodule KithWeb.API.TagController do
     with true <- Policy.can?(user, :update, :tag),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id),
          tag when not is_nil(tag) <- safe_get_tag(account_id, tag_id) do
-      case Contacts.assign_tag(contact, tag) do
-        {:ok, _} -> json(conn, %{data: %{status: "assigned"}})
-        {:error, reason} -> {:error, :bad_request, inspect(reason)}
-      end
+      Contacts.tag_contact(contact, tag)
+      json(conn, %{data: %{status: "assigned"}})
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
@@ -107,7 +105,7 @@ defmodule KithWeb.API.TagController do
     with true <- Policy.can?(user, :update, :tag),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id),
          tag when not is_nil(tag) <- safe_get_tag(account_id, tag_id) do
-      Contacts.remove_tag(contact, tag)
+      Contacts.untag_contact(contact, tag)
       send_resp(conn, 204, "")
     else
       false -> {:error, :forbidden}
@@ -127,7 +125,7 @@ defmodule KithWeb.API.TagController do
          :ok <- validate_contact_ids(account_id, contact_ids) do
       Enum.each(contact_ids, fn cid ->
         contact = Contacts.get_contact(account_id, cid)
-        if contact, do: Contacts.assign_tag(contact, tag)
+        if contact, do: Contacts.tag_contact(contact, tag)
       end)
 
       json(conn, %{data: %{status: "assigned", count: length(contact_ids)}})
@@ -150,7 +148,7 @@ defmodule KithWeb.API.TagController do
          :ok <- validate_contact_ids(account_id, contact_ids) do
       Enum.each(contact_ids, fn cid ->
         contact = Contacts.get_contact(account_id, cid)
-        if contact, do: Contacts.remove_tag(contact, tag)
+        if contact, do: Contacts.untag_contact(contact, tag)
       end)
 
       json(conn, %{data: %{status: "removed", count: length(contact_ids)}})

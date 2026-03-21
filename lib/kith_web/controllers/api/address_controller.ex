@@ -40,7 +40,7 @@ defmodule KithWeb.API.AddressController do
 
     with true <- Policy.can?(user, :create, :address),
          {:ok, contact} <- fetch_contact(account_id, contact_id),
-         {:ok, address} <- Contacts.create_address(contact, account_id, attrs) do
+         {:ok, address} <- Contacts.create_address(contact, attrs) do
       conn
       |> put_status(201)
       |> put_resp_header("location", "/api/addresses/#{address.id}")

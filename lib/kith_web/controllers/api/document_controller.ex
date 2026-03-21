@@ -40,9 +40,9 @@ defmodule KithWeb.API.DocumentController do
           case Storage.upload(upload, account_id) do
             {:ok, storage_key, metadata} ->
               attrs = %{
-                "filename" => upload.filename,
+                "file_name" => upload.filename,
                 "content_type" => upload.content_type,
-                "size_bytes" => metadata[:size_bytes] || 0,
+                "file_size" => metadata[:size_bytes] || 0,
                 "storage_key" => storage_key
               }
 
@@ -92,9 +92,9 @@ defmodule KithWeb.API.DocumentController do
     %{
       id: d.id,
       contact_id: d.contact_id,
-      filename: d.filename,
+      file_name: d.file_name,
       content_type: d.content_type,
-      size_bytes: d.size_bytes,
+      file_size: d.file_size,
       inserted_at: d.inserted_at
     }
   end
