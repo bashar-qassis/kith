@@ -1,0 +1,290 @@
+{
+  "version": "2.20.0",
+  "app_version": "4.1.2",
+  "exported_at": "2026-03-20T10:00:00Z",
+  "account": {
+    "data": {
+      "id": 1,
+      "uuid": "acct-uuid-001"
+    }
+  },
+  "contacts": {
+    "data": [
+      {
+        "id": 101,
+        "uuid": "contact-uuid-alice",
+        "first_name": "Alice",
+        "last_name": "Johnson",
+        "middle_name": "Marie",
+        "nickname": "AJ",
+        "description": "College friend",
+        "company": "Acme Corp",
+        "job": "Software Engineer",
+        "is_starred": true,
+        "is_active": true,
+        "is_dead": false,
+        "gender": {
+          "data": {
+            "uuid": "gender-uuid-female",
+            "name": "Female"
+          }
+        },
+        "birthdate": {
+          "data": {
+            "date": "1990-06-15",
+            "is_year_unknown": false,
+            "is_age_based": false
+          }
+        },
+        "first_met_date": {
+          "data": {
+            "date": "2015-09-01",
+            "is_year_unknown": false,
+            "is_age_based": false
+          }
+        },
+        "first_met_through": null,
+        "tags": {
+          "data": [
+            {
+              "id": 1,
+              "uuid": "tag-uuid-friends",
+              "name": "Friends"
+            }
+          ]
+        },
+        "contact_fields": {
+          "data": [
+            {
+              "id": 201,
+              "uuid": "cf-uuid-alice-email",
+              "content": "alice@example.com",
+              "contact_field_type": {
+                "data": {
+                  "uuid": "cft-uuid-email",
+                  "name": "Email",
+                  "type": "email"
+                }
+              },
+              "labels": null
+            }
+          ]
+        },
+        "addresses": {
+          "data": [
+            {
+              "id": 301,
+              "uuid": "addr-uuid-alice",
+              "name": "Home",
+              "street": "123 Maple St",
+              "city": "Springfield",
+              "province": "IL",
+              "postal_code": "62701",
+              "country": "US"
+            }
+          ]
+        },
+        "notes": {
+          "data": [
+            {
+              "id": 401,
+              "uuid": "note-uuid-alice",
+              "body": "Met at the orientation event.",
+              "created_at": "2015-09-02T12:00:00Z"
+            }
+          ]
+        },
+        "reminders": {
+          "data": [
+            {
+              "id": 501,
+              "uuid": "reminder-uuid-alice",
+              "title": "Alice's birthday",
+              "next_expected_date": "2027-06-15",
+              "frequency_type": "year"
+            }
+          ]
+        },
+        "pets": {
+          "data": [
+            {
+              "id": 601,
+              "uuid": "pet-uuid-alice-dog",
+              "name": "Buddy",
+              "pet_category": {
+                "data": {
+                  "name": "Dog"
+                }
+              }
+            }
+          ]
+        },
+        "photos": {
+          "data": [
+            {
+              "id": 701,
+              "uuid": "photo-uuid-alice-1",
+              "original_filename": "alice_profile.jpg",
+              "filesize": 54321,
+              "mime_type": "image/jpeg"
+            }
+          ]
+        },
+        "activities": {
+          "data": [
+            {
+              "id": 801,
+              "uuid": "activity-uuid-shared",
+              "title": "Coffee at Blue Bottle",
+              "description": "Great conversation about travel",
+              "happened_at": "2025-12-10T14:00:00Z",
+              "activity_type_category": {
+                "data": {
+                  "uuid": "atc-uuid-social",
+                  "name": "Social"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 102,
+        "uuid": "contact-uuid-bob",
+        "first_name": "Bob",
+        "last_name": "Smith",
+        "middle_name": null,
+        "nickname": null,
+        "description": null,
+        "company": null,
+        "job": null,
+        "is_starred": false,
+        "is_active": false,
+        "is_dead": true,
+        "gender": {
+          "data": {
+            "uuid": "gender-uuid-male",
+            "name": "Male"
+          }
+        },
+        "birthdate": {
+          "data": {
+            "date": "0001-03-20",
+            "is_year_unknown": true,
+            "is_age_based": false
+          }
+        },
+        "first_met_date": {
+          "data": null
+        },
+        "first_met_through": "contact-uuid-alice",
+        "tags": {
+          "data": [
+            {
+              "id": 1,
+              "uuid": "tag-uuid-friends",
+              "name": "Friends"
+            },
+            {
+              "id": 2,
+              "uuid": "tag-uuid-work",
+              "name": "Work"
+            }
+          ]
+        },
+        "contact_fields": {
+          "data": [
+            {
+              "id": 202,
+              "uuid": "cf-uuid-bob-phone",
+              "content": "+1-555-0199",
+              "contact_field_type": {
+                "data": {
+                  "uuid": "cft-uuid-phone",
+                  "name": "Phone",
+                  "type": "phone"
+                }
+              },
+              "labels": null
+            }
+          ]
+        },
+        "addresses": {
+          "data": []
+        },
+        "notes": {
+          "data": [
+            {
+              "id": 402,
+              "uuid": "note-uuid-bob",
+              "body": "Bob introduced me to hiking.",
+              "created_at": "2020-01-15T08:30:00Z"
+            }
+          ]
+        },
+        "reminders": {
+          "data": []
+        },
+        "pets": {
+          "data": [
+            {
+              "id": 602,
+              "uuid": "pet-uuid-bob-iguana",
+              "name": "Scales",
+              "pet_category": {
+                "data": {
+                  "name": "Lizard"
+                }
+              }
+            }
+          ]
+        },
+        "photos": {
+          "data": [
+            {
+              "id": 702,
+              "uuid": "photo-uuid-bob-1",
+              "original_filename": "bob_hiking.png",
+              "filesize": 98765,
+              "mime_type": "image/png"
+            }
+          ]
+        },
+        "activities": {
+          "data": [
+            {
+              "id": 801,
+              "uuid": "activity-uuid-shared",
+              "title": "Coffee at Blue Bottle",
+              "description": "Great conversation about travel",
+              "happened_at": "2025-12-10T14:00:00Z",
+              "activity_type_category": {
+                "data": {
+                  "uuid": "atc-uuid-social",
+                  "name": "Social"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "relationships": {
+    "data": [
+      {
+        "id": 901,
+        "uuid": "rel-uuid-001",
+        "contact_is": "contact-uuid-alice",
+        "of_contact": "contact-uuid-bob",
+        "relationship_type": {
+          "data": {
+            "uuid": "rt-uuid-friend",
+            "name": "Friend",
+            "reverse_name": "Friend"
+          }
+        }
+      }
+    ]
+  }
+}

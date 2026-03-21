@@ -1,0 +1,905 @@
+defmodule Kith.Imports.Sources.Monica do
+  @moduledoc """
+  Monica CRM import source.
+
+  Parses a Monica JSON export and imports contacts with all associated data:
+  contact fields, addresses, notes, reminders, pets, photos, activities,
+  relationships, and first-met cross-references.
+  """
+
+  @behaviour Kith.Imports.Source
+
+  import Ecto.Query, warn: false
+
+  alias Kith.Repo
+  alias Kith.Contacts
+  alias Kith.Imports
+
+  require Logger
+
+  # ── Behaviour callbacks ───────────────────────────────────────────────
+
+  @impl true
+  def name, do: "Monica CRM"
+
+  @impl true
+  def file_types, do: [".json"]
+
+  @impl true
+  def supports_api?, do: true
+
+  @impl true
+  def validate_file(data) do
+    case Jason.decode(data) do
+      {:ok, %{"contacts" => _, "account" => _}} ->
+        {:ok, %{}}
+
+      {:ok, _} ->
+        {:error, "JSON file is missing required \"contacts\" or \"account\" keys"}
+
+      {:error, _} ->
+        {:error, "File is not valid JSON"}
+    end
+  end
+
+  @impl true
+  def parse_summary(data) do
+    case Jason.decode(data) do
+      {:ok, parsed} ->
+        contacts = get_in(parsed, ["contacts", "data"]) || []
+        relationships = get_in(parsed, ["relationships", "data"]) || []
+
+        {notes_count, photos_count, activities_count} =
+          Enum.reduce(contacts, {0, 0, MapSet.new()}, fn contact, {notes, photos, act_set} ->
+            n = length(get_in(contact, ["notes", "data"]) || [])
+            p = length(get_in(contact, ["photos", "data"]) || [])
+
+            acts = get_in(contact, ["activities", "data"]) || []
+            new_act_set = Enum.reduce(acts, act_set, fn a, set -> MapSet.put(set, a["uuid"]) end)
+
+            {notes + n, photos + p, new_act_set}
+          end)
+
+        {:ok,
+         %{
+           contacts: length(contacts),
+           relationships: length(relationships),
+           notes: notes_count,
+           photos: photos_count,
+           activities: MapSet.size(activities_count)
+         }}
+
+      {:error, _} ->
+        {:error, "File is not valid JSON"}
+    end
+  end
+
+  @impl true
+  def import(account_id, user_id, data, opts) do
+    import_record = opts[:import]
+
+    case Jason.decode(data) do
+      {:ok, parsed} ->
+        do_import(account_id, user_id, parsed, import_record)
+
+      {:error, _} ->
+        {:error, "File is not valid JSON"}
+    end
+  end
+
+  @impl true
+  def test_connection(%{url: url, api_key: api_key}) do
+    headers = [{"Authorization", "Bearer #{api_key}"}, {"Accept", "application/json"}]
+
+    case Req.get("#{url}/api/me", headers: headers) do
+      {:ok, %{status: 200}} -> :ok
+      {:ok, %{status: 401}} -> {:error, "Invalid API key"}
+      {:ok, %{status: status}} -> {:error, "Unexpected status: #{status}"}
+      {:error, reason} -> {:error, "Connection failed: #{inspect(reason)}"}
+    end
+  end
+
+  @impl true
+  def fetch_photo(%{url: url, api_key: api_key}, resource_id) do
+    headers = [{"Authorization", "Bearer #{api_key}"}]
+
+    case Req.get("#{url}/api/photos/#{resource_id}", headers: headers) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: 429}} -> {:error, :rate_limited}
+      {:ok, %{status: status}} -> {:error, "Unexpected status: #{status}"}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @impl true
+  def api_supplement_options do
+    [
+      %{
+        key: :photos,
+        label: "Sync photos",
+        description: "Download photo files from Monica API"
+      },
+      %{
+        key: :first_met_details,
+        label: "Fetch \"How we met\" details",
+        description: "Import first_met_where and first_met_additional_info from the API"
+      }
+    ]
+  end
+
+  @impl true
+  def fetch_supplement(%{url: url, api_key: api_key}, contact_source_id, :first_met_details) do
+    headers = [{"Authorization", "Bearer #{api_key}"}, {"Accept", "application/json"}]
+
+    case Req.get("#{url}/api/contacts/#{contact_source_id}", headers: headers) do
+      {:ok, %{status: 200, body: body}} ->
+        contact_data = body["data"] || body
+
+        {:ok,
+         %{
+           first_met_where: contact_data["first_met_where"],
+           first_met_additional_info: contact_data["first_met_additional_information"]
+         }}
+
+      {:ok, %{status: 429}} ->
+        {:error, :rate_limited}
+
+      {:ok, %{status: status}} ->
+        {:error, "Unexpected status: #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def fetch_supplement(_credential, _contact_source_id, _key) do
+    {:error, :unsupported_supplement}
+  end
+
+  # ── Import orchestration ──────────────────────────────────────────────
+
+  defp do_import(account_id, user_id, parsed, import_record) do
+    contacts_data = get_in(parsed, ["contacts", "data"]) || []
+    relationships_data = get_in(parsed, ["relationships", "data"]) || []
+
+    # Phase 1: Reference data (genders, tags, contact field types, activity type categories)
+    ref_data = build_reference_data(account_id, contacts_data)
+
+    # Phase 2+3: Contacts and their children
+    {summary, activity_set} =
+      import_contacts(account_id, user_id, contacts_data, ref_data, import_record)
+
+    # Phase 4: Cross-contact references (relationships, first_met_through)
+    rel_errors = import_relationships(account_id, relationships_data, ref_data, import_record)
+    fmt_errors = resolve_first_met_through(account_id, contacts_data, import_record)
+
+    all_errors = summary.errors ++ rel_errors ++ fmt_errors
+    error_count = summary.error_count + length(rel_errors) + length(fmt_errors)
+
+    _ = activity_set
+
+    {:ok,
+     %{
+       contacts: summary.contacts,
+       notes: summary.notes,
+       skipped: summary.skipped,
+       error_count: error_count,
+       errors: Enum.take(all_errors, 50)
+     }}
+  end
+
+  # ── Phase 1: Reference data ──────────────────────────────────────────
+
+  defp build_reference_data(account_id, contacts_data) do
+    # Collect all unique genders, tags, contact field types, activity type categories
+    genders = collect_genders(contacts_data)
+    tags = collect_tags(contacts_data)
+    cfts = collect_contact_field_types(contacts_data)
+    atcs = collect_activity_type_categories(contacts_data)
+
+    gender_map = find_or_create_genders(account_id, genders)
+    tag_map = find_or_create_tags(account_id, tags)
+    cft_map = find_or_create_contact_field_types(account_id, cfts)
+    atc_map = find_or_create_activity_type_categories(account_id, atcs)
+
+    %{
+      genders: gender_map,
+      tags: tag_map,
+      contact_field_types: cft_map,
+      activity_type_categories: atc_map
+    }
+  end
+
+  defp collect_genders(contacts_data) do
+    contacts_data
+    |> Enum.map(&get_in(&1, ["gender", "data", "name"]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp collect_tags(contacts_data) do
+    contacts_data
+    |> Enum.flat_map(fn c -> (get_in(c, ["tags", "data"]) || []) |> Enum.map(& &1["name"]) end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp collect_contact_field_types(contacts_data) do
+    contacts_data
+    |> Enum.flat_map(fn c ->
+      (get_in(c, ["contact_fields", "data"]) || [])
+      |> Enum.map(&get_in(&1, ["contact_field_type", "data", "name"]))
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp collect_activity_type_categories(contacts_data) do
+    contacts_data
+    |> Enum.flat_map(fn c ->
+      (get_in(c, ["activities", "data"]) || [])
+      |> Enum.map(&get_in(&1, ["activity_type_category", "data", "name"]))
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp find_or_create_genders(account_id, names) do
+    Map.new(names, fn name ->
+      gender =
+        Repo.one(
+          from(g in Contacts.Gender,
+            where: g.name == ^name and (g.account_id == ^account_id or is_nil(g.account_id)),
+            limit: 1
+          )
+        ) || elem(Contacts.create_gender(account_id, %{name: name}), 1)
+
+      {name, gender.id}
+    end)
+  end
+
+  defp find_or_create_tags(account_id, names) do
+    Map.new(names, fn name ->
+      tag =
+        Repo.one(
+          from(t in Contacts.Tag,
+            where: t.name == ^name and t.account_id == ^account_id,
+            limit: 1
+          )
+        ) || elem(Contacts.create_tag(account_id, %{name: name}), 1)
+
+      {name, tag.id}
+    end)
+  end
+
+  defp find_or_create_contact_field_types(account_id, names) do
+    Map.new(names, fn name ->
+      cft =
+        Repo.one(
+          from(t in Contacts.ContactFieldType,
+            where: t.name == ^name and (t.account_id == ^account_id or is_nil(t.account_id)),
+            limit: 1
+          )
+        ) || elem(Contacts.create_contact_field_type(account_id, %{name: name}), 1)
+
+      {name, cft.id}
+    end)
+  end
+
+  defp find_or_create_activity_type_categories(account_id, names) do
+    Map.new(names, fn name ->
+      atc =
+        Repo.one(
+          from(a in Contacts.ActivityTypeCategory,
+            where: a.name == ^name and (a.account_id == ^account_id or is_nil(a.account_id)),
+            limit: 1
+          )
+        ) || elem(Contacts.create_activity_type_category(account_id, %{name: name}), 1)
+
+      {name, atc.id}
+    end)
+  end
+
+  # ── Phase 2+3: Contacts and children ─────────────────────────────────
+
+  defp import_contacts(account_id, user_id, contacts_data, ref_data, import_record) do
+    initial_acc = %{
+      contacts: 0,
+      notes: 0,
+      skipped: 0,
+      error_count: 0,
+      errors: [],
+      activity_set: MapSet.new()
+    }
+
+    total = length(contacts_data)
+    topic = "import:#{account_id}"
+    broadcast_interval = max(1, div(total, 50))
+
+    result =
+      contacts_data
+      |> Enum.with_index(1)
+      |> Enum.reduce(initial_acc, fn {contact_data, idx}, acc ->
+        # Check for cancellation
+        if import_record && rem(idx, 10) == 0 do
+          refreshed = Imports.get_import!(import_record.id)
+          if refreshed.status == "cancelled", do: throw(:cancelled)
+        end
+
+        result =
+          try do
+            import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
+          rescue
+            e ->
+              name = contact_display_name(contact_data)
+              msg = "Contact #{name}: #{Exception.message(e)}"
+              Logger.error("[Monica Import] #{msg}")
+              add_error(acc, msg)
+          end
+
+        # Broadcast progress
+        if rem(idx, broadcast_interval) == 0 || idx == total do
+          Phoenix.PubSub.broadcast(
+            Kith.PubSub,
+            topic,
+            {:import_progress, %{current: idx, total: total}}
+          )
+        end
+
+        result
+      end)
+
+    summary = Map.drop(result, [:activity_set])
+    {summary, result.activity_set}
+  catch
+    :cancelled ->
+      {%{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: ["Import cancelled"]},
+       MapSet.new()}
+  end
+
+  defp import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc) do
+    uuid = contact_data["uuid"]
+
+    # Check for existing import record (re-import)
+    existing = if import_record, do: Imports.find_import_record(account_id, "monica", "contact", uuid)
+
+    case existing do
+      %{local_entity_id: local_id} ->
+        # Re-import: update existing contact
+        case Repo.get(Contacts.Contact, local_id) do
+          nil ->
+            # Local contact was deleted, re-create
+            do_create_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
+
+          %{deleted_at: deleted_at} when not is_nil(deleted_at) ->
+            Logger.info("[Monica Import] Skipping #{contact_display_name(contact_data)}: previously deleted in Kith")
+            %{acc | skipped: acc.skipped + 1}
+
+          contact ->
+            do_update_contact(contact, user_id, contact_data, ref_data, import_record, acc)
+        end
+
+      nil ->
+        do_create_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
+    end
+  end
+
+  defp do_create_contact(account_id, user_id, contact_data, ref_data, import_record, acc) do
+    attrs = build_contact_attrs(contact_data, ref_data)
+
+    case Contacts.create_contact(account_id, attrs) do
+      {:ok, contact} ->
+        # Record the import
+        if import_record do
+          Imports.record_imported_entity(import_record, "contact", contact_data["uuid"], "contact", contact.id)
+        end
+
+        # Import children and update accumulator
+        import_contact_children(contact, user_id, contact_data, ref_data, import_record, acc)
+
+      {:error, changeset} ->
+        name = contact_display_name(contact_data)
+        msg = "Contact #{name}: #{inspect_errors(changeset)}"
+        Logger.warning("[Monica Import] #{msg}")
+        add_error(acc, msg)
+    end
+  end
+
+  defp do_update_contact(contact, user_id, contact_data, ref_data, import_record, acc) do
+    attrs = build_contact_attrs(contact_data, ref_data)
+
+    case Contacts.update_contact(contact, attrs) do
+      {:ok, contact} ->
+        if import_record do
+          Imports.record_imported_entity(import_record, "contact", contact_data["uuid"], "contact", contact.id)
+        end
+
+        import_contact_children(contact, user_id, contact_data, ref_data, import_record, acc)
+
+      {:error, changeset} ->
+        name = contact_display_name(contact_data)
+        msg = "Contact #{name} (update): #{inspect_errors(changeset)}"
+        Logger.warning("[Monica Import] #{msg}")
+        add_error(acc, msg)
+    end
+  end
+
+  defp build_contact_attrs(contact_data, ref_data) do
+    gender_name = get_in(contact_data, ["gender", "data", "name"])
+    gender_id = if gender_name, do: Map.get(ref_data.genders, gender_name)
+
+    birthdate_info = parse_special_date(get_in(contact_data, ["birthdate", "data"]))
+    first_met_info = parse_special_date(get_in(contact_data, ["first_met_date", "data"]))
+
+    is_active = contact_data["is_active"]
+    is_archived = if is_active == false, do: true, else: false
+
+    base = %{
+      first_name: contact_data["first_name"],
+      last_name: contact_data["last_name"],
+      middle_name: contact_data["middle_name"],
+      nickname: contact_data["nickname"],
+      description: contact_data["description"],
+      company: contact_data["company"],
+      occupation: contact_data["job"],
+      favorite: contact_data["is_starred"] || false,
+      is_archived: is_archived,
+      deceased: contact_data["is_dead"] || false,
+      gender_id: gender_id
+    }
+
+    base
+    |> maybe_put(:birthdate, birthdate_info[:date])
+    |> maybe_put(:birthdate_year_unknown, birthdate_info[:year_unknown])
+    |> maybe_put(:first_met_at, first_met_info[:date])
+    |> maybe_put(:first_met_year_unknown, first_met_info[:year_unknown])
+  end
+
+  defp parse_special_date(nil), do: %{}
+
+  defp parse_special_date(date_data) do
+    date_str = date_data["date"]
+
+    if date_str do
+      case Date.from_iso8601(date_str) do
+        {:ok, date} ->
+          year_unknown = date_data["is_year_unknown"] == true
+          %{date: date, year_unknown: year_unknown}
+
+        _ ->
+          %{}
+      end
+    else
+      %{}
+    end
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  # ── Phase 3: Contact children ─────────────────────────────────────────
+
+  defp import_contact_children(contact, user_id, contact_data, ref_data, import_record, acc) do
+    notes_count = import_contact_fields(contact, contact_data, ref_data, import_record)
+    import_addresses(contact, contact_data, import_record)
+    n = import_notes(contact, user_id, contact_data, import_record)
+    import_reminders(contact, user_id, contact_data, import_record)
+    import_pets(contact, contact_data, import_record)
+    import_photos(contact, contact_data, import_record)
+    new_activity_set = import_activities(contact, user_id, contact_data, ref_data, import_record, acc.activity_set)
+
+    # Import tags (join table)
+    import_tags(contact, contact_data, ref_data)
+
+    _ = notes_count
+
+    %{acc |
+      contacts: acc.contacts + 1,
+      notes: acc.notes + n,
+      activity_set: new_activity_set
+    }
+  end
+
+  defp import_contact_fields(contact, contact_data, ref_data, import_record) do
+    fields = get_in(contact_data, ["contact_fields", "data"]) || []
+
+    Enum.each(fields, fn field_data ->
+      cft_name = get_in(field_data, ["contact_field_type", "data", "name"])
+      cft_id = Map.get(ref_data.contact_field_types, cft_name)
+
+      attrs = %{
+        "value" => field_data["content"],
+        "contact_field_type_id" => cft_id
+      }
+
+      case Contacts.create_contact_field(contact, attrs) do
+        {:ok, cf} ->
+          if import_record && field_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "contact_field", field_data["uuid"], "contact_field", cf.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Contact field for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+
+    length(fields)
+  end
+
+  defp import_addresses(contact, contact_data, import_record) do
+    addresses = get_in(contact_data, ["addresses", "data"]) || []
+
+    Enum.each(addresses, fn addr_data ->
+      attrs = %{
+        "label" => addr_data["name"],
+        "line1" => addr_data["street"],
+        "city" => addr_data["city"],
+        "province" => addr_data["province"],
+        "postal_code" => addr_data["postal_code"],
+        "country" => addr_data["country"]
+      }
+
+      case Contacts.create_address(contact, attrs) do
+        {:ok, addr} ->
+          if import_record && addr_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "address", addr_data["uuid"], "address", addr.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Address for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  defp import_notes(contact, user_id, contact_data, import_record) do
+    notes = get_in(contact_data, ["notes", "data"]) || []
+
+    Enum.each(notes, fn note_data ->
+      attrs = %{"body" => note_data["body"]}
+
+      case Contacts.create_note(contact, user_id, attrs) do
+        {:ok, note} ->
+          if import_record && note_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "note", note_data["uuid"], "note", note.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Note for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+
+    length(notes)
+  end
+
+  defp import_reminders(contact, user_id, contact_data, import_record) do
+    reminders = get_in(contact_data, ["reminders", "data"]) || []
+
+    Enum.each(reminders, fn rem_data ->
+      next_date = rem_data["next_expected_date"]
+
+      attrs = %{
+        type: "one_time",
+        title: rem_data["title"],
+        next_reminder_date: next_date,
+        contact_id: contact.id
+      }
+
+      case Kith.Reminders.create_reminder(contact.account_id, user_id, attrs) do
+        {:ok, reminder} ->
+          if import_record && rem_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "reminder", rem_data["uuid"], "reminder", reminder.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  defp import_pets(contact, contact_data, import_record) do
+    pets = get_in(contact_data, ["pets", "data"]) || []
+
+    Enum.each(pets, fn pet_data ->
+      category_name = get_in(pet_data, ["pet_category", "data", "name"])
+      species = map_pet_species(category_name)
+
+      attrs = %{name: pet_data["name"], species: species, contact_id: contact.id}
+
+      case Kith.Pets.create_pet(contact.account_id, attrs) do
+        {:ok, pet} ->
+          if import_record && pet_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "pet", pet_data["uuid"], "pet", pet.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Pet for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  @pet_species_map %{
+    "Dog" => "dog",
+    "Cat" => "cat",
+    "Bird" => "bird",
+    "Fish" => "fish",
+    "Reptile" => "reptile",
+    "Rabbit" => "rabbit",
+    "Hamster" => "hamster"
+  }
+
+  defp map_pet_species(nil), do: "other"
+  defp map_pet_species(name), do: Map.get(@pet_species_map, name, "other")
+
+  defp import_photos(contact, contact_data, import_record) do
+    photos = get_in(contact_data, ["photos", "data"]) || []
+
+    Enum.each(photos, fn photo_data ->
+      attrs = %{
+        "file_name" => photo_data["original_filename"] || "photo.jpg",
+        "storage_key" => "pending_sync:#{photo_data["uuid"]}",
+        "file_size" => photo_data["filesize"] || 0,
+        "content_type" => photo_data["mime_type"] || "image/jpeg"
+      }
+
+      case Contacts.create_photo(contact, attrs) do
+        {:ok, photo} ->
+          if import_record && photo_data["uuid"] do
+            Imports.record_imported_entity(
+              import_record, "photo", photo_data["uuid"], "photo", photo.id
+            )
+          end
+
+        {:error, reason} ->
+          Logger.warning("[Monica Import] Photo for #{contact.first_name}: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  defp import_activities(contact, user_id, contact_data, ref_data, import_record, activity_set) do
+    activities = get_in(contact_data, ["activities", "data"]) || []
+
+    Enum.reduce(activities, activity_set, fn activity_data, set ->
+      uuid = activity_data["uuid"]
+
+      if MapSet.member?(set, uuid) do
+        # Activity already created by another contact — just add the join entry
+        add_activity_contact_join(uuid, contact, import_record)
+        set
+      else
+        # Check import_records in case of resume (MapSet is empty on restart)
+        existing_record =
+          if import_record do
+            Imports.find_import_record(contact.account_id, "monica", "activity", uuid)
+          end
+
+        if existing_record do
+          # Activity exists from a previous import run, just add join
+          add_existing_activity_contact_join(existing_record.local_entity_id, contact)
+          MapSet.put(set, uuid)
+        else
+          # First encounter: create activity with this contact
+          create_activity_with_contact(contact, user_id, activity_data, ref_data, import_record)
+          MapSet.put(set, uuid)
+        end
+      end
+    end)
+  end
+
+  defp add_activity_contact_join(activity_uuid, contact, _import_record) do
+    # Find the local activity ID from import_records
+    case Imports.find_import_record(contact.account_id, "monica", "activity", activity_uuid) do
+      %{local_entity_id: activity_id} ->
+        add_existing_activity_contact_join(activity_id, contact)
+
+      nil ->
+        Logger.warning("[Monica Import] Could not find activity #{activity_uuid} for join entry")
+    end
+  end
+
+  defp add_existing_activity_contact_join(activity_id, contact) do
+    Repo.insert_all(
+      "activity_contacts",
+      [%{activity_id: activity_id, contact_id: contact.id}],
+      on_conflict: :nothing
+    )
+  end
+
+  defp create_activity_with_contact(contact, user_id, activity_data, ref_data, import_record) do
+    atc_name = get_in(activity_data, ["activity_type_category", "data", "name"])
+    atc_id = if atc_name, do: Map.get(ref_data.activity_type_categories, atc_name)
+
+    occurred_at =
+      case activity_data["happened_at"] do
+        nil -> DateTime.utc_now() |> DateTime.truncate(:second)
+        dt_str ->
+          case DateTime.from_iso8601(dt_str) do
+            {:ok, dt, _} -> DateTime.truncate(dt, :second)
+            _ -> DateTime.utc_now() |> DateTime.truncate(:second)
+          end
+      end
+
+    attrs = %{
+      title: activity_data["title"] || "Untitled Activity",
+      description: activity_data["description"],
+      occurred_at: occurred_at,
+      activity_type_category_id: atc_id,
+      creator_id: user_id
+    }
+
+    case Kith.Activities.create_activity(contact.account_id, attrs, [contact.id]) do
+      {:ok, activity} ->
+        if import_record && activity_data["uuid"] do
+          Imports.record_imported_entity(
+            import_record, "activity", activity_data["uuid"], "activity", activity.id
+          )
+        end
+
+      {:error, reason} ->
+        Logger.warning("[Monica Import] Activity for #{contact.first_name}: #{inspect(reason)}")
+    end
+  end
+
+  defp import_tags(contact, contact_data, ref_data) do
+    tags = get_in(contact_data, ["tags", "data"]) || []
+
+    Enum.each(tags, fn tag_data ->
+      tag_name = tag_data["name"]
+      tag_id = Map.get(ref_data.tags, tag_name)
+
+      if tag_id do
+        Repo.insert_all(
+          "contact_tags",
+          [%{contact_id: contact.id, tag_id: tag_id}],
+          on_conflict: :nothing
+        )
+      end
+    end)
+  end
+
+  # ── Phase 4: Cross-contact references ─────────────────────────────────
+
+  defp import_relationships(account_id, relationships_data, _ref_data, import_record) do
+    Enum.reduce(relationships_data, [], fn rel_data, errors ->
+      uuid = rel_data["uuid"]
+      contact_is_uuid = rel_data["contact_is"]
+      of_contact_uuid = rel_data["of_contact"]
+      rt_name = get_in(rel_data, ["relationship_type", "data", "name"])
+      rt_reverse = get_in(rel_data, ["relationship_type", "data", "reverse_name"])
+
+      # Skip if already imported (re-import case)
+      existing = if import_record && uuid, do: Imports.find_import_record(account_id, "monica", "relationship", uuid)
+
+      if existing do
+        # Already imported, update the import_id
+        Imports.record_imported_entity(import_record, "relationship", uuid, "relationship", existing.local_entity_id)
+        errors
+      else
+        with contact_is_rec when not is_nil(contact_is_rec) <-
+               Imports.find_import_record(account_id, "monica", "contact", contact_is_uuid),
+             of_contact_rec when not is_nil(of_contact_rec) <-
+               Imports.find_import_record(account_id, "monica", "contact", of_contact_uuid),
+             rt when not is_nil(rt) <- find_or_create_relationship_type(account_id, rt_name, rt_reverse) do
+          contact = %Contacts.Contact{
+            id: contact_is_rec.local_entity_id,
+            account_id: account_id
+          }
+
+          attrs = %{
+            "related_contact_id" => of_contact_rec.local_entity_id,
+            "relationship_type_id" => rt.id
+          }
+
+          try do
+            case Contacts.create_relationship(contact, attrs) do
+              {:ok, rel} ->
+                if import_record && uuid do
+                  Imports.record_imported_entity(
+                    import_record, "relationship", uuid, "relationship", rel.id
+                  )
+                end
+
+                errors
+
+              {:error, reason} ->
+                msg = "Relationship #{rt_name} between #{contact_is_uuid} and #{of_contact_uuid}: #{inspect_errors(reason)}"
+                Logger.warning("[Monica Import] #{msg}")
+                errors ++ [msg]
+            end
+          rescue
+            e in Ecto.ConstraintError ->
+              # Relationship already exists (constraint violation on re-import without tracking)
+              Logger.info("[Monica Import] Relationship already exists: #{Exception.message(e)}")
+              errors
+          end
+        else
+          nil ->
+            msg =
+              "Skipping relationship #{rt_name || "unknown"} between #{contact_is_uuid} and #{of_contact_uuid}: one or both contacts were not imported"
+
+            Logger.warning("[Monica Import] #{msg}")
+            errors ++ [msg]
+        end
+      end
+    end)
+  end
+
+  defp find_or_create_relationship_type(_account_id, nil, _reverse), do: nil
+
+  defp find_or_create_relationship_type(account_id, name, reverse_name) do
+    Repo.one(
+      from(rt in Contacts.RelationshipType,
+        where: rt.name == ^name and (rt.account_id == ^account_id or is_nil(rt.account_id)),
+        limit: 1
+      )
+    ) ||
+      case Contacts.create_relationship_type(account_id, %{name: name, reverse_name: reverse_name || name}) do
+        {:ok, rt} -> rt
+        {:error, _} -> nil
+      end
+  end
+
+  defp resolve_first_met_through(account_id, contacts_data, _import_record) do
+    contacts_data
+    |> Enum.filter(& &1["first_met_through"])
+    |> Enum.reduce([], fn contact_data, errors ->
+      uuid = contact_data["uuid"]
+      through_uuid = contact_data["first_met_through"]
+
+      with contact_rec when not is_nil(contact_rec) <-
+             Imports.find_import_record(account_id, "monica", "contact", uuid),
+           through_rec when not is_nil(through_rec) <-
+             Imports.find_import_record(account_id, "monica", "contact", through_uuid),
+           contact when not is_nil(contact) <- Repo.get(Contacts.Contact, contact_rec.local_entity_id) do
+        case Contacts.update_contact(contact, %{first_met_through_id: through_rec.local_entity_id}) do
+          {:ok, _} ->
+            errors
+
+          {:error, reason} ->
+            msg = "first_met_through for #{uuid}: #{inspect(reason)}"
+            Logger.warning("[Monica Import] #{msg}")
+            errors ++ [msg]
+        end
+      else
+        nil ->
+          msg = "Could not resolve first_met_through for #{uuid} -> #{through_uuid}"
+          Logger.warning("[Monica Import] #{msg}")
+          errors ++ [msg]
+      end
+    end)
+  end
+
+  # ── Helpers ───────────────────────────────────────────────────────────
+
+  defp contact_display_name(contact_data) do
+    [contact_data["first_name"], contact_data["last_name"]]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" ")
+  end
+
+  defp add_error(acc, msg) do
+    errors = if length(acc.errors) < 50, do: acc.errors ++ [msg], else: acc.errors
+    %{acc | skipped: acc.skipped + 1, error_count: acc.error_count + 1, errors: errors}
+  end
+
+  defp inspect_errors(%Ecto.Changeset{} = changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> inspect()
+  end
+
+  defp inspect_errors(other), do: inspect(other)
+end
