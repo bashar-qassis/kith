@@ -22,7 +22,7 @@ defmodule Kith.Factory do
 
   use ExMachina.Ecto, repo: Kith.Repo
 
-  alias Kith.Accounts.{Account, User, UserToken, AccountInvitation}
+  alias Kith.Accounts.{Account, User, AccountInvitation}
   alias Kith.Contacts.{Contact, Note, Tag, Address, ContactField, ContactFieldType}
   alias Kith.Contacts.{Relationship, RelationshipType, Gender, Emotion, Photo, Document}
   alias Kith.Contacts.{ImmichCandidate, Currency, LifeEventType, ActivityTypeCategory, CallDirection}

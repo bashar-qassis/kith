@@ -16,12 +16,11 @@ config :kith, Kith.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
+# Start the server when running Wallaby tests (WALLABY=1 mix test --only wallaby)
 config :kith, KithWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "9QVosGIymc5flycbrRXuumAnww6vPwtL7Xf4iOAPW05MoPggLbe8eOQeVT0f8y9R",
-  server: false
+  server: !!System.get_env("WALLABY")
 
 # Disable Oban in tests (use Oban.Testing)
 config :kith, Oban, testing: :inline
@@ -57,3 +56,13 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Wallaby — headless Chrome for browser E2E tests
+# Run with: WALLABY=1 mix test --only wallaby
+# Use headed Chrome for debugging: WALLABY_HEADLESS=false WALLABY=1 mix test --only wallaby
+config :wallaby,
+  driver: Wallaby.Chrome,
+  otp_app: :kith,
+  screenshot_on_failure: true,
+  screenshot_dir: "tmp/wallaby_screenshots",
+  chromedriver: [headless: System.get_env("WALLABY_HEADLESS", "true") != "false"]
