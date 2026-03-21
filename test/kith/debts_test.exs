@@ -237,6 +237,30 @@ defmodule Kith.DebtsTest do
       assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
       assert is_nil(debt.currency_id)
     end
+
+    test "changing contact currency does not retroactively update existing debts" do
+      {account, user} = setup_account()
+      eur = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+      gbp = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+      contact = insert(:contact, account: account, currency: eur)
+
+      attrs = %{
+        "title" => "Lunch",
+        "amount" => "20.00",
+        "direction" => "owed_to_me",
+        "contact_id" => contact.id
+      }
+
+      assert {:ok, debt} = Debts.create_debt(account.id, user.id, attrs)
+      assert debt.currency_id == eur.id
+
+      # Change contact's default currency to GBP
+      {:ok, _} = Kith.Contacts.update_contact(contact, %{currency_id: gbp.id})
+
+      # Existing debt still has EUR
+      refetched = Debts.get_debt!(account.id, debt.id)
+      assert refetched.currency_id == eur.id
+    end
   end
 
   describe "update_debt/2" do
