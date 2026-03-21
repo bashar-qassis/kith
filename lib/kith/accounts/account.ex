@@ -54,10 +54,12 @@ defmodule Kith.Accounts.Account do
         changeset
 
       tz ->
-        if Tzdata.zone_exists?(tz) do
-          changeset
-        else
-          add_error(changeset, :timezone, "is not a valid IANA timezone")
+        case Tz.TimeZoneDatabase.time_zone_periods_from_wall_datetime(~N[2000-01-01 00:00:00], tz) do
+          {:error, :time_zone_not_found} ->
+            add_error(changeset, :timezone, "is not a valid IANA timezone")
+
+          _ ->
+            changeset
         end
     end
   end

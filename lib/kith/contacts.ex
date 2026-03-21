@@ -28,6 +28,8 @@ defmodule Kith.Contacts do
     CallDirection
   }
 
+  alias Kith.Activities.{Activity, Call}
+
   ## Contacts
 
   def list_contacts(account_id, opts \\ []) do
@@ -1609,7 +1611,7 @@ defmodule Kith.Contacts do
           type: "note",
           contact_id: n.contact_id,
           title: fragment("substring(? from 1 for 100)", n.body),
-          occurred_at: n.created_at,
+          occurred_at: n.inserted_at,
           inserted_at: n.inserted_at
         }
 
@@ -1635,7 +1637,7 @@ defmodule Kith.Contacts do
           type: "call",
           contact_id: c.contact_id,
           title: fragment("'Call'"),
-          occurred_at: c.called_at,
+          occurred_at: c.occurred_at,
           inserted_at: c.inserted_at
         }
 
