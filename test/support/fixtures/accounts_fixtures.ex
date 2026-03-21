@@ -18,7 +18,8 @@ defmodule Kith.AccountsFixtures do
     Enum.into(attrs, %{
       email: unique_user_email(),
       password: valid_user_password(),
-      name: unique_account_name()
+      name: unique_account_name(),
+      tos_accepted: true
     })
   end
 
