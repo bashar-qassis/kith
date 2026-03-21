@@ -2,6 +2,13 @@ defmodule Kith.Contacts.Contact do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @derive {Flop.Schema,
+    filterable: [],
+    sortable: [:display_name, :inserted_at, :last_talked_to],
+    default_order: %{order_by: [:display_name], order_directions: [:asc]},
+    default_limit: 20,
+    max_limit: 100}
+
   schema "contacts" do
     field :first_name, :string
     field :last_name, :string
@@ -22,6 +29,7 @@ defmodule Kith.Contacts.Contact do
     field :immich_person_url, :string
     field :immich_status, :string, default: "unlinked"
     field :immich_last_synced_at, :utc_datetime
+    field :aliases, {:array, :string}, default: []
 
     belongs_to :account, Kith.Accounts.Account
     belongs_to :gender, Kith.Contacts.Gender
@@ -35,6 +43,11 @@ defmodule Kith.Contacts.Contact do
     has_many :life_events, Kith.Activities.LifeEvent
     has_many :calls, Kith.Activities.Call
     has_many :reminders, Kith.Reminders.Reminder
+    has_many :pets, Kith.Contacts.Pet
+    has_many :tasks, Kith.Tasks.Task
+    has_many :gifts, Kith.Contacts.Gift
+    has_many :conversations, Kith.Conversations.Conversation
+    has_many :debts, Kith.Contacts.Debt
     has_many :immich_candidates, Kith.Contacts.ImmichCandidate
 
     many_to_many :tags, Kith.Contacts.Tag, join_through: "contact_tags"
@@ -63,6 +76,7 @@ defmodule Kith.Contacts.Contact do
       :immich_person_url,
       :immich_status,
       :immich_last_synced_at,
+      :aliases,
       :account_id,
       :gender_id,
       :currency_id
@@ -93,7 +107,8 @@ defmodule Kith.Contacts.Contact do
       :immich_person_id,
       :immich_person_url,
       :immich_status,
-      :immich_last_synced_at
+      :immich_last_synced_at,
+      :aliases
     ])
     |> validate_required([:first_name])
     |> compute_display_name()

@@ -21,6 +21,7 @@ config :kith, KithWeb.Endpoint, http: [port: String.to_integer(System.get_env("P
 # Feature flags
 config :kith,
   disable_signup: System.get_env("DISABLE_SIGNUP") == "true",
+  require_tos_acceptance: System.get_env("REQUIRE_TOS_ACCEPTANCE") == "true",
   max_upload_size_kb: String.to_integer(System.get_env("MAX_UPLOAD_SIZE_KB", "5120")),
   max_storage_size_mb: String.to_integer(System.get_env("MAX_STORAGE_SIZE_MB", "1024"))
 
@@ -31,6 +32,11 @@ if signup_optin = System.get_env("SIGNUP_DOUBLE_OPTIN") do
 end
 
 # ## Production-only configuration
+
+# Weather (OpenWeatherMap) — optional
+if weather_key = System.get_env("WEATHER_API_KEY") do
+  config :kith, :weather_api_key, weather_key
+end
 
 if config_env() == :prod do
   database_url =

@@ -72,7 +72,8 @@ defmodule Kith.Contacts do
         ilike(c.display_name, ^search) or
         ilike(c.nickname, ^search) or
         ilike(c.company, ^search) or
-        ilike(cf.value, ^search)
+        ilike(cf.value, ^search) or
+        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^search)
     )
     |> distinct([c], c.id)
     |> order_by([c], asc: c.display_name)
@@ -92,7 +93,8 @@ defmodule Kith.Contacts do
     * `:order_by` - Ecto order_by clause (default `[asc: :display_name]`)
     * `:preload` - associations to preload (default `[:tags]`)
     * `:search` - search string to filter by name/company/fields
-    * `:archived` - when `true`, include archived contacts (default `false`)
+    * `:archived` - when `false`, exclude archived; when `true`, include all;
+      when `:only`, return only archived contacts (default `false`)
     * `:deceased` - when `true`, include deceased contacts (default `false`)
     * `:favorites_only` - when `true`, only return favorites (default `false`)
     * `:tag_ids` - list of tag id strings to filter by (default `[]`)
@@ -128,6 +130,41 @@ defmodule Kith.Contacts do
     %{entries: entries, has_more: has_more}
   end
 
+  @doc """
+  Lists contacts using Flop for sorting and pagination.
+
+  Custom filters (search, archived, deceased, etc.) are applied via existing
+  query helpers before handing off to Flop for sort + offset pagination.
+
+  ## Options
+
+    Same as `list_contacts_paginated/2` plus:
+    * `:flop` - a `%Flop{}` struct or map for sort/pagination (required)
+  """
+  def list_contacts_flop(account_id, flop_params, opts \\ []) do
+    search = Keyword.get(opts, :search, "")
+    show_archived = Keyword.get(opts, :archived, false)
+    show_deceased = Keyword.get(opts, :deceased, false)
+    favorites_only = Keyword.get(opts, :favorites_only, false)
+    tag_ids = Keyword.get(opts, :tag_ids, [])
+    preloads = Keyword.get(opts, :preload, [:tags])
+
+    query =
+      Contact
+      |> scope_active(account_id)
+      |> paginated_search(search)
+      |> paginated_filter_archived(show_archived)
+      |> paginated_filter_deceased(show_deceased)
+      |> paginated_filter_favorites(favorites_only)
+      |> paginated_filter_tags(tag_ids)
+      |> preload(^preloads)
+
+    case Flop.validate_and_run(query, flop_params, for: Contact) do
+      {:ok, {entries, meta}} -> {:ok, entries, meta}
+      {:error, meta} -> {:error, meta}
+    end
+  end
+
   defp paginated_search(query, ""), do: query
   defp paginated_search(query, nil), do: query
 
@@ -143,9 +180,14 @@ defmodule Kith.Contacts do
         ilike(c.display_name, ^pattern) or
         ilike(c.nickname, ^pattern) or
         ilike(c.company, ^pattern) or
-        ilike(cf.value, ^pattern)
+        ilike(cf.value, ^pattern) or
+        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^pattern)
     )
     |> distinct([c], c.id)
+  end
+
+  defp paginated_filter_archived(query, :only) do
+    where(query, [c], c.is_archived == true)
   end
 
   defp paginated_filter_archived(query, true), do: query
@@ -553,6 +595,75 @@ defmodule Kith.Contacts do
     |> Repo.all()
   end
 
+  def get_emotion!(account_id, id) do
+    Emotion
+    |> where([e], e.id == ^id)
+    |> where([e], e.account_id == ^account_id)
+    |> Repo.one!()
+  end
+
+  def create_emotion(account_id, attrs) do
+    %Emotion{account_id: account_id}
+    |> Emotion.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_emotion(%Emotion{} = emotion, attrs) do
+    emotion
+    |> Emotion.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_emotion(%Emotion{} = emotion) do
+    Repo.delete(emotion)
+  end
+
+  def get_activity_type_category!(account_id, id) do
+    ActivityTypeCategory
+    |> where([a], a.id == ^id)
+    |> where([a], a.account_id == ^account_id)
+    |> Repo.one!()
+  end
+
+  def create_activity_type_category(account_id, attrs) do
+    %ActivityTypeCategory{account_id: account_id}
+    |> ActivityTypeCategory.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_activity_type_category(%ActivityTypeCategory{} = atc, attrs) do
+    atc
+    |> ActivityTypeCategory.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_activity_type_category(%ActivityTypeCategory{} = atc) do
+    Repo.delete(atc)
+  end
+
+  def get_life_event_type!(account_id, id) do
+    LifeEventType
+    |> where([l], l.id == ^id)
+    |> where([l], l.account_id == ^account_id)
+    |> Repo.one!()
+  end
+
+  def create_life_event_type(account_id, attrs) do
+    %LifeEventType{account_id: account_id}
+    |> LifeEventType.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_life_event_type(%LifeEventType{} = let, attrs) do
+    let
+    |> LifeEventType.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_life_event_type(%LifeEventType{} = let) do
+    Repo.delete(let)
+  end
+
   def list_contact_field_types(account_id) do
     from(cft in ContactFieldType,
       where: is_nil(cft.account_id) or cft.account_id == ^account_id,
@@ -597,6 +708,24 @@ defmodule Kith.Contacts do
     Contact
     |> where([c], c.account_id == ^account_id)
     |> where([c], c.immich_status == "needs_review")
+    |> where([c], is_nil(c.deleted_at))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Returns count of contacts that have been scanned by Immich (non-nil immich_last_synced_at)."
+  def count_immich_scanned(account_id) do
+    Contact
+    |> where([c], c.account_id == ^account_id)
+    |> where([c], not is_nil(c.immich_last_synced_at))
+    |> where([c], is_nil(c.deleted_at))
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Returns count of contacts matched by Immich (status is needs_review or linked)."
+  def count_immich_matched(account_id) do
+    Contact
+    |> where([c], c.account_id == ^account_id)
+    |> where([c], c.immich_status in ["needs_review", "linked"])
     |> where([c], is_nil(c.deleted_at))
     |> Repo.aggregate(:count)
   end
@@ -1654,6 +1783,30 @@ defmodule Kith.Contacts do
       order_by: [desc: sub.inserted_at],
       limit: ^limit
     )
+    |> Repo.all()
+  end
+
+  ## Command Palette
+
+  @doc "Quick search for the command palette — returns up to `limit` contacts with display fields only."
+  def search_contacts_for_palette(account_id, query, limit \\ 8) do
+    pattern = "%#{String.replace(query, ~r/[%_\\\\]/, "\\\\\\0")}%"
+
+    Contact
+    |> where([c], c.account_id == ^account_id)
+    |> where([c], is_nil(c.deleted_at))
+    |> where(
+      [c],
+      ilike(c.first_name, ^pattern) or
+        ilike(c.last_name, ^pattern) or
+        ilike(c.display_name, ^pattern) or
+        ilike(c.nickname, ^pattern) or
+        ilike(c.company, ^pattern) or
+        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^pattern)
+    )
+    |> order_by([c], asc: c.display_name)
+    |> limit(^limit)
+    |> select([c], %{id: c.id, display_name: c.display_name, company: c.company})
     |> Repo.all()
   end
 end

@@ -278,9 +278,29 @@ defmodule KithWeb.UserAuth do
     # attach_hook requires the socket to be mounted via the router (live/3 macro).
     # When called from tests with a bare %LiveView.Socket{}, skip the hook.
     if socket.private[:lifecycle] do
-      Phoenix.LiveView.attach_hook(socket, :set_current_path, :handle_params, fn _params, uri, socket ->
+      socket
+      |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
         path = URI.parse(uri).path || "/"
         {:cont, Phoenix.Component.assign(socket, :current_path, path)}
+      end)
+      |> Phoenix.LiveView.attach_hook(:command_palette, :handle_event, fn
+        "command_palette_search", %{"query" => query}, socket ->
+          account_id = socket.assigns[:current_scope] && socket.assigns.current_scope.account.id
+
+          contacts =
+            if account_id && String.length(query) >= 2 do
+              Kith.Contacts.search_contacts_for_palette(account_id, query)
+            else
+              []
+            end
+
+          {:halt, Phoenix.LiveView.push_event(socket, "command_palette_results", %{contacts: contacts})}
+
+        "command_palette_navigate", %{"path" => path}, socket ->
+          {:halt, Phoenix.LiveView.push_navigate(socket, to: path)}
+
+        _event, _params, socket ->
+          {:cont, socket}
       end)
     else
       socket

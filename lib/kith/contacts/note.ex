@@ -43,9 +43,20 @@ defmodule Kith.Contacts.Note do
     Meta.allow_tag_with_uri_attributes("a", ["href"], ["http", "https", "mailto"])
     Meta.allow_tag_with_these_attributes("a", ["target", "rel"])
 
-    for tag <- ~w(p br strong em ul ol li h1 h2 h3 h4 h5 h6 blockquote) do
-      Meta.allow_tag_with_these_attributes(tag, [])
-    end
+    Meta.allow_tag_with_these_attributes("p", [])
+    Meta.allow_tag_with_these_attributes("br", [])
+    Meta.allow_tag_with_these_attributes("strong", [])
+    Meta.allow_tag_with_these_attributes("em", [])
+    Meta.allow_tag_with_these_attributes("ul", [])
+    Meta.allow_tag_with_these_attributes("ol", [])
+    Meta.allow_tag_with_these_attributes("li", [])
+    Meta.allow_tag_with_these_attributes("h1", [])
+    Meta.allow_tag_with_these_attributes("h2", [])
+    Meta.allow_tag_with_these_attributes("h3", [])
+    Meta.allow_tag_with_these_attributes("h4", [])
+    Meta.allow_tag_with_these_attributes("h5", [])
+    Meta.allow_tag_with_these_attributes("h6", [])
+    Meta.allow_tag_with_these_attributes("blockquote", [])
 
     Meta.strip_everything_not_covered()
   end

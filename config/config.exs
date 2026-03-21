@@ -27,6 +27,7 @@ config :kith,
   ecto_repos: [Kith.Repo],
   generators: [timestamp_type: :utc_datetime],
   disable_signup: false,
+  require_tos_acceptance: false,
   signup_double_optin: true
 
 # Oban background jobs
@@ -46,7 +47,8 @@ config :kith, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        {"0 2 * * *", Kith.Workers.ReminderSchedulerWorker},
-       {"0 3 * * *", Kith.Workers.ContactPurgeWorker}
+       {"0 3 * * *", Kith.Workers.ContactPurgeWorker},
+       {"0 4 * * 0", Kith.Workers.DuplicateDetectionWorker}
      ]}
   ]
 
@@ -88,6 +90,9 @@ config :tailwind,
     ),
     cd: Path.expand("..", __DIR__)
   ]
+
+# Weather (OpenWeatherMap) — API key set per-environment via env vars
+config :kith, :weather_api_key, nil
 
 # OAuth providers — configured per-environment via env vars
 config :kith, :oauth_providers, %{}

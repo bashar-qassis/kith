@@ -13,6 +13,8 @@ defmodule Kith.Accounts.User do
     field :current_password, :string, virtual: true, redact: true
     field :role, :string, default: "admin"
     field :confirmed_at, :utc_datetime
+    field :tos_accepted_at, :utc_datetime
+    field :tos_accepted, :boolean, virtual: true
     field :authenticated_at, :utc_datetime, virtual: true
 
     # Profile preferences
@@ -58,9 +60,10 @@ defmodule Kith.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :password])
+    |> cast(attrs, [:email, :password, :tos_accepted])
     |> validate_email(opts)
     |> validate_password(opts)
+    |> maybe_require_tos()
   end
 
   @doc """
@@ -128,6 +131,20 @@ defmodule Kith.Accounts.User do
       changeset
       |> put_change(:hashed_password, Pbkdf2.hash_pwd_salt(password))
       |> delete_change(:password)
+    else
+      changeset
+    end
+  end
+
+  defp maybe_require_tos(changeset) do
+    if Application.get_env(:kith, :require_tos_acceptance, false) do
+      changeset
+      |> validate_acceptance(:tos_accepted, message: "you must accept the Terms of Service")
+      |> then(fn cs ->
+        if get_change(cs, :tos_accepted) == true,
+          do: put_change(cs, :tos_accepted_at, DateTime.utc_now(:second)),
+          else: cs
+      end)
     else
       changeset
     end

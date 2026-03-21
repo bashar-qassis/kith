@@ -14,6 +14,7 @@ defmodule Kith.Application do
   defp base_children do
     # Install fuse circuit breakers before starting supervised children
     Kith.Geocoding.install_fuse()
+    Kith.Weather.install_fuse()
     # Attach Sentry telemetry handler for Oban job failures
     Kith.SentryEventHandler.attach()
 

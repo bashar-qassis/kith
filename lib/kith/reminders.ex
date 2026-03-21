@@ -267,6 +267,20 @@ defmodule Kith.Reminders do
   end
 
   @doc """
+  Snoozes a pending ReminderInstance for the given duration.
+  Only works on instances with "pending" status.
+  """
+  def snooze_instance(%ReminderInstance{status: "pending"} = instance, duration) do
+    instance
+    |> ReminderInstance.snooze_changeset(duration)
+    |> Repo.update()
+  end
+
+  def snooze_instance(%ReminderInstance{}, _duration) do
+    {:error, :invalid_status}
+  end
+
+  @doc """
   Dismisses a pending ReminderInstance. Same scheduling effect as resolve.
   """
   def dismiss_instance(%ReminderInstance{} = instance) do
