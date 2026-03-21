@@ -66,9 +66,9 @@ defmodule Kith.Workers.ContactPurgeWorkerTest do
 
       assert :ok = ContactPurgeWorker.perform(%Oban.Job{args: %{}})
 
-      logs = Kith.AuditLogs.list_audit_logs(account_id)
+      {logs, _meta} = Kith.AuditLogs.list_audit_logs(account_id)
       assert length(logs) == 1
-      assert hd(logs).event == "contact.purged"
+      assert hd(logs).event == "contact_purged"
     end
   end
 end
