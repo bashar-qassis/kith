@@ -56,3 +56,6 @@ erl_crash.dump
 
 # Claude Code local overrides
 .claude.local.md
+
+# Superpowers brainstorm mockups
+.superpowers/
