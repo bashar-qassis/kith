@@ -64,7 +64,10 @@ defmodule Kith.Debts do
     end)
     |> Multi.run(:maybe_settle, fn repo, %{payment: _payment} ->
       debt = repo.get!(Debt, debt.id) |> repo.preload(:payments)
-      total_paid = Enum.reduce(debt.payments, Decimal.new(0), fn p, acc -> Decimal.add(acc, p.amount) end)
+
+      total_paid =
+        Enum.reduce(debt.payments, Decimal.new(0), fn p, acc -> Decimal.add(acc, p.amount) end)
+
       if Decimal.compare(total_paid, debt.amount) in [:eq, :gt] do
         debt |> Debt.settle_changeset() |> repo.update()
       else
@@ -83,7 +86,10 @@ defmodule Kith.Debts do
 
   def outstanding_balance(%Debt{} = debt) do
     debt = Repo.preload(debt, :payments)
-    total_paid = Enum.reduce(debt.payments, Decimal.new(0), fn p, acc -> Decimal.add(acc, p.amount) end)
+
+    total_paid =
+      Enum.reduce(debt.payments, Decimal.new(0), fn p, acc -> Decimal.add(acc, p.amount) end)
+
     Decimal.sub(debt.amount, total_paid)
   end
 end

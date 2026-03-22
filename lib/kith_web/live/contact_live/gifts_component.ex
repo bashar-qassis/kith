@@ -98,15 +98,29 @@ defmodule KithWeb.ContactLive.GiftsComponent do
      |> put_flash(:info, "Gift deleted.")}
   end
 
-  defp direction_badge_class("given"), do: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-  defp direction_badge_class("received"), do: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
-  defp direction_badge_class(_), do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
+  defp direction_badge_class("given"),
+    do: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
 
-  defp status_badge_class("idea"), do: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-  defp status_badge_class("purchased"), do: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-  defp status_badge_class("given"), do: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-  defp status_badge_class("received"), do: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
-  defp status_badge_class(_), do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
+  defp direction_badge_class("received"),
+    do: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+
+  defp direction_badge_class(_),
+    do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
+
+  defp status_badge_class("idea"),
+    do: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+
+  defp status_badge_class("purchased"),
+    do: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+
+  defp status_badge_class("given"),
+    do: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+
+  defp status_badge_class("received"),
+    do: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+
+  defp status_badge_class(_),
+    do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
 
   defp occasion_label("birthday"), do: "Birthday"
   defp occasion_label("christmas"), do: "Christmas"
@@ -147,7 +161,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
               <div class="space-y-3">
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Name *</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Name *
+                    </label>
                     <input
                       type="text"
                       name="gift[name]"
@@ -156,7 +172,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Direction *</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Direction *
+                    </label>
                     <select
                       name="gift[direction]"
                       required
@@ -169,7 +187,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                   </div>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Description</label>
+                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                    Description
+                  </label>
                   <textarea
                     name="gift[description]"
                     rows="2"
@@ -178,7 +198,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Occasion</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Occasion
+                    </label>
                     <select
                       name="gift[occasion]"
                       class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
@@ -193,7 +215,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Date</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Date
+                    </label>
                     <input
                       type="date"
                       name="gift[date]"
@@ -203,7 +227,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Amount</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Amount
+                    </label>
                     <input
                       type="number"
                       name="gift[amount]"
@@ -213,7 +239,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Status</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Status
+                    </label>
                     <select
                       name="gift[status]"
                       class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
@@ -226,7 +254,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                   </div>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Purchase URL</label>
+                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                    Purchase URL
+                  </label>
                   <input
                     type="url"
                     name="gift[purchase_url]"
@@ -236,7 +266,12 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                 </div>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -260,7 +295,11 @@ defmodule KithWeb.ContactLive.GiftsComponent do
           message="Keep track of gifts given and received for this contact."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Gift
             </button>
           </:actions>
@@ -277,7 +316,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                   <div class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Name *</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Name *
+                        </label>
                         <input
                           type="text"
                           name="gift[name]"
@@ -287,19 +328,25 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Direction *</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Direction *
+                        </label>
                         <select
                           name="gift[direction]"
                           required
                           class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
                         >
                           <option value="given" selected={gift.direction == "given"}>Given</option>
-                          <option value="received" selected={gift.direction == "received"}>Received</option>
+                          <option value="received" selected={gift.direction == "received"}>
+                            Received
+                          </option>
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Description</label>
+                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        Description
+                      </label>
                       <textarea
                         name="gift[description]"
                         rows="2"
@@ -308,22 +355,36 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Occasion</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Occasion
+                        </label>
                         <select
                           name="gift[occasion]"
                           class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
                         >
                           <option value="">None</option>
-                          <option value="birthday" selected={gift.occasion == "birthday"}>Birthday</option>
-                          <option value="christmas" selected={gift.occasion == "christmas"}>Christmas</option>
-                          <option value="anniversary" selected={gift.occasion == "anniversary"}>Anniversary</option>
-                          <option value="wedding" selected={gift.occasion == "wedding"}>Wedding</option>
-                          <option value="thank_you" selected={gift.occasion == "thank_you"}>Thank You</option>
+                          <option value="birthday" selected={gift.occasion == "birthday"}>
+                            Birthday
+                          </option>
+                          <option value="christmas" selected={gift.occasion == "christmas"}>
+                            Christmas
+                          </option>
+                          <option value="anniversary" selected={gift.occasion == "anniversary"}>
+                            Anniversary
+                          </option>
+                          <option value="wedding" selected={gift.occasion == "wedding"}>
+                            Wedding
+                          </option>
+                          <option value="thank_you" selected={gift.occasion == "thank_you"}>
+                            Thank You
+                          </option>
                           <option value="other" selected={gift.occasion == "other"}>Other</option>
                         </select>
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Date</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Date
+                        </label>
                         <input
                           type="date"
                           name="gift[date]"
@@ -334,7 +395,9 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Amount</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Amount
+                        </label>
                         <input
                           type="number"
                           name="gift[amount]"
@@ -345,20 +408,28 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Status</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Status
+                        </label>
                         <select
                           name="gift[status]"
                           class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
                         >
                           <option value="idea" selected={gift.status == "idea"}>Idea</option>
-                          <option value="purchased" selected={gift.status == "purchased"}>Purchased</option>
+                          <option value="purchased" selected={gift.status == "purchased"}>
+                            Purchased
+                          </option>
                           <option value="given" selected={gift.status == "given"}>Given</option>
-                          <option value="received" selected={gift.status == "received"}>Received</option>
+                          <option value="received" selected={gift.status == "received"}>
+                            Received
+                          </option>
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Purchase URL</label>
+                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        Purchase URL
+                      </label>
                       <input
                         type="url"
                         name="gift[purchase_url]"
@@ -369,7 +440,12 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     </div>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                    <button
+                      type="submit"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    >
+                      Save
+                    </button>
                     <button
                       type="button"
                       phx-click="cancel-form"
@@ -389,15 +465,26 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <p class="text-sm font-medium text-[var(--color-text-primary)]">{gift.name}</p>
-                        <span class={["inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium", direction_badge_class(gift.direction)]}>
+                        <p class="text-sm font-medium text-[var(--color-text-primary)]">
+                          {gift.name}
+                        </p>
+                        <span class={[
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          direction_badge_class(gift.direction)
+                        ]}>
                           {String.capitalize(gift.direction || "")}
                         </span>
-                        <span class={["inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium", status_badge_class(gift.status)]}>
+                        <span class={[
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          status_badge_class(gift.status)
+                        ]}>
                           {String.capitalize(gift.status || "")}
                         </span>
                       </div>
-                      <p :if={gift.description} class="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2">
+                      <p
+                        :if={gift.description}
+                        class="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2"
+                      >
                         {gift.description}
                       </p>
                       <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -407,7 +494,10 @@ defmodule KithWeb.ContactLive.GiftsComponent do
                         <span :if={gift.date} class="text-xs text-[var(--color-text-tertiary)]">
                           <.date_display date={gift.date} />
                         </span>
-                        <span :if={gift.amount} class="text-xs font-medium text-[var(--color-text-primary)]">
+                        <span
+                          :if={gift.amount}
+                          class="text-xs font-medium text-[var(--color-text-primary)]"
+                        >
                           ${format_amount(gift.amount)}
                         </span>
                         <a

@@ -9,7 +9,9 @@ defmodule KithWeb.UserLive.ForgotPassword do
     <Layouts.auth flash={@flash}>
       <div class="space-y-6">
         <div class="text-center">
-          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Forgot your password?</h1>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+            Forgot your password?
+          </h1>
           <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
             We'll send a password reset link to your inbox.
           </p>

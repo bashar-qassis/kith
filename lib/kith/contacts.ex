@@ -73,7 +73,11 @@ defmodule Kith.Contacts do
         ilike(c.nickname, ^search) or
         ilike(c.company, ^search) or
         ilike(cf.value, ^search) or
-        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^search)
+        fragment(
+          "EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)",
+          c.aliases,
+          ^search
+        )
     )
     |> distinct([c], c.id)
     |> order_by([c], asc: c.display_name)
@@ -181,7 +185,11 @@ defmodule Kith.Contacts do
         ilike(c.nickname, ^pattern) or
         ilike(c.company, ^pattern) or
         ilike(cf.value, ^pattern) or
-        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^pattern)
+        fragment(
+          "EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)",
+          c.aliases,
+          ^pattern
+        )
     )
     |> distinct([c], c.id)
   end
@@ -1808,7 +1816,11 @@ defmodule Kith.Contacts do
         ilike(c.display_name, ^pattern) or
         ilike(c.nickname, ^pattern) or
         ilike(c.company, ^pattern) or
-        fragment("EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)", c.aliases, ^pattern)
+        fragment(
+          "EXISTS (SELECT 1 FROM unnest(?) AS alias WHERE alias ILIKE ?)",
+          c.aliases,
+          ^pattern
+        )
     )
     |> order_by([c], asc: c.display_name)
     |> limit(^limit)

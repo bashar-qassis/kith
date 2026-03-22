@@ -111,7 +111,11 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Contact Info</h3>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+          <button
+            phx-click="show-form"
+            phx-target={@myself}
+            class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
@@ -122,7 +126,9 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
           <.form for={%{}} phx-submit="save" phx-target={@myself}>
             <div class="space-y-2">
               <div>
-                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Type</span></label>
+                <label class="block mb-1">
+                  <span class="text-xs font-medium text-[var(--color-text-secondary)]">Type</span>
+                </label>
                 <select
                   name="contact_field[contact_field_type_id]"
                   class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
@@ -135,7 +141,9 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                 </select>
               </div>
               <div>
-                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Value</span></label>
+                <label class="block mb-1">
+                  <span class="text-xs font-medium text-[var(--color-text-secondary)]">Value</span>
+                </label>
                 <input
                   type="text"
                   name="contact_field[value]"
@@ -144,7 +152,11 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                 />
               </div>
               <div>
-                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Label (optional)</span></label>
+                <label class="block mb-1">
+                  <span class="text-xs font-medium text-[var(--color-text-secondary)]">
+                    Label (optional)
+                  </span>
+                </label>
                 <input
                   type="text"
                   name="contact_field[label]"
@@ -154,7 +166,12 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
               </div>
             </div>
             <div class="flex gap-2 mt-3">
-              <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+              <button
+                type="submit"
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+              >
+                Save
+              </button>
               <button
                 type="button"
                 phx-click="cancel-form"
@@ -176,7 +193,11 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
           message="Add phone numbers, emails, and social profiles."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Info
             </button>
           </:actions>
@@ -220,7 +241,12 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                 </div>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -238,15 +264,24 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                 <div>
                   <div class="flex items-center gap-2">
                     <%= if link = field_link(field) do %>
-                      <a href={link} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors">{field.value}</a>
+                      <a
+                        href={link}
+                        class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                      >
+                        {field.value}
+                      </a>
                     <% else %>
                       <span>{field.value}</span>
                     <% end %>
                     <%= if field.label do %>
-                      <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">{field.label}</span>
+                      <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">
+                        {field.label}
+                      </span>
                     <% end %>
                   </div>
-                  <div class="text-xs text-[var(--color-text-tertiary)]">{field.contact_field_type.name}</div>
+                  <div class="text-xs text-[var(--color-text-tertiary)]">
+                    {field.contact_field_type.name}
+                  </div>
                 </div>
               </div>
               <%= if @can_edit do %>

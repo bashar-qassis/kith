@@ -97,15 +97,20 @@ defmodule KithWeb.ContactLive.Index do
 
     if meta && meta.has_next_page? do
       next_offset = (meta.current_offset || 0) + (meta.page_size || 20)
-      sort_params = Map.get(@sort_options, socket.assigns.sort, %{order_by: [:display_name], order_directions: [:asc]})
+
+      sort_params =
+        Map.get(@sort_options, socket.assigns.sort, %{
+          order_by: [:display_name],
+          order_directions: [:asc]
+        })
 
       flop_params = Map.merge(sort_params, %{offset: next_offset, limit: 20})
 
       case Contacts.list_contacts_flop(
-        socket.assigns.account_id,
-        flop_params,
-        filter_opts(socket)
-      ) do
+             socket.assigns.account_id,
+             flop_params,
+             filter_opts(socket)
+           ) do
         {:ok, entries, new_meta} ->
           {:noreply,
            socket
@@ -158,7 +163,12 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   def handle_event("bulk-delete", _params, socket) do
-    perform_bulk_action(socket, &Contacts.soft_delete_contact/1, :contact_deleted, "moved to trash")
+    perform_bulk_action(
+      socket,
+      &Contacts.soft_delete_contact/1,
+      :contact_deleted,
+      "moved to trash"
+    )
   end
 
   def handle_event("bulk-favorite", _params, socket) do
@@ -257,14 +267,19 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   defp load_contacts(socket) do
-    sort_params = Map.get(@sort_options, socket.assigns.sort, %{order_by: [:display_name], order_directions: [:asc]})
+    sort_params =
+      Map.get(@sort_options, socket.assigns.sort, %{
+        order_by: [:display_name],
+        order_directions: [:asc]
+      })
+
     flop_params = Map.merge(sort_params, %{offset: 0, limit: 20})
 
     case Contacts.list_contacts_flop(
-      socket.assigns.account_id,
-      flop_params,
-      filter_opts(socket)
-    ) do
+           socket.assigns.account_id,
+           flop_params,
+           filter_opts(socket)
+         ) do
       {:ok, entries, meta} ->
         socket
         |> assign(:contacts, entries)

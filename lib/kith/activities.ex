@@ -112,7 +112,9 @@ defmodule Kith.Activities do
         |> repo.delete_all()
 
         if contact_ids != [] do
-          entries = Enum.map(contact_ids, fn cid -> %{activity_id: updated.id, contact_id: cid} end)
+          entries =
+            Enum.map(contact_ids, fn cid -> %{activity_id: updated.id, contact_id: cid} end)
+
           repo.insert_all("activity_contacts", entries)
         end
 
@@ -132,7 +134,9 @@ defmodule Kith.Activities do
         |> repo.delete_all()
 
         if emotion_ids != [] do
-          entries = Enum.map(emotion_ids, fn eid -> %{activity_id: updated.id, emotion_id: eid} end)
+          entries =
+            Enum.map(emotion_ids, fn eid -> %{activity_id: updated.id, emotion_id: eid} end)
+
           repo.insert_all("activity_emotions", entries)
         end
       end
@@ -141,9 +145,14 @@ defmodule Kith.Activities do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{activity: activity}} -> {:ok, Repo.preload(activity, [:contacts, :emotions], force: true)}
-      {:error, :activity, changeset, _} -> {:error, changeset}
-      {:error, _step, reason, _} -> {:error, reason}
+      {:ok, %{activity: activity}} ->
+        {:ok, Repo.preload(activity, [:contacts, :emotions], force: true)}
+
+      {:error, :activity, changeset, _} ->
+        {:error, changeset}
+
+      {:error, _step, reason, _} ->
+        {:error, reason}
     end
   end
 

@@ -113,7 +113,11 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Relationships</h3>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+          <button
+            phx-click="show-form"
+            phx-target={@myself}
+            class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
@@ -124,7 +128,11 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
           <.form for={%{}} phx-submit="save" phx-change="validate" phx-target={@myself}>
             <div class="space-y-2">
               <div>
-                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Relationship Type</span></label>
+                <label class="block mb-1">
+                  <span class="text-xs font-medium text-[var(--color-text-secondary)]">
+                    Relationship Type
+                  </span>
+                </label>
                 <select
                   name="relationship[relationship_type_id]"
                   class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
@@ -132,12 +140,18 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
                 >
                   <option value="">Select type...</option>
                   <%= for type <- @relationship_types do %>
-                    <option value={type.id} selected={to_string(type.id) == @selected_type_id}>{type.name}</option>
+                    <option value={type.id} selected={to_string(type.id) == @selected_type_id}>
+                      {type.name}
+                    </option>
                   <% end %>
                 </select>
               </div>
               <div>
-                <label class="block mb-1"><span class="text-xs font-medium text-[var(--color-text-secondary)]">Related Contact</span></label>
+                <label class="block mb-1">
+                  <span class="text-xs font-medium text-[var(--color-text-secondary)]">
+                    Related Contact
+                  </span>
+                </label>
                 <input
                   type="text"
                   placeholder="Search contacts..."
@@ -166,7 +180,12 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
               </div>
             </div>
             <div class="flex gap-2 mt-3">
-              <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+              <button
+                type="submit"
+                class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+              >
+                Save
+              </button>
               <button
                 type="button"
                 phx-click="cancel-form"
@@ -188,7 +207,11 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
           message="Link family members, friends, and other connections."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Relationship
             </button>
           </:actions>
@@ -207,7 +230,9 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
                 >
                   {rel.related_contact.display_name}
                 </.link>
-                <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] ms-2">{rel.label}</span>
+                <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] ms-2">
+                  {rel.label}
+                </span>
               </div>
             </div>
             <%= if @can_edit do %>

@@ -46,36 +46,51 @@ defmodule Kith.Imports.Sources.VCard do
         result =
           parsed_contacts
           |> Enum.with_index(1)
-          |> Enum.reduce(%{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: []}, fn {parsed, idx}, acc ->
-            if import_record && rem(idx, 10) == 0 do
-              refreshed = Imports.get_import!(import_record.id)
-              if refreshed.status == "cancelled", do: throw(:cancelled)
-            end
-
-            result =
-              try do
-                case Contacts.import_contact(account_id, parsed) do
-                  {:ok, contact} ->
-                    if import_record do
-                      source_id = "vcard-#{idx}"
-                      Imports.record_imported_entity(import_record, "contact", source_id, "contact", contact.id)
-                    end
-                    %{acc | contacts: acc.contacts + 1}
-
-                  {:error, reason} ->
-                    add_error(acc, "Contact #{idx}: #{inspect(reason)}")
-                end
-              rescue
-                e ->
-                  add_error(acc, "Contact #{idx}: #{Exception.message(e)}")
+          |> Enum.reduce(
+            %{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: []},
+            fn {parsed, idx}, acc ->
+              if import_record && rem(idx, 10) == 0 do
+                refreshed = Imports.get_import!(import_record.id)
+                if refreshed.status == "cancelled", do: throw(:cancelled)
               end
 
-            if rem(idx, broadcast_interval) == 0 || idx == total do
-              Phoenix.PubSub.broadcast(Kith.PubSub, topic, {:import_progress, %{current: idx, total: total}})
-            end
+              result =
+                try do
+                  case Contacts.import_contact(account_id, parsed) do
+                    {:ok, contact} ->
+                      if import_record do
+                        source_id = "vcard-#{idx}"
 
-            result
-          end)
+                        Imports.record_imported_entity(
+                          import_record,
+                          "contact",
+                          source_id,
+                          "contact",
+                          contact.id
+                        )
+                      end
+
+                      %{acc | contacts: acc.contacts + 1}
+
+                    {:error, reason} ->
+                      add_error(acc, "Contact #{idx}: #{inspect(reason)}")
+                  end
+                rescue
+                  e ->
+                    add_error(acc, "Contact #{idx}: #{Exception.message(e)}")
+                end
+
+              if rem(idx, broadcast_interval) == 0 || idx == total do
+                Phoenix.PubSub.broadcast(
+                  Kith.PubSub,
+                  topic,
+                  {:import_progress, %{current: idx, total: total}}
+                )
+              end
+
+              result
+            end
+          )
 
         {:ok, result}
 
@@ -83,7 +98,8 @@ defmodule Kith.Imports.Sources.VCard do
         {:error, reason}
     end
   catch
-    :cancelled -> {:ok, %{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: ["Import cancelled"]}}
+    :cancelled ->
+      {:ok, %{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: ["Import cancelled"]}}
   end
 
   defp add_error(acc, msg) do

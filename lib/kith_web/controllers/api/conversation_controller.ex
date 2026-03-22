@@ -29,7 +29,11 @@ defmodule KithWeb.API.ConversationController do
         |> where([c], c.is_private == false or c.creator_id == ^user_id)
 
       {conversations, meta} = Pagination.paginate(query, params)
-      json(conn, Pagination.paginated_response(Enum.map(conversations, &conversation_json/1), meta))
+
+      json(
+        conn,
+        Pagination.paginated_response(Enum.map(conversations, &conversation_json/1), meta)
+      )
     end
   end
 
@@ -62,7 +66,11 @@ defmodule KithWeb.API.ConversationController do
     with true <- Policy.can?(user, :create, :conversation),
          {:ok, contact} <- fetch_contact(account_id, contact_id),
          {:ok, conversation} <-
-           Conversations.create_conversation(account_id, user.id, Map.put(attrs, "contact_id", contact.id)) do
+           Conversations.create_conversation(
+             account_id,
+             user.id,
+             Map.put(attrs, "contact_id", contact.id)
+           ) do
       conn
       |> put_status(201)
       |> put_resp_header("location", "/api/conversations/#{conversation.id}")

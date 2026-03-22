@@ -3,11 +3,11 @@ defmodule Kith.Contacts.Contact do
   import Ecto.Changeset
 
   @derive {Flop.Schema,
-    filterable: [],
-    sortable: [:display_name, :inserted_at, :last_talked_to],
-    default_order: %{order_by: [:display_name], order_directions: [:asc]},
-    default_limit: 20,
-    max_limit: 100}
+           filterable: [],
+           sortable: [:display_name, :inserted_at, :last_talked_to],
+           default_order: %{order_by: [:display_name], order_directions: [:asc]},
+           default_limit: 20,
+           max_limit: 100}
 
   schema "contacts" do
     field :first_name, :string
@@ -152,7 +152,8 @@ defmodule Kith.Contacts.Contact do
   end
 
   defp validate_first_met_through_account(changeset) do
-    with {_, through_id} when not is_nil(through_id) <- {:change, get_change(changeset, :first_met_through_id)},
+    with {_, through_id} when not is_nil(through_id) <-
+           {:change, get_change(changeset, :first_met_through_id)},
          account_id when not is_nil(account_id) <- get_field(changeset, :account_id) do
       contact_id = get_field(changeset, :id)
 
@@ -162,8 +163,11 @@ defmodule Kith.Contacts.Contact do
 
         true ->
           case Kith.Repo.get(Kith.Contacts.Contact, through_id) do
-            %{account_id: ^account_id} -> changeset
-            _ -> add_error(changeset, :first_met_through_id, "must be a contact in the same account")
+            %{account_id: ^account_id} ->
+              changeset
+
+            _ ->
+              add_error(changeset, :first_met_through_id, "must be a contact in the same account")
           end
       end
     else

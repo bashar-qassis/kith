@@ -19,7 +19,15 @@ defmodule Kith.Contacts.Document do
 
   def changeset(document, attrs) do
     document
-    |> cast(attrs, [:file_name, :storage_key, :file_size, :content_type, :contact_id, :account_id, :is_private])
+    |> cast(attrs, [
+      :file_name,
+      :storage_key,
+      :file_size,
+      :content_type,
+      :contact_id,
+      :account_id,
+      :is_private
+    ])
     |> validate_required([:file_name, :storage_key, :file_size, :content_type])
   end
 end

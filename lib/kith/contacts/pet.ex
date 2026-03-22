@@ -21,7 +21,16 @@ defmodule Kith.Contacts.Pet do
 
   def changeset(pet, attrs) do
     pet
-    |> cast(attrs, [:name, :species, :breed, :date_of_birth, :date_of_death, :notes, :is_private, :contact_id])
+    |> cast(attrs, [
+      :name,
+      :species,
+      :breed,
+      :date_of_birth,
+      :date_of_death,
+      :notes,
+      :is_private,
+      :contact_id
+    ])
     |> validate_required([:name])
     |> validate_inclusion(:species, @species)
     |> foreign_key_constraint(:account_id)

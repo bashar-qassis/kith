@@ -108,7 +108,8 @@ defmodule Kith.DuplicateDetectionTest do
       c1 = insert(:contact, account: account)
       c2 = insert(:contact, account: account)
 
-      candidate = insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
+      candidate =
+        insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
 
       fetched = DuplicateDetection.get_candidate!(account.id, candidate.id)
       assert fetched.id == candidate.id
@@ -120,7 +121,8 @@ defmodule Kith.DuplicateDetectionTest do
       c1 = insert(:contact, account: account1)
       c2 = insert(:contact, account: account1)
 
-      candidate = insert(:duplicate_candidate, account: account1, contact: c1, duplicate_contact: c2)
+      candidate =
+        insert(:duplicate_candidate, account: account1, contact: c1, duplicate_contact: c2)
 
       assert_raise Ecto.NoResultsError, fn ->
         DuplicateDetection.get_candidate!(account2.id, candidate.id)
@@ -132,7 +134,8 @@ defmodule Kith.DuplicateDetectionTest do
       c1 = insert(:contact, account: account)
       c2 = insert(:contact, account: account)
 
-      candidate = insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
+      candidate =
+        insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
 
       fetched = DuplicateDetection.get_candidate!(account.id, candidate.id)
       assert fetched.contact.id == c1.id
@@ -146,7 +149,8 @@ defmodule Kith.DuplicateDetectionTest do
       c1 = insert(:contact, account: account)
       c2 = insert(:contact, account: account)
 
-      candidate = insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
+      candidate =
+        insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
 
       assert {:ok, dismissed} = DuplicateDetection.dismiss_candidate(candidate)
       assert dismissed.status == "dismissed"
@@ -160,7 +164,8 @@ defmodule Kith.DuplicateDetectionTest do
       c1 = insert(:contact, account: account)
       c2 = insert(:contact, account: account)
 
-      candidate = insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
+      candidate =
+        insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2)
 
       assert {:ok, merged} = DuplicateDetection.mark_merged(candidate)
       assert merged.status == "merged"
@@ -175,8 +180,19 @@ defmodule Kith.DuplicateDetectionTest do
       c2 = insert(:contact, account: account)
       c3 = insert(:contact, account: account)
 
-      insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2, status: "pending")
-      insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c3, status: "pending")
+      insert(:duplicate_candidate,
+        account: account,
+        contact: c1,
+        duplicate_contact: c2,
+        status: "pending"
+      )
+
+      insert(:duplicate_candidate,
+        account: account,
+        contact: c1,
+        duplicate_contact: c3,
+        status: "pending"
+      )
 
       assert DuplicateDetection.pending_count(account.id) == 2
     end
@@ -187,7 +203,12 @@ defmodule Kith.DuplicateDetectionTest do
       c2 = insert(:contact, account: account)
       c3 = insert(:contact, account: account)
 
-      insert(:duplicate_candidate, account: account, contact: c1, duplicate_contact: c2, status: "pending")
+      insert(:duplicate_candidate,
+        account: account,
+        contact: c1,
+        duplicate_contact: c2,
+        status: "pending"
+      )
 
       insert(:duplicate_candidate,
         account: account,

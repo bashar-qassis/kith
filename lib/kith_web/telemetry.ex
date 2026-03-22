@@ -93,7 +93,8 @@ defmodule KithWeb.Telemetry do
     handlers = [
       {"kith-db-slow-query", [:kith, :repo, :query], &__MODULE__.handle_slow_query/4},
       {"kith-oban-job-stop", [:oban, :job, :stop], &__MODULE__.handle_oban_job_stop/4},
-      {"kith-oban-job-exception", [:oban, :job, :exception], &__MODULE__.handle_oban_job_exception/4}
+      {"kith-oban-job-exception", [:oban, :job, :exception],
+       &__MODULE__.handle_oban_job_exception/4}
     ]
 
     for {id, event, handler} <- handlers do

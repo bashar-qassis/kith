@@ -146,7 +146,12 @@ defmodule Kith.ConversationsTest do
       contact = insert(:contact, account: account)
       conv = insert(:conversation, account: account, contact: contact, creator: user)
 
-      assert {:ok, updated} = Conversations.update_conversation(conv, %{subject: "Updated subject", status: "archived"})
+      assert {:ok, updated} =
+               Conversations.update_conversation(conv, %{
+                 subject: "Updated subject",
+                 status: "archived"
+               })
+
       assert updated.subject == "Updated subject"
       assert updated.status == "archived"
     end

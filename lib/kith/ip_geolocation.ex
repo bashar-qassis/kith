@@ -68,7 +68,8 @@ defmodule Kith.IpGeolocation do
               {:ok,
                %{
                  city: get_in(city_data || %{}, [:name]) || get_geolix_name(city_data),
-                 country: get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
+                 country:
+                   get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
                  region: get_geolix_name(List.first(subdivisions || []))
                }}
 
@@ -76,7 +77,8 @@ defmodule Kith.IpGeolocation do
               {:ok,
                %{
                  city: nil,
-                 country: get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
+                 country:
+                   get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
                  region: nil
                }}
 

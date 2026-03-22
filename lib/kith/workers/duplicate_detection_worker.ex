@@ -146,8 +146,9 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
     query =
       from cf1 in ContactField,
         join: cf2 in ContactField,
-        on: fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf1.value) ==
-              fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf2.value) and cf1.id < cf2.id,
+        on:
+          fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf1.value) ==
+            fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf2.value) and cf1.id < cf2.id,
         join: cft in assoc(cf1, :contact_field_type),
         where: cf1.account_id == ^account_id,
         where: cf2.account_id == ^account_id,

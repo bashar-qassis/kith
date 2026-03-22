@@ -34,7 +34,9 @@ defmodule Kith.Imports.Sources.VCardTest do
 
   describe "parse_summary/1" do
     test "returns contact count" do
-      data = "BEGIN:VCARD\r\nVERSION:3.0\r\nN:Doe;Jane;;;\r\nFN:Jane Doe\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:Smith;John;;;\r\nFN:John Smith\r\nEND:VCARD\r\n"
+      data =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nN:Doe;Jane;;;\r\nFN:Jane Doe\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:Smith;John;;;\r\nFN:John Smith\r\nEND:VCARD\r\n"
+
       assert {:ok, %{contacts: 2}} = VCardSource.parse_summary(data)
     end
   end

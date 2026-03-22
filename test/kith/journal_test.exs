@@ -29,7 +29,13 @@ defmodule Kith.JournalTest do
       now = DateTime.utc_now(:second)
       earlier = DateTime.add(now, -3600, :second)
 
-      insert(:journal_entry, account: account, author: user, occurred_at: earlier, title: "Earlier")
+      insert(:journal_entry,
+        account: account,
+        author: user,
+        occurred_at: earlier,
+        title: "Earlier"
+      )
+
       insert(:journal_entry, account: account, author: user, occurred_at: now, title: "Later")
 
       entries = Journal.list_entries(account.id)
@@ -54,9 +60,26 @@ defmodule Kith.JournalTest do
       {account, user} = setup_account()
       user2 = insert(:user, account: account, role: "editor")
 
-      insert(:journal_entry, account: account, author: user, is_private: true, title: "My private")
-      insert(:journal_entry, account: account, author: user2, is_private: true, title: "Their private")
-      insert(:journal_entry, account: account, author: user2, is_private: false, title: "Their public")
+      insert(:journal_entry,
+        account: account,
+        author: user,
+        is_private: true,
+        title: "My private"
+      )
+
+      insert(:journal_entry,
+        account: account,
+        author: user2,
+        is_private: true,
+        title: "Their private"
+      )
+
+      insert(:journal_entry,
+        account: account,
+        author: user2,
+        is_private: false,
+        title: "Their public"
+      )
 
       entries = Journal.list_entries(account.id, author_id: user.id)
       titles = Enum.map(entries, & &1.title)
@@ -188,7 +211,9 @@ defmodule Kith.JournalTest do
       {account, user} = setup_account()
       entry = insert(:journal_entry, account: account, author: user)
 
-      assert {:ok, updated} = Journal.update_entry(entry, %{title: "Updated title", mood: "neutral"})
+      assert {:ok, updated} =
+               Journal.update_entry(entry, %{title: "Updated title", mood: "neutral"})
+
       assert updated.title == "Updated title"
       assert updated.mood == "neutral"
     end

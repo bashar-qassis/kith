@@ -34,7 +34,9 @@ defmodule KithWeb.API.DuplicateController do
          candidate when not is_nil(candidate) <-
            DuplicateCandidate |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id),
          {:ok, updated} <- DuplicateDetection.dismiss_candidate(candidate) do
-      json(conn, %{data: candidate_json(updated |> Kith.Repo.preload([:contact, :duplicate_contact]))})
+      json(conn, %{
+        data: candidate_json(updated |> Kith.Repo.preload([:contact, :duplicate_contact]))
+      })
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}

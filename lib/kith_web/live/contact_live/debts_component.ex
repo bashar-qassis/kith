@@ -326,10 +326,16 @@ defmodule KithWeb.ContactLive.DebtsComponent do
             >
               <div class="flex items-center gap-2 min-w-0">
                 <.icon
-                  name={if @expanded_debt_id == debt.id, do: "hero-chevron-down", else: "hero-chevron-right"}
+                  name={
+                    if @expanded_debt_id == debt.id,
+                      do: "hero-chevron-down",
+                      else: "hero-chevron-right"
+                  }
                   class="size-3 text-[var(--color-text-tertiary)] shrink-0"
                 />
-                <span class="text-sm font-medium text-[var(--color-text-primary)] truncate">{debt.title}</span>
+                <span class="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                  {debt.title}
+                </span>
               </div>
               <div class="flex items-center gap-2 shrink-0 ms-2">
                 <span class={[
@@ -341,8 +347,10 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                 </span>
                 <span class={[
                   "inline-flex items-center rounded-[var(--radius-full)] px-1.5 py-0.5 text-[10px] font-medium border",
-                  debt.direction == "owed_to_me" && "border-[var(--color-success)]/30 text-[var(--color-success)] bg-[var(--color-success)]/10",
-                  debt.direction == "owed_by_me" && "border-[var(--color-error)]/30 text-[var(--color-error)] bg-[var(--color-error)]/10"
+                  debt.direction == "owed_to_me" &&
+                    "border-[var(--color-success)]/30 text-[var(--color-success)] bg-[var(--color-success)]/10",
+                  debt.direction == "owed_by_me" &&
+                    "border-[var(--color-error)]/30 text-[var(--color-error)] bg-[var(--color-error)]/10"
                 ]}>
                   {if debt.direction == "owed_to_me", do: "IN", else: "OUT"}
                 </span>
@@ -368,8 +376,16 @@ defmodule KithWeb.ContactLive.DebtsComponent do
                   <div class="mt-2 space-y-1">
                     <%= for payment <- debt.payments do %>
                       <div class="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
-                        <span>{format_amount(payment.amount, debt.currency)} on <.date_display date={payment.paid_at} /></span>
-                        <span :if={payment.notes} class="text-[var(--color-text-tertiary)] truncate ms-2">{payment.notes}</span>
+                        <span>
+                          {format_amount(payment.amount, debt.currency)} on
+                          <.date_display date={payment.paid_at} />
+                        </span>
+                        <span
+                          :if={payment.notes}
+                          class="text-[var(--color-text-tertiary)] truncate ms-2"
+                        >
+                          {payment.notes}
+                        </span>
                       </div>
                     <% end %>
                   </div>

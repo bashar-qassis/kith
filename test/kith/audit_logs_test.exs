@@ -12,10 +12,11 @@ defmodule Kith.AuditLogsTest do
 
   describe "log_event/4" do
     test "enqueues audit log via Oban worker", %{user: user, account_id: account_id} do
-      assert {:ok, _job} = AuditLogs.log_event(account_id, user, :contact_created,
-               contact_id: 1,
-               contact_name: "Jane Doe"
-             )
+      assert {:ok, _job} =
+               AuditLogs.log_event(account_id, user, :contact_created,
+                 contact_id: 1,
+                 contact_name: "Jane Doe"
+               )
 
       {entries, _meta} = AuditLogs.list_audit_logs(account_id)
       assert length(entries) == 1
@@ -75,14 +76,25 @@ defmodule Kith.AuditLogsTest do
       assert meta.has_more == true
       assert meta.next_cursor != nil
 
-      {page2, meta2} = AuditLogs.list_audit_logs(account_id, %{"limit" => 3, "cursor" => meta.next_cursor})
+      {page2, meta2} =
+        AuditLogs.list_audit_logs(account_id, %{"limit" => 3, "cursor" => meta.next_cursor})
+
       assert length(page2) == 2
       assert meta2.has_more == false
     end
 
     test "filters by event_type", %{user: user, account_id: account_id} do
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_created"})
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_deleted"})
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_created"
+      })
+
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_deleted"
+      })
 
       {entries, _} = AuditLogs.list_audit_logs(account_id, %{"event_type" => "contact_created"})
       assert length(entries) == 1
@@ -90,8 +102,19 @@ defmodule Kith.AuditLogsTest do
     end
 
     test "filters by contact_name with ILIKE", %{user: user, account_id: account_id} do
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_created", contact_name: "Alice Johnson"})
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_created", contact_name: "Bob Smith"})
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_created",
+        contact_name: "Alice Johnson"
+      })
+
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_created",
+        contact_name: "Bob Smith"
+      })
 
       {entries, _} = AuditLogs.list_audit_logs(account_id, %{"contact_name" => "alice"})
       assert length(entries) == 1
@@ -99,17 +122,34 @@ defmodule Kith.AuditLogsTest do
     end
 
     test "filters by date range", %{user: user, account_id: account_id} do
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_created"})
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_created"
+      })
 
       today = Date.utc_today() |> Date.to_iso8601()
-      {entries, _} = AuditLogs.list_audit_logs(account_id, %{"date_from" => today, "date_to" => today})
+
+      {entries, _} =
+        AuditLogs.list_audit_logs(account_id, %{"date_from" => today, "date_to" => today})
+
       assert length(entries) >= 1
     end
 
     test "always scoped to account_id", %{user: user, account_id: account_id} do
       other_user = user_fixture()
-      AuditLogs.create_audit_log(account_id, %{user_id: user.id, user_name: "U", event: "contact_created"})
-      AuditLogs.create_audit_log(other_user.account_id, %{user_id: other_user.id, user_name: "O", event: "contact_created"})
+
+      AuditLogs.create_audit_log(account_id, %{
+        user_id: user.id,
+        user_name: "U",
+        event: "contact_created"
+      })
+
+      AuditLogs.create_audit_log(other_user.account_id, %{
+        user_id: other_user.id,
+        user_name: "O",
+        event: "contact_created"
+      })
 
       {entries, _} = AuditLogs.list_audit_logs(account_id)
       assert Enum.all?(entries, fn e -> e.account_id == account_id end)

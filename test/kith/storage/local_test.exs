@@ -16,7 +16,9 @@ defmodule Kith.Storage.LocalTest do
   describe "upload/3" do
     test "copies file to correct location" do
       # Create a temp source file
-      source = Path.join(System.tmp_dir!(), "test_upload_#{System.unique_integer([:positive])}.txt")
+      source =
+        Path.join(System.tmp_dir!(), "test_upload_#{System.unique_integer([:positive])}.txt")
+
       File.write!(source, "hello world")
 
       key = "#{@test_dir}/test_file.txt"

@@ -52,40 +52,48 @@ defmodule Kith.Contacts.ContactTest do
 
   describe "compute_display_name/1 (via create_changeset)" do
     test "includes middle name between first and last" do
-      changeset = Contact.create_changeset(%Contact{}, %{
-        first_name: "Jane",
-        middle_name: "Marie",
-        last_name: "Doe",
-        account_id: 1
-      })
+      changeset =
+        Contact.create_changeset(%Contact{}, %{
+          first_name: "Jane",
+          middle_name: "Marie",
+          last_name: "Doe",
+          account_id: 1
+        })
+
       assert Ecto.Changeset.get_field(changeset, :display_name) == "Jane Marie Doe"
     end
 
     test "works with middle name but no last name" do
-      changeset = Contact.create_changeset(%Contact{}, %{
-        first_name: "Jane",
-        middle_name: "Marie",
-        account_id: 1
-      })
+      changeset =
+        Contact.create_changeset(%Contact{}, %{
+          first_name: "Jane",
+          middle_name: "Marie",
+          account_id: 1
+        })
+
       assert Ecto.Changeset.get_field(changeset, :display_name) == "Jane Marie"
     end
 
     test "works without middle name (backwards compatible)" do
-      changeset = Contact.create_changeset(%Contact{}, %{
-        first_name: "Jane",
-        last_name: "Doe",
-        account_id: 1
-      })
+      changeset =
+        Contact.create_changeset(%Contact{}, %{
+          first_name: "Jane",
+          last_name: "Doe",
+          account_id: 1
+        })
+
       assert Ecto.Changeset.get_field(changeset, :display_name) == "Jane Doe"
     end
 
     test "skips nil and empty middle name" do
-      changeset = Contact.create_changeset(%Contact{}, %{
-        first_name: "Jane",
-        middle_name: "",
-        last_name: "Doe",
-        account_id: 1
-      })
+      changeset =
+        Contact.create_changeset(%Contact{}, %{
+          first_name: "Jane",
+          middle_name: "",
+          last_name: "Doe",
+          account_id: 1
+        })
+
       assert Ecto.Changeset.get_field(changeset, :display_name) == "Jane Doe"
     end
   end

@@ -134,7 +134,12 @@ defmodule KithWeb.ContactLive.NotesListComponent do
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Notes</h2>
         <%= if @can_edit do %>
-          <button id={"add-note-#{@contact_id}"} phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+          <button
+            id={"add-note-#{@contact_id}"}
+            phx-click="show-form"
+            phx-target={@myself}
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" /> Add Note
           </button>
         <% end %>
@@ -164,7 +169,12 @@ defmodule KithWeb.ContactLive.NotesListComponent do
                 </label>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -188,7 +198,11 @@ defmodule KithWeb.ContactLive.NotesListComponent do
           message="Jot down something meaningful about this person."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Note
             </button>
           </:actions>
@@ -208,7 +222,12 @@ defmodule KithWeb.ContactLive.NotesListComponent do
                     </trix-editor>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                    <button
+                      type="submit"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    >
+                      Save
+                    </button>
                     <button
                       type="button"
                       phx-click="cancel-form"

@@ -20,7 +20,16 @@ defmodule Kith.Activities.Call do
 
   def changeset(call, attrs) do
     call
-    |> cast(attrs, [:occurred_at, :duration_mins, :notes, :contact_id, :account_id, :emotion_id, :call_direction_id, :is_private])
+    |> cast(attrs, [
+      :occurred_at,
+      :duration_mins,
+      :notes,
+      :contact_id,
+      :account_id,
+      :emotion_id,
+      :call_direction_id,
+      :is_private
+    ])
     |> validate_required([:occurred_at])
     |> foreign_key_constraint(:contact_id)
     |> foreign_key_constraint(:account_id)

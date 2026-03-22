@@ -26,7 +26,15 @@ defmodule Kith.Factory do
   alias Kith.Contacts.{Contact, Note, Tag, Address, ContactField, ContactFieldType, Pet}
   alias Kith.Contacts.{Relationship, RelationshipType, Gender, Emotion, Photo, Document}
   alias Kith.Contacts.{Gift, Debt, DebtPayment}
-  alias Kith.Contacts.{ImmichCandidate, Currency, LifeEventType, ActivityTypeCategory, CallDirection}
+
+  alias Kith.Contacts.{
+    ImmichCandidate,
+    Currency,
+    LifeEventType,
+    ActivityTypeCategory,
+    CallDirection
+  }
+
   alias Kith.Activities.{Activity, Call, LifeEvent}
   alias Kith.Reminders.{Reminder, ReminderInstance, ReminderRule}
   alias Kith.AuditLogs.AuditLog
@@ -447,6 +455,7 @@ defmodule Kith.Factory do
   # ── DuplicateCandidate ─────────────────────────────────────────────
   def duplicate_candidate_factory do
     account = build(:account)
+
     %Kith.Contacts.DuplicateCandidate{
       account: account,
       contact: build(:contact, account: account),
@@ -461,6 +470,7 @@ defmodule Kith.Factory do
   # ── Gift ────────────────────────────────────────────────────────────
   def gift_factory do
     contact = build(:contact)
+
     %Gift{
       account: contact.account,
       contact: contact,
@@ -479,6 +489,7 @@ defmodule Kith.Factory do
   # ── Debt ────────────────────────────────────────────────────────────
   def debt_factory do
     contact = build(:contact)
+
     %Debt{
       account: contact.account,
       contact: contact,
@@ -497,6 +508,7 @@ defmodule Kith.Factory do
 
   def debt_payment_factory do
     debt = build(:debt)
+
     %DebtPayment{
       debt: debt,
       account: debt.account,

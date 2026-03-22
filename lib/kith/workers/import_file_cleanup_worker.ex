@@ -17,7 +17,10 @@ defmodule Kith.Workers.ImportFileCleanupWorker do
       Import
       |> where([i], i.status in ["completed", "failed", "cancelled"])
       |> where([i], not is_nil(i.file_storage_key))
-      |> where([i], i.completed_at < ^cutoff or (is_nil(i.completed_at) and i.updated_at < ^cutoff))
+      |> where(
+        [i],
+        i.completed_at < ^cutoff or (is_nil(i.completed_at) and i.updated_at < ^cutoff)
+      )
       |> Repo.all()
 
     Enum.each(imports, fn import ->
@@ -26,10 +29,13 @@ defmodule Kith.Workers.ImportFileCleanupWorker do
           import
           |> Ecto.Changeset.change(file_storage_key: nil)
           |> Repo.update!()
+
           Logger.info("Cleaned up import file for import #{import.id}")
 
         {:error, reason} ->
-          Logger.warning("Failed to delete import file #{import.file_storage_key}: #{inspect(reason)}")
+          Logger.warning(
+            "Failed to delete import file #{import.file_storage_key}: #{inspect(reason)}"
+          )
       end
     end)
 

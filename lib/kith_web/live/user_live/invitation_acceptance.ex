@@ -99,7 +99,9 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
       <% else %>
         <div class="space-y-6">
           <div class="text-center">
-            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">You've been invited!</h1>
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+              You've been invited!
+            </h1>
             <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
               Join as <strong class="text-[var(--color-text-primary)]">{@invitation.email}</strong>
             </p>
@@ -107,14 +109,21 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
 
           <UI.simple_form for={@form} id="invitation-form" phx-change="validate" phx-submit="accept">
             <UI.input field={@form[:password]} type="password" label="Create your password" required />
-            <UI.input field={@form[:password_confirmation]} type="password" label="Confirm password" required />
+            <UI.input
+              field={@form[:password_confirmation]}
+              type="password"
+              label="Confirm password"
+              required
+            />
 
             <%= if Application.get_env(:kith, :require_tos_acceptance, false) do %>
               <div class="flex items-start gap-2">
                 <UI.input
                   field={@form[:tos_accepted]}
                   type="checkbox"
-                  label={~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'}
+                  label={
+                    ~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'
+                  }
                 />
               </div>
             <% end %>

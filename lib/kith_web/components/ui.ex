@@ -59,7 +59,10 @@ defmodule KithWeb.UI do
 
   attr :size, :string, default: "md", values: ~w(sm md lg)
   attr :class, :any, default: nil
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled form type)
+
+  attr :rest, :global,
+    include: ~w(href navigate patch method download name value disabled form type)
+
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
@@ -145,8 +148,7 @@ defmodule KithWeb.UI do
 
   attr :type, :string,
     default: "text",
-    values:
-      ~w(checkbox color date datetime-local email file month number password
+    values: ~w(checkbox color date datetime-local email file month number password
          search select tel text textarea time url week hidden)
 
   attr :field, Phoenix.HTML.FormField,
@@ -161,8 +163,7 @@ defmodule KithWeb.UI do
   attr :error_class, :any, default: nil
 
   attr :rest, :global,
-    include:
-      ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
+    include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
          multiple pattern placeholder readonly required rows size step)
 
   slot :inner_block
@@ -207,10 +208,17 @@ defmodule KithWeb.UI do
         name={@name}
         value="true"
         checked={@checked}
-        class={@class || "mt-0.5 size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-border-focus)] focus:ring-offset-0 cursor-pointer accent-[var(--color-accent)]"}
+        class={
+          @class ||
+            "mt-0.5 size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-border-focus)] focus:ring-offset-0 cursor-pointer accent-[var(--color-accent)]"
+        }
         {@rest}
       />
-      <label :if={@label} for={@id} class="text-sm font-medium text-[var(--color-text-primary)] cursor-pointer select-none">
+      <label
+        :if={@label}
+        for={@id}
+        class="text-sm font-medium text-[var(--color-text-primary)] cursor-pointer select-none"
+      >
         {@label}
       </label>
       <.field_error :for={msg <- @errors}>{msg}</.field_error>
@@ -221,7 +229,11 @@ defmodule KithWeb.UI do
   def input(%{type: "select"} = assigns) do
     ~H"""
     <div class="mb-3">
-      <label :if={@label} for={@id} class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+      <label
+        :if={@label}
+        for={@id}
+        class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5"
+      >
         {@label}
       </label>
       <select
@@ -245,7 +257,11 @@ defmodule KithWeb.UI do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class="mb-3">
-      <label :if={@label} for={@id} class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+      <label
+        :if={@label}
+        for={@id}
+        class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5"
+      >
         {@label}
       </label>
       <textarea
@@ -267,7 +283,11 @@ defmodule KithWeb.UI do
   def input(assigns) do
     ~H"""
     <div class="mb-3">
-      <label :if={@label} for={@id} class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+      <label
+        :if={@label}
+        for={@id}
+        class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5"
+      >
         {@label}
       </label>
       <input
@@ -429,7 +449,11 @@ defmodule KithWeb.UI do
           <p :if={@title} class="text-sm font-semibold">{@title}</p>
           <p class="text-sm">{msg}</p>
         </div>
-        <button type="button" class="shrink-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity" aria-label={gettext("close")}>
+        <button
+          type="button"
+          class="shrink-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+          aria-label={gettext("close")}
+        >
           <.icon name="hero-x-mark" class="size-4" />
         </button>
       </div>
@@ -474,7 +498,10 @@ defmodule KithWeb.UI do
           <h1 class="text-xl font-semibold leading-snug text-[var(--color-text-primary)]">
             {render_slot(@inner_block)}
           </h1>
-          <p :if={@subtitle != []} class="mt-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+          <p
+            :if={@subtitle != []}
+            class="mt-1 text-sm text-[var(--color-text-secondary)] leading-relaxed"
+          >
             {render_slot(@subtitle)}
           </p>
         </div>
@@ -547,7 +574,11 @@ defmodule KithWeb.UI do
             <td
               :for={col <- @col}
               phx-click={@row_click && @row_click.(row)}
-              class={["px-4 py-3 text-[var(--color-text-primary)]", @row_click && "cursor-pointer", col[:class]]}
+              class={[
+                "px-4 py-3 text-[var(--color-text-primary)]",
+                @row_click && "cursor-pointer",
+                col[:class]
+              ]}
             >
               {render_slot(col, @row_item.(row))}
             </td>
@@ -654,8 +685,7 @@ defmodule KithWeb.UI do
     |> JS.show(
       to: "##{id}-container",
       time: 300,
-      transition:
-        {"ease-out duration-300", "opacity-0 scale-95", "opacity-100 scale-100"}
+      transition: {"ease-out duration-300", "opacity-0 scale-95", "opacity-100 scale-100"}
     )
     |> JS.add_class("overflow-hidden", to: "body")
     |> JS.focus_first(to: "##{id}-container")
@@ -671,8 +701,7 @@ defmodule KithWeb.UI do
     |> JS.hide(
       to: "##{id}-container",
       time: 200,
-      transition:
-        {"ease-in duration-200", "opacity-100 scale-100", "opacity-0 scale-95"}
+      transition: {"ease-in duration-200", "opacity-100 scale-100", "opacity-0 scale-95"}
     )
     |> JS.hide(to: "##{id}", transition: {"block", "block", "hidden"})
     |> JS.remove_class("overflow-hidden", to: "body")
@@ -907,7 +936,8 @@ defmodule KithWeb.UI do
             class={[
               "rounded-[var(--radius-full)] px-1.5 py-0.5 text-[10px] leading-none font-medium",
               tab.id == @active && "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
-              tab.id != @active && "bg-[var(--color-surface-sunken)] text-[var(--color-text-tertiary)]"
+              tab.id != @active &&
+                "bg-[var(--color-surface-sunken)] text-[var(--color-text-tertiary)]"
             ]}
           >
             {tab.count}
@@ -1018,8 +1048,7 @@ defmodule KithWeb.UI do
       to: selector,
       time: 200,
       transition:
-        {"transition-all ease-in duration-200",
-         "opacity-100 translate-y-0 sm:scale-100",
+        {"transition-all ease-in duration-200", "opacity-100 translate-y-0 sm:scale-100",
          "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"}
     )
   end

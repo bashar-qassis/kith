@@ -27,7 +27,18 @@ defmodule Kith.Contacts.Debt do
 
   def changeset(debt, attrs) do
     debt
-    |> cast(attrs, [:title, :amount, :direction, :status, :due_date, :notes, :settled_at, :is_private, :contact_id, :currency_id])
+    |> cast(attrs, [
+      :title,
+      :amount,
+      :direction,
+      :status,
+      :due_date,
+      :notes,
+      :settled_at,
+      :is_private,
+      :contact_id,
+      :currency_id
+    ])
     |> validate_required([:title, :amount, :direction])
     |> validate_inclusion(:direction, @directions)
     |> validate_inclusion(:status, @statuses)

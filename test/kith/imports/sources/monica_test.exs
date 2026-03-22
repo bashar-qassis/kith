@@ -10,7 +10,15 @@ defmodule Kith.Imports.Sources.MonicaTest do
   import Kith.ContactsFixtures
   import Kith.ImportsFixtures
 
-  @fixture_path Path.join([__DIR__, "..", "..", "..", "support", "fixtures", "monica_export.json"])
+  @fixture_path Path.join([
+                  __DIR__,
+                  "..",
+                  "..",
+                  "..",
+                  "support",
+                  "fixtures",
+                  "monica_export.json"
+                ])
 
   setup do
     user = user_fixture()
@@ -81,13 +89,16 @@ defmodule Kith.Imports.Sources.MonicaTest do
       import_rec = import_fixture(account_id, user.id)
       data = File.read!(@fixture_path)
 
-      assert {:ok, summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+      assert {:ok, summary} =
+               MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
       # 2 contacts imported
       assert summary.contacts == 2
 
       # Verify Alice was created
-      alice_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+      alice_record =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
       assert alice_record
       alice = Repo.get!(Contacts.Contact, alice_record.local_entity_id)
       assert alice.first_name == "Alice"
@@ -120,9 +131,14 @@ defmodule Kith.Imports.Sources.MonicaTest do
       assert alice.gender_id != bob.gender_id
 
       # Verify contact fields
-      alice_cf = Imports.find_import_record(account_id, "monica", "contact_field", "cf-uuid-alice-email")
+      alice_cf =
+        Imports.find_import_record(account_id, "monica", "contact_field", "cf-uuid-alice-email")
+
       assert alice_cf
-      bob_cf = Imports.find_import_record(account_id, "monica", "contact_field", "cf-uuid-bob-phone")
+
+      bob_cf =
+        Imports.find_import_record(account_id, "monica", "contact_field", "cf-uuid-bob-phone")
+
       assert bob_cf
 
       # Verify addresses
@@ -144,7 +160,9 @@ defmodule Kith.Imports.Sources.MonicaTest do
       assert pet.species == "other"
 
       # Verify photos with pending_sync storage keys
-      alice_photo = Imports.find_import_record(account_id, "monica", "photo", "photo-uuid-alice-1")
+      alice_photo =
+        Imports.find_import_record(account_id, "monica", "photo", "photo-uuid-alice-1")
+
       assert alice_photo
       photo = Repo.get!(Contacts.Photo, alice_photo.local_entity_id)
       assert photo.storage_key == "pending_sync:photo-uuid-alice-1"
@@ -152,14 +170,19 @@ defmodule Kith.Imports.Sources.MonicaTest do
       assert Contacts.Photo.pending_sync?(photo)
 
       # Verify the shared activity was created once (deduplication)
-      activity_record = Imports.find_import_record(account_id, "monica", "activity", "activity-uuid-shared")
+      activity_record =
+        Imports.find_import_record(account_id, "monica", "activity", "activity-uuid-shared")
+
       assert activity_record
       activity = Repo.get!(Kith.Activities.Activity, activity_record.local_entity_id)
       assert activity.title == "Coffee at Blue Bottle"
 
       # Both contacts should be linked to the activity
       activity_contacts =
-        from(ac in "activity_contacts", where: ac.activity_id == ^activity.id, select: ac.contact_id)
+        from(ac in "activity_contacts",
+          where: ac.activity_id == ^activity.id,
+          select: ac.contact_id
+        )
         |> Repo.all()
 
       assert length(activity_contacts) == 2
@@ -192,20 +215,25 @@ defmodule Kith.Imports.Sources.MonicaTest do
       {:ok, first_summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
       assert first_summary.contacts == 2
 
-      alice_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+      alice_record =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
       alice = Repo.get!(Contacts.Contact, alice_record.local_entity_id)
       assert alice.first_name == "Alice"
 
       # Modify export data to change Alice's description
       parsed = Jason.decode!(data)
       contacts = get_in(parsed, ["contacts", "data"])
-      updated_contacts = Enum.map(contacts, fn c ->
-        if c["uuid"] == "contact-uuid-alice" do
-          Map.put(c, "description", "Updated description")
-        else
-          c
-        end
-      end)
+
+      updated_contacts =
+        Enum.map(contacts, fn c ->
+          if c["uuid"] == "contact-uuid-alice" do
+            Map.put(c, "description", "Updated description")
+          else
+            c
+          end
+        end)
+
       updated_data = put_in(parsed, ["contacts", "data"], updated_contacts) |> Jason.encode!()
 
       # Complete first import so we can create second
@@ -213,7 +241,10 @@ defmodule Kith.Imports.Sources.MonicaTest do
 
       # Second import
       import_rec2 = import_fixture(account_id, user.id)
-      {:ok, second_summary} = MonicaSource.import(account_id, user.id, updated_data, %{import: import_rec2})
+
+      {:ok, second_summary} =
+        MonicaSource.import(account_id, user.id, updated_data, %{import: import_rec2})
+
       assert second_summary.contacts == 2
 
       # Verify Alice was updated
@@ -229,7 +260,9 @@ defmodule Kith.Imports.Sources.MonicaTest do
 
       # Bob has first_met_through = "contact-uuid-alice"
       bob_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-bob")
-      alice_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
+      alice_record =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
 
       bob = Repo.get!(Contacts.Contact, bob_record.local_entity_id)
       assert bob.first_met_through_id == alice_record.local_entity_id
@@ -242,11 +275,16 @@ defmodule Kith.Imports.Sources.MonicaTest do
       {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
       # Verify relationship was created
-      rel_record = Imports.find_import_record(account_id, "monica", "relationship", "rel-uuid-001")
+      rel_record =
+        Imports.find_import_record(account_id, "monica", "relationship", "rel-uuid-001")
+
       assert rel_record
 
       relationship = Repo.get!(Contacts.Relationship, rel_record.local_entity_id)
-      alice_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
+      alice_record =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
       bob_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-bob")
 
       assert relationship.contact_id == alice_record.local_entity_id
@@ -259,19 +297,27 @@ defmodule Kith.Imports.Sources.MonicaTest do
 
       {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
-      alice_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+      alice_record =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-alice")
+
       bob_record = Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-bob")
 
       # Alice has 1 tag: Friends
       alice_tags =
-        from(ct in "contact_tags", where: ct.contact_id == ^alice_record.local_entity_id, select: ct.tag_id)
+        from(ct in "contact_tags",
+          where: ct.contact_id == ^alice_record.local_entity_id,
+          select: ct.tag_id
+        )
         |> Repo.all()
 
       assert length(alice_tags) == 1
 
       # Bob has 2 tags: Friends, Work
       bob_tags =
-        from(ct in "contact_tags", where: ct.contact_id == ^bob_record.local_entity_id, select: ct.tag_id)
+        from(ct in "contact_tags",
+          where: ct.contact_id == ^bob_record.local_entity_id,
+          select: ct.tag_id
+        )
         |> Repo.all()
 
       assert length(bob_tags) == 2
@@ -284,7 +330,9 @@ defmodule Kith.Imports.Sources.MonicaTest do
       {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
       # Alice's pet is a Dog -> "dog"
-      alice_pet_rec = Imports.find_import_record(account_id, "monica", "pet", "pet-uuid-alice-dog")
+      alice_pet_rec =
+        Imports.find_import_record(account_id, "monica", "pet", "pet-uuid-alice-dog")
+
       alice_pet = Repo.get!(Kith.Contacts.Pet, alice_pet_rec.local_entity_id)
       assert alice_pet.name == "Buddy"
       assert alice_pet.species == "dog"
@@ -316,7 +364,9 @@ defmodule Kith.Imports.Sources.MonicaTest do
       {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
       # Alice has a reminder
-      reminder_rec = Imports.find_import_record(account_id, "monica", "reminder", "reminder-uuid-alice")
+      reminder_rec =
+        Imports.find_import_record(account_id, "monica", "reminder", "reminder-uuid-alice")
+
       assert reminder_rec
       reminder = Repo.get!(Kith.Reminders.Reminder, reminder_rec.local_entity_id)
       assert reminder.title == "Alice's birthday"

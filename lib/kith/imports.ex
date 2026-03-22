@@ -22,10 +22,21 @@ defmodule Kith.Imports do
       |> Import.create_changeset(attrs)
       |> Repo.insert()
       |> case do
-        {:ok, import} -> {:ok, import}
-        {:error, %{errors: [{:account_id, {_, [constraint: :unique, constraint_name: "imports_one_active_per_account_idx"]}} | _]}} ->
+        {:ok, import} ->
+          {:ok, import}
+
+        {:error,
+         %{
+           errors: [
+             {:account_id,
+              {_, [constraint: :unique, constraint_name: "imports_one_active_per_account_idx"]}}
+             | _
+           ]
+         }} ->
           {:error, :import_in_progress}
-        {:error, changeset} -> {:error, changeset}
+
+        {:error, changeset} ->
+          {:error, changeset}
       end
     end
   end
@@ -77,7 +88,13 @@ defmodule Kith.Imports do
     |> Repo.one()
   end
 
-  def record_imported_entity(%Import{} = import, source_entity_type, source_entity_id, local_entity_type, local_entity_id) do
+  def record_imported_entity(
+        %Import{} = import,
+        source_entity_type,
+        source_entity_id,
+        local_entity_type,
+        local_entity_id
+      ) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     %ImportRecord{}
@@ -92,7 +109,8 @@ defmodule Kith.Imports do
     })
     |> Repo.insert(
       on_conflict: [set: [import_id: import.id, updated_at: now]],
-      conflict_target: {:unsafe_fragment, ~s|("account_id", "source", "source_entity_type", "source_entity_id")|},
+      conflict_target:
+        {:unsafe_fragment, ~s|("account_id", "source", "source_entity_type", "source_entity_id")|},
       returning: true
     )
   end

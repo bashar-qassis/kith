@@ -211,7 +211,10 @@ defmodule KithWeb.ContactLive.PetsComponent do
               <div class="min-w-0">
                 <div class="text-sm font-medium text-[var(--color-text-primary)] truncate">
                   {pet.name}
-                  <span :if={age = compute_age(pet.date_of_birth)} class="font-normal text-[var(--color-text-tertiary)]">
+                  <span
+                    :if={age = compute_age(pet.date_of_birth)}
+                    class="font-normal text-[var(--color-text-tertiary)]"
+                  >
                     ({age})
                   </span>
                 </div>

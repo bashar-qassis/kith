@@ -10,7 +10,9 @@ defmodule KithWeb.UserLive.TotpChallenge do
         x-data="totpChallenge"
       >
         <div class="text-center">
-          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Two-factor authentication</h1>
+          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+            Two-factor authentication
+          </h1>
           <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
             <span x-show="!recoveryMode">Enter the 6-digit code from your authenticator app.</span>
             <span x-show="recoveryMode" x-cloak>
@@ -31,7 +33,10 @@ defmodule KithWeb.UserLive.TotpChallenge do
 
           <div x-show="!recoveryMode">
             <div class="mb-3">
-              <label for="totp_code" class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              <label
+                for="totp_code"
+                class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5"
+              >
                 Authentication code
               </label>
               <input

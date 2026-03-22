@@ -33,5 +33,10 @@ defmodule Kith.Imports.Source do
   @callback fetch_supplement(credential(), contact_source_id :: String.t(), key :: atom()) ::
               {:ok, map()} | {:error, term()}
 
-  @optional_callbacks [test_connection: 1, fetch_photo: 2, api_supplement_options: 0, fetch_supplement: 3]
+  @optional_callbacks [
+    test_connection: 1,
+    fetch_photo: 2,
+    api_supplement_options: 0,
+    fetch_supplement: 3
+  ]
 end

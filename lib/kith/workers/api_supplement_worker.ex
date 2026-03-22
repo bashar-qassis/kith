@@ -8,17 +8,18 @@ defmodule Kith.Workers.ApiSupplementWorker do
   alias Kith.Repo
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{
-    "import_id" => import_id,
-    "contact_id" => contact_id,
-    "source_contact_id" => source_contact_id,
-    "key" => key
-  }}) do
+  def perform(%Oban.Job{
+        args: %{
+          "import_id" => import_id,
+          "contact_id" => contact_id,
+          "source_contact_id" => source_contact_id,
+          "key" => key
+        }
+      }) do
     with {:import, %{} = import} <- {:import, Imports.get_import(import_id)},
          {:contact, %Contact{} = contact} <- {:contact, Repo.get(Contact, contact_id)},
          {:source, {:ok, source_mod}} <- {:source, Imports.resolve_source(import.source)},
          {:key, {:ok, key_atom}} <- {:key, safe_to_atom(key)} do
-
       if import.status == "cancelled", do: throw(:cancelled)
 
       credential = %{url: import.api_url, api_key: import.api_key_encrypted}
@@ -34,7 +35,10 @@ defmodule Kith.Workers.ApiSupplementWorker do
           {:snooze, 60}
 
         {:error, reason} ->
-          Logger.warning("API supplement failed for contact #{source_contact_id}: #{inspect(reason)}")
+          Logger.warning(
+            "API supplement failed for contact #{source_contact_id}: #{inspect(reason)}"
+          )
+
           {:error, reason}
       end
     else

@@ -21,7 +21,14 @@ defmodule Kith.Activities.Activity do
 
   def changeset(activity, attrs) do
     activity
-    |> cast(attrs, [:title, :description, :occurred_at, :account_id, :activity_type_category_id, :is_private])
+    |> cast(attrs, [
+      :title,
+      :description,
+      :occurred_at,
+      :account_id,
+      :activity_type_category_id,
+      :is_private
+    ])
     |> validate_required([:title, :occurred_at])
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:activity_type_category_id)

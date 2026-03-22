@@ -269,7 +269,9 @@ defmodule Kith.DebtsTest do
       contact = insert(:contact, account: account)
       debt = insert(:debt, account: account, contact: contact, creator: user)
 
-      assert {:ok, updated} = Debts.update_debt(debt, %{title: "Updated title", notes: "New note"})
+      assert {:ok, updated} =
+               Debts.update_debt(debt, %{title: "Updated title", notes: "New note"})
+
       assert updated.title == "Updated title"
       assert updated.notes == "New note"
     end
@@ -303,7 +305,14 @@ defmodule Kith.DebtsTest do
     test "adds a payment to a debt" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("100.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("100.00")
+        )
 
       attrs = %{"amount" => "30.00", "paid_at" => Date.utc_today() |> Date.to_string()}
       assert {:ok, payment} = Debts.add_payment(debt, attrs)
@@ -313,7 +322,14 @@ defmodule Kith.DebtsTest do
     test "auto-settles when payments reach the debt amount" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("100.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("100.00")
+        )
 
       attrs = %{"amount" => "100.00", "paid_at" => Date.utc_today() |> Date.to_string()}
       assert {:ok, _payment} = Debts.add_payment(debt, attrs)
@@ -326,7 +342,14 @@ defmodule Kith.DebtsTest do
     test "auto-settles when payments exceed the debt amount" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("50.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("50.00")
+        )
 
       attrs = %{"amount" => "60.00", "paid_at" => Date.utc_today() |> Date.to_string()}
       assert {:ok, _payment} = Debts.add_payment(debt, attrs)
@@ -338,7 +361,14 @@ defmodule Kith.DebtsTest do
     test "does not auto-settle when payments are less than debt amount" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("100.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("100.00")
+        )
 
       attrs = %{"amount" => "40.00", "paid_at" => Date.utc_today() |> Date.to_string()}
       assert {:ok, _payment} = Debts.add_payment(debt, attrs)
@@ -362,7 +392,14 @@ defmodule Kith.DebtsTest do
     test "returns full amount when no payments" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("100.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("100.00")
+        )
 
       balance = Debts.outstanding_balance(debt)
       assert Decimal.equal?(balance, Decimal.new("100.00"))
@@ -371,7 +408,15 @@ defmodule Kith.DebtsTest do
     test "subtracts payments from amount" do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
-      debt = insert(:debt, account: account, contact: contact, creator: user, amount: Decimal.new("100.00"))
+
+      debt =
+        insert(:debt,
+          account: account,
+          contact: contact,
+          creator: user,
+          amount: Decimal.new("100.00")
+        )
+
       insert(:debt_payment, debt: debt, account: account, amount: Decimal.new("30.00"))
       insert(:debt_payment, debt: debt, account: account, amount: Decimal.new("20.00"))
 

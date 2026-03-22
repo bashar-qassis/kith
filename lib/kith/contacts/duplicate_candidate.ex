@@ -20,7 +20,15 @@ defmodule Kith.Contacts.DuplicateCandidate do
 
   def changeset(candidate, attrs) do
     candidate
-    |> cast(attrs, [:score, :reasons, :status, :detected_at, :resolved_at, :contact_id, :duplicate_contact_id])
+    |> cast(attrs, [
+      :score,
+      :reasons,
+      :status,
+      :detected_at,
+      :resolved_at,
+      :contact_id,
+      :duplicate_contact_id
+    ])
     |> validate_required([:score, :detected_at, :contact_id, :duplicate_contact_id])
     |> validate_inclusion(:status, @statuses)
     |> validate_number(:score, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
@@ -28,7 +36,10 @@ defmodule Kith.Contacts.DuplicateCandidate do
     |> foreign_key_constraint(:contact_id)
     |> foreign_key_constraint(:duplicate_contact_id)
     |> unique_constraint([:account_id, :contact_id, :duplicate_contact_id])
-    |> check_constraint(:contact_id, name: :contact_id_ordering, message: "contact_id must be less than duplicate_contact_id")
+    |> check_constraint(:contact_id,
+      name: :contact_id_ordering,
+      message: "contact_id must be less than duplicate_contact_id"
+    )
   end
 
   def dismiss_changeset(candidate) do

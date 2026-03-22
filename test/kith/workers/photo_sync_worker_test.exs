@@ -6,11 +6,12 @@ defmodule Kith.Workers.PhotoSyncWorkerTest do
 
   describe "perform/1" do
     test "discards when import not found" do
-      assert {:discard, _} = perform_job(PhotoSyncWorker, %{
-        import_id: 999_999,
-        photo_id: 1,
-        source_photo_id: "uuid"
-      })
+      assert {:discard, _} =
+               perform_job(PhotoSyncWorker, %{
+                 import_id: 999_999,
+                 photo_id: 1,
+                 source_photo_id: "uuid"
+               })
     end
   end
 end

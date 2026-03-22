@@ -126,7 +126,11 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
           <%= for entry <- @uploads.photo.entries do %>
             <div class="text-sm mt-1 flex items-center gap-2">
               <span>{entry.client_name}</span>
-              <progress value={entry.progress} max="100" class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]">
+              <progress
+                value={entry.progress}
+                max="100"
+                class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]"
+              >
                 {entry.progress}%
               </progress>
               <button
@@ -170,7 +174,9 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                 x-on:click={"show('#{photo_url(photo)}', '#{photo.file_name}')"}
               />
               <%= if photo.is_cover do %>
-                <span class="absolute top-1 start-1 inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">Cover</span>
+                <span class="absolute top-1 start-1 inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">
+                  Cover
+                </span>
               <% end %>
               <%= if @can_edit do %>
                 <div class="absolute top-1 end-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">

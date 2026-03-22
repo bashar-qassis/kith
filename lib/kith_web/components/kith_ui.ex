@@ -263,7 +263,9 @@ defmodule KithWeb.KithUI do
         <.icon name={@icon_name} class="size-4 text-[var(--color-accent)]" />
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-[var(--color-text-primary)] truncate">{Map.get(@reminder, :title, "")}</p>
+        <p class="text-sm font-medium text-[var(--color-text-primary)] truncate">
+          {Map.get(@reminder, :title, "")}
+        </p>
         <p class="text-xs text-[var(--color-text-tertiary)]">{@formatted_date}</p>
       </div>
     </div>
@@ -297,15 +299,28 @@ defmodule KithWeb.KithUI do
       id={@id}
       class={[
         "rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5",
-        @href && "hover:border-[var(--color-accent)]/30 hover:shadow-[var(--shadow-card)] transition-all duration-200 cursor-pointer",
+        @href &&
+          "hover:border-[var(--color-accent)]/30 hover:shadow-[var(--shadow-card)] transition-all duration-200 cursor-pointer",
         @class
       ]}
     >
       <.link :if={@href} navigate={@href} class="block">
-        <.stat_card_inner title={@title} value={@value} icon={@icon} change={@change} change_type={@change_type} />
+        <.stat_card_inner
+          title={@title}
+          value={@value}
+          icon={@icon}
+          change={@change}
+          change_type={@change_type}
+        />
       </.link>
       <div :if={!@href}>
-        <.stat_card_inner title={@title} value={@value} icon={@icon} change={@change} change_type={@change_type} />
+        <.stat_card_inner
+          title={@title}
+          value={@value}
+          icon={@icon}
+          change={@change}
+          change_type={@change_type}
+        />
       </div>
     </div>
     """
@@ -315,13 +330,20 @@ defmodule KithWeb.KithUI do
     ~H"""
     <div class="flex items-start justify-between">
       <div>
-        <p class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">{@title}</p>
-        <p class="mt-2 text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">{@value}</p>
+        <p class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+          {@title}
+        </p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+          {@value}
+        </p>
         <p :if={@change} class={["mt-1 text-xs font-medium", change_color(@change_type)]}>
           {@change}
         </p>
       </div>
-      <div :if={@icon} class="flex items-center justify-center size-10 rounded-[var(--radius-lg)] bg-[var(--color-accent-subtle)]">
+      <div
+        :if={@icon}
+        class="flex items-center justify-center size-10 rounded-[var(--radius-lg)] bg-[var(--color-accent-subtle)]"
+      >
         <.icon name={@icon} class="size-5 text-[var(--color-accent)]" />
       </div>
     </div>
@@ -386,28 +408,41 @@ defmodule KithWeb.KithUI do
 
   def empty_state(assigns) do
     ~H"""
-    <div id={@id} class={[
-      "flex flex-col items-center justify-center text-center",
-      @size == :compact && "py-8",
-      @size == :default && "py-16"
-    ]}>
+    <div
+      id={@id}
+      class={[
+        "flex flex-col items-center justify-center text-center",
+        @size == :compact && "py-8",
+        @size == :default && "py-16"
+      ]}
+    >
       <div class={[
         "flex items-center justify-center rounded-full bg-[var(--color-accent-subtle)] mb-5",
         @size == :compact && "size-10",
         @size == :default && "size-16"
       ]}>
-        <.icon name={@icon} class={[
-          "text-[var(--color-accent)]",
-          @size == :compact && "size-5",
-          @size == :default && "size-7"
-        ]} />
+        <.icon
+          name={@icon}
+          class={[
+            "text-[var(--color-accent)]",
+            @size == :compact && "size-5",
+            @size == :default && "size-7"
+          ]}
+        />
       </div>
       <h3 class={[
         "font-semibold text-[var(--color-text-primary)] mb-1",
         @size == :compact && "text-base",
         @size == :default && "text-lg"
-      ]}>{@title}</h3>
-      <p :if={@message} class="text-sm text-[var(--color-text-secondary)] max-w-sm mb-6 leading-relaxed">{@message}</p>
+      ]}>
+        {@title}
+      </h3>
+      <p
+        :if={@message}
+        class="text-sm text-[var(--color-text-secondary)] max-w-sm mb-6 leading-relaxed"
+      >
+        {@message}
+      </p>
       <div :if={@actions != []} class="flex items-center gap-3">
         {render_slot(@actions)}
       </div>
@@ -501,7 +536,10 @@ defmodule KithWeb.KithUI do
       if assigns.year_unknown do
         format_month_day(assigns.date)
       else
-        case Kith.Cldr.Date.to_string(assigns.date, locale: assigns.locale, format: assigns.format) do
+        case Kith.Cldr.Date.to_string(assigns.date,
+               locale: assigns.locale,
+               format: assigns.format
+             ) do
           {:ok, str} -> str
           _ -> to_string(assigns.date)
         end
@@ -510,7 +548,9 @@ defmodule KithWeb.KithUI do
     assigns = assign(assigns, :formatted, formatted)
 
     ~H"""
-    <time id={@id} datetime={to_string(@date)} class="text-[var(--color-text-secondary)]">{@formatted}</time>
+    <time id={@id} datetime={to_string(@date)} class="text-[var(--color-text-secondary)]">
+      {@formatted}
+    </time>
     """
   end
 
@@ -539,7 +579,10 @@ defmodule KithWeb.KithUI do
 
   def datetime_display(assigns) do
     formatted =
-      case Kith.Cldr.DateTime.to_string(assigns.datetime, locale: assigns.locale, format: assigns.format) do
+      case Kith.Cldr.DateTime.to_string(assigns.datetime,
+             locale: assigns.locale,
+             format: assigns.format
+           ) do
         {:ok, str} -> str
         _ -> to_string(assigns.datetime)
       end
@@ -547,7 +590,9 @@ defmodule KithWeb.KithUI do
     assigns = assign(assigns, :formatted, formatted)
 
     ~H"""
-    <time id={@id} datetime={to_string(@datetime)} class="text-[var(--color-text-secondary)]">{@formatted}</time>
+    <time id={@id} datetime={to_string(@datetime)} class="text-[var(--color-text-secondary)]">
+      {@formatted}
+    </time>
     """
   end
 
@@ -576,7 +621,14 @@ defmodule KithWeb.KithUI do
     assigns = assign(assigns, :formatted, formatted)
 
     ~H"""
-    <time id={@id} datetime={to_string(@datetime)} title={to_string(@datetime)} class="text-[var(--color-text-tertiary)] text-sm">{@formatted}</time>
+    <time
+      id={@id}
+      datetime={to_string(@datetime)}
+      title={to_string(@datetime)}
+      class="text-[var(--color-text-tertiary)] text-sm"
+    >
+      {@formatted}
+    </time>
     """
   end
 
@@ -628,7 +680,10 @@ defmodule KithWeb.KithUI do
         >
           <%!-- Search input --%>
           <div class="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]">
-            <.icon name="hero-magnifying-glass" class="size-5 text-[var(--color-text-tertiary)] shrink-0" />
+            <.icon
+              name="hero-magnifying-glass"
+              class="size-5 text-[var(--color-text-tertiary)] shrink-0"
+            />
             <input
               type="text"
               x-ref="searchInput"
@@ -658,12 +713,18 @@ defmodule KithWeb.KithUI do
             </div>
 
             <%!-- Empty state --%>
-            <div x-show="!loading && query.length >= 2 && allItems.length === 0" class="py-6 text-center">
+            <div
+              x-show="!loading && query.length >= 2 && allItems.length === 0"
+              class="py-6 text-center"
+            >
               <p class="text-sm text-[var(--color-text-tertiary)]">No results found</p>
             </div>
 
             <%!-- Items --%>
-            <template x-for="(item, index) in allItems" x-bind:key="item.type + '-' + (item.id || item.name || index)">
+            <template
+              x-for="(item, index) in allItems"
+              x-bind:key="item.type + '-' + (item.id || item.name || index)"
+            >
               <div>
                 <%!-- Section headers --%>
                 <template x-if="index === 0 || allItems[index - 1].section !== item.section">
@@ -685,14 +746,20 @@ defmodule KithWeb.KithUI do
                       <.icon name="hero-user" class="size-3.5 text-[var(--color-text-tertiary)]" />
                     </template>
                     <template x-if="item.type === 'page'">
-                      <.icon name="hero-rectangle-group" class="size-3.5 text-[var(--color-text-tertiary)]" />
+                      <.icon
+                        name="hero-rectangle-group"
+                        class="size-3.5 text-[var(--color-text-tertiary)]"
+                      />
                     </template>
                     <template x-if="item.type === 'action'">
                       <.icon name="hero-bolt" class="size-3.5 text-[var(--color-text-tertiary)]" />
                     </template>
                   </span>
                   <div class="flex-1 min-w-0">
-                    <span class="text-[var(--color-text-primary)] truncate block" x-text="item.display_name || item.name" />
+                    <span
+                      class="text-[var(--color-text-primary)] truncate block"
+                      x-text="item.display_name || item.name"
+                    />
                     <span
                       x-show="item.company"
                       class="text-xs text-[var(--color-text-tertiary)] truncate block"

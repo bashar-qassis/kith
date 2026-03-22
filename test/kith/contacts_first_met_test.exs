@@ -26,7 +26,9 @@ defmodule Kith.ContactsFirstMetTest do
       other_user = user_fixture()
       other_contact = contact_fixture(other_user.account_id, %{first_name: "Other"})
 
-      {:error, changeset} = Contacts.update_contact(contact, %{first_met_through_id: other_contact.id})
+      {:error, changeset} =
+        Contacts.update_contact(contact, %{first_met_through_id: other_contact.id})
+
       assert "must be a contact in the same account" in errors_on(changeset).first_met_through_id
     end
 
@@ -46,7 +48,10 @@ defmodule Kith.ContactsFirstMetTest do
       assert is_nil(updated.first_met_through_id)
     end
 
-    test "skips validation when first_met_through_id is not changed", %{contact: contact, met_through: met_through} do
+    test "skips validation when first_met_through_id is not changed", %{
+      contact: contact,
+      met_through: met_through
+    } do
       {:ok, contact} = Contacts.update_contact(contact, %{first_met_through_id: met_through.id})
       {:ok, updated} = Contacts.update_contact(contact, %{first_name: "Updated"})
       assert updated.first_met_through_id == met_through.id
@@ -54,15 +59,19 @@ defmodule Kith.ContactsFirstMetTest do
   end
 
   describe "first_met fields round-trip" do
-    test "stores and retrieves all first-met fields", %{contact: contact, met_through: met_through} do
-      {:ok, updated} = Contacts.update_contact(contact, %{
-        first_met_at: ~D[2020-06-15],
-        first_met_year_unknown: true,
-        first_met_where: "College",
-        first_met_through_id: met_through.id,
-        first_met_additional_info: "Met at orientation week",
-        birthdate_year_unknown: false
-      })
+    test "stores and retrieves all first-met fields", %{
+      contact: contact,
+      met_through: met_through
+    } do
+      {:ok, updated} =
+        Contacts.update_contact(contact, %{
+          first_met_at: ~D[2020-06-15],
+          first_met_year_unknown: true,
+          first_met_where: "College",
+          first_met_through_id: met_through.id,
+          first_met_additional_info: "Met at orientation week",
+          birthdate_year_unknown: false
+        })
 
       reloaded = Repo.get!(Contact, updated.id)
       assert reloaded.first_met_at == ~D[2020-06-15]

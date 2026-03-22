@@ -10,14 +10,21 @@ defmodule KithWeb.UserLive.TotpSetup do
       <div class="space-y-6">
         <%= if @recovery_codes do %>
           <div class="text-center">
-            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Two-factor authentication enabled</h1>
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+              Two-factor authentication enabled
+            </h1>
             <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
               Store these recovery codes somewhere safe. You won't be able to see them again.
             </p>
           </div>
 
           <div class="rounded-[var(--radius-lg)] bg-[var(--color-surface-sunken)] border border-[var(--color-border)] p-4 font-mono text-sm grid grid-cols-2 gap-2">
-            <div :for={code <- @recovery_codes} class="text-center py-1 text-[var(--color-text-primary)]">{code}</div>
+            <div
+              :for={code <- @recovery_codes}
+              class="text-center py-1 text-[var(--color-text-primary)]"
+            >
+              {code}
+            </div>
           </div>
 
           <div
@@ -46,7 +53,9 @@ defmodule KithWeb.UserLive.TotpSetup do
           </UI.button>
         <% else %>
           <div class="text-center">
-            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Set up two-factor authentication</h1>
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+              Set up two-factor authentication
+            </h1>
             <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
               Scan the QR code with your authenticator app, then enter the 6-digit code to confirm.
             </p>

@@ -23,7 +23,16 @@ defmodule Kith.Tasks.Task do
 
   def changeset(task, attrs) do
     task
-    |> cast(attrs, [:title, :description, :due_date, :priority, :status, :completed_at, :is_private, :contact_id])
+    |> cast(attrs, [
+      :title,
+      :description,
+      :due_date,
+      :priority,
+      :status,
+      :completed_at,
+      :is_private,
+      :contact_id
+    ])
     |> validate_required([:title])
     |> validate_inclusion(:priority, @priorities)
     |> validate_inclusion(:status, @statuses)
@@ -35,9 +44,14 @@ defmodule Kith.Tasks.Task do
 
   defp maybe_set_completed_at(changeset) do
     case get_change(changeset, :status) do
-      "completed" -> put_change(changeset, :completed_at, DateTime.utc_now() |> DateTime.truncate(:second))
-      status when status in ["pending", "in_progress", "cancelled"] -> put_change(changeset, :completed_at, nil)
-      _ -> changeset
+      "completed" ->
+        put_change(changeset, :completed_at, DateTime.utc_now() |> DateTime.truncate(:second))
+
+      status when status in ["pending", "in_progress", "cancelled"] ->
+        put_change(changeset, :completed_at, nil)
+
+      _ ->
+        changeset
     end
   end
 end

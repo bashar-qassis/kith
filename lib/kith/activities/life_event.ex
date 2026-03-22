@@ -18,7 +18,14 @@ defmodule Kith.Activities.LifeEvent do
 
   def changeset(life_event, attrs) do
     life_event
-    |> cast(attrs, [:occurred_on, :note, :contact_id, :account_id, :life_event_type_id, :is_private])
+    |> cast(attrs, [
+      :occurred_on,
+      :note,
+      :contact_id,
+      :account_id,
+      :life_event_type_id,
+      :is_private
+    ])
     |> validate_required([:occurred_on, :life_event_type_id])
     |> validate_not_future_date()
     |> foreign_key_constraint(:contact_id)

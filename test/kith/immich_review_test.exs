@@ -47,7 +47,11 @@ defmodule Kith.ImmichReviewTest do
   describe "confirm_immich_link/3" do
     test "sets status to linked and stores person data", %{contact: contact} do
       {:ok, updated} =
-        Contacts.confirm_immich_link(contact, "immich-uuid-1", "https://immich.example.com/people/immich-uuid-1")
+        Contacts.confirm_immich_link(
+          contact,
+          "immich-uuid-1",
+          "https://immich.example.com/people/immich-uuid-1"
+        )
 
       assert updated.immich_status == "linked"
       assert updated.immich_person_id == "immich-uuid-1"

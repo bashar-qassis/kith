@@ -85,7 +85,8 @@ if alice do
 
     {:ok, _} =
       Contacts.create_note(alice.id, user.id, account_id, %{
-        body: "<p>Follow up: Alice recommended reading 'Designing Data-Intensive Applications'.</p>"
+        body:
+          "<p>Follow up: Alice recommended reading 'Designing Data-Intensive Applications'.</p>"
       })
 
     IO.puts("==> Playwright seed: 2 notes created for Alice")

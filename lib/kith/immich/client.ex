@@ -35,7 +35,8 @@ defmodule Kith.Immich.Client do
             %{
               id: person["id"],
               name: person["name"],
-              thumbnail_url: "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
+              thumbnail_url:
+                "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
             }
           end)
 
@@ -49,7 +50,8 @@ defmodule Kith.Immich.Client do
             %{
               id: person["id"],
               name: person["name"],
-              thumbnail_url: "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
+              thumbnail_url:
+                "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
             }
           end)
 

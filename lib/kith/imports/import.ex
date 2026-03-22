@@ -30,16 +30,24 @@ defmodule Kith.Imports.Import do
   def create_changeset(import, attrs) do
     import
     |> cast(attrs, [
-      :source, :file_name, :file_size, :file_storage_key,
-      :api_url, :api_key_encrypted, :api_options,
-      :account_id, :user_id
+      :source,
+      :file_name,
+      :file_size,
+      :file_storage_key,
+      :api_url,
+      :api_key_encrypted,
+      :api_options,
+      :account_id,
+      :user_id
     ])
     |> validate_required([:source, :account_id, :user_id])
     |> validate_inclusion(:source, ["monica", "vcard"])
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:user_id)
-    |> unique_constraint(:account_id, name: :imports_one_active_per_account_idx,
-         message: "an import is already in progress")
+    |> unique_constraint(:account_id,
+      name: :imports_one_active_per_account_idx,
+      message: "an import is already in progress"
+    )
   end
 
   def status_changeset(import, status, attrs \\ %{}) do

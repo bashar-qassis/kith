@@ -109,7 +109,11 @@ defmodule KithWeb.ContactLive.CallsListComponent do
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Calls</h2>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+          <button
+            phx-click="show-form"
+            phx-target={@myself}
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" /> Log Call
           </button>
         <% end %>
@@ -121,7 +125,9 @@ defmodule KithWeb.ContactLive.CallsListComponent do
             <.form for={%{}} phx-submit="save" phx-target={@myself}>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">When</span></label>
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">When</span>
+                  </label>
                   <input
                     type="datetime-local"
                     name="call[occurred_at]"
@@ -131,7 +137,11 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                   />
                 </div>
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Duration (minutes)</span></label>
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                      Duration (minutes)
+                    </span>
+                  </label>
                   <input
                     type="number"
                     name="call[duration_mins]"
@@ -142,8 +152,15 @@ defmodule KithWeb.ContactLive.CallsListComponent do
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Direction</span></label>
-                  <select name="call[call_direction_id]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                      Direction
+                    </span>
+                  </label>
+                  <select
+                    name="call[call_direction_id]"
+                    class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  >
                     <option value="">--</option>
                     <%= for dir <- @call_directions do %>
                       <option value={dir.id}>{dir.name}</option>
@@ -151,8 +168,13 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                   </select>
                 </div>
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Emotion</span></label>
-                  <select name="call[emotion_id]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">Emotion</span>
+                  </label>
+                  <select
+                    name="call[emotion_id]"
+                    class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  >
                     <option value="">--</option>
                     <%= for e <- @emotions do %>
                       <option value={e.id}>{e.name}</option>
@@ -161,11 +183,22 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                 </div>
               </div>
               <div class="mt-2">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Notes</span></label>
-                <textarea name="call[notes]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]" rows="2"></textarea>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">Notes</span>
+                </label>
+                <textarea
+                  name="call[notes]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
+                  rows="2"
+                ></textarea>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -188,7 +221,11 @@ defmodule KithWeb.ContactLive.CallsListComponent do
           message="Keep track of your conversations and how they felt."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Log Call
             </button>
           </:actions>
@@ -223,7 +260,10 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                     <div>
-                      <select name="call[call_direction_id]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
+                      <select
+                        name="call[call_direction_id]"
+                        class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                      >
                         <option value="">--</option>
                         <%= for dir <- @call_directions do %>
                           <option value={dir.id} selected={call.call_direction_id == dir.id}>
@@ -233,7 +273,10 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                       </select>
                     </div>
                     <div>
-                      <select name="call[emotion_id]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
+                      <select
+                        name="call[emotion_id]"
+                        class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                      >
                         <option value="">--</option>
                         <%= for e <- @emotions do %>
                           <option value={e.id} selected={call.emotion_id == e.id}>{e.name}</option>
@@ -242,10 +285,19 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                     </div>
                   </div>
                   <div class="mt-2">
-                    <textarea name="call[notes]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]" rows="2">{call.notes}</textarea>
+                    <textarea
+                      name="call[notes]"
+                      class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
+                      rows="2"
+                    >{call.notes}</textarea>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                    <button
+                      type="submit"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    >
+                      Save
+                    </button>
                     <button
                       type="button"
                       phx-click="cancel-form"
@@ -268,10 +320,14 @@ defmodule KithWeb.ContactLive.CallsListComponent do
                     <div class="flex items-center gap-3 mt-1 text-sm text-[var(--color-text-tertiary)]">
                       <span>{format_duration(call.duration_mins)}</span>
                       <%= if call.call_direction do %>
-                        <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)]">{call.call_direction.name}</span>
+                        <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)]">
+                          {call.call_direction.name}
+                        </span>
                       <% end %>
                       <%= if call.emotion do %>
-                        <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)]">{call.emotion.name}</span>
+                        <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                          {call.emotion.name}
+                        </span>
                       <% end %>
                     </div>
                     <%= if call.notes do %>

@@ -367,7 +367,8 @@ defmodule Kith.Imports.Sources.Monica do
     uuid = contact_data["uuid"]
 
     # Check for existing import record (re-import)
-    existing = if import_record, do: Imports.find_import_record(account_id, "monica", "contact", uuid)
+    existing =
+      if import_record, do: Imports.find_import_record(account_id, "monica", "contact", uuid)
 
     case existing do
       %{local_entity_id: local_id} ->
@@ -378,7 +379,10 @@ defmodule Kith.Imports.Sources.Monica do
             do_create_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
 
           %{deleted_at: deleted_at} when not is_nil(deleted_at) ->
-            Logger.info("[Monica Import] Skipping #{contact_display_name(contact_data)}: previously deleted in Kith")
+            Logger.info(
+              "[Monica Import] Skipping #{contact_display_name(contact_data)}: previously deleted in Kith"
+            )
+
             %{acc | skipped: acc.skipped + 1}
 
           contact ->
@@ -397,7 +401,13 @@ defmodule Kith.Imports.Sources.Monica do
       {:ok, contact} ->
         # Record the import
         if import_record do
-          Imports.record_imported_entity(import_record, "contact", contact_data["uuid"], "contact", contact.id)
+          Imports.record_imported_entity(
+            import_record,
+            "contact",
+            contact_data["uuid"],
+            "contact",
+            contact.id
+          )
         end
 
         # Import children and update accumulator
@@ -417,7 +427,13 @@ defmodule Kith.Imports.Sources.Monica do
     case Contacts.update_contact(contact, attrs) do
       {:ok, contact} ->
         if import_record do
-          Imports.record_imported_entity(import_record, "contact", contact_data["uuid"], "contact", contact.id)
+          Imports.record_imported_entity(
+            import_record,
+            "contact",
+            contact_data["uuid"],
+            "contact",
+            contact.id
+          )
         end
 
         import_contact_children(contact, user_id, contact_data, ref_data, import_record, acc)
@@ -492,18 +508,16 @@ defmodule Kith.Imports.Sources.Monica do
     import_reminders(contact, user_id, contact_data, import_record)
     import_pets(contact, contact_data, import_record)
     import_photos(contact, contact_data, import_record)
-    new_activity_set = import_activities(contact, user_id, contact_data, ref_data, import_record, acc.activity_set)
+
+    new_activity_set =
+      import_activities(contact, user_id, contact_data, ref_data, import_record, acc.activity_set)
 
     # Import tags (join table)
     import_tags(contact, contact_data, ref_data)
 
     _ = notes_count
 
-    %{acc |
-      contacts: acc.contacts + 1,
-      notes: acc.notes + n,
-      activity_set: new_activity_set
-    }
+    %{acc | contacts: acc.contacts + 1, notes: acc.notes + n, activity_set: new_activity_set}
   end
 
   defp import_contact_fields(contact, contact_data, ref_data, import_record) do
@@ -522,12 +536,18 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, cf} ->
           if import_record && field_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "contact_field", field_data["uuid"], "contact_field", cf.id
+              import_record,
+              "contact_field",
+              field_data["uuid"],
+              "contact_field",
+              cf.id
             )
           end
 
         {:error, reason} ->
-          Logger.warning("[Monica Import] Contact field for #{contact.first_name}: #{inspect(reason)}")
+          Logger.warning(
+            "[Monica Import] Contact field for #{contact.first_name}: #{inspect(reason)}"
+          )
       end
     end)
 
@@ -551,7 +571,11 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, addr} ->
           if import_record && addr_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "address", addr_data["uuid"], "address", addr.id
+              import_record,
+              "address",
+              addr_data["uuid"],
+              "address",
+              addr.id
             )
           end
 
@@ -571,7 +595,11 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, note} ->
           if import_record && note_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "note", note_data["uuid"], "note", note.id
+              import_record,
+              "note",
+              note_data["uuid"],
+              "note",
+              note.id
             )
           end
 
@@ -600,7 +628,11 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, reminder} ->
           if import_record && rem_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "reminder", rem_data["uuid"], "reminder", reminder.id
+              import_record,
+              "reminder",
+              rem_data["uuid"],
+              "reminder",
+              reminder.id
             )
           end
 
@@ -623,7 +655,11 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, pet} ->
           if import_record && pet_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "pet", pet_data["uuid"], "pet", pet.id
+              import_record,
+              "pet",
+              pet_data["uuid"],
+              "pet",
+              pet.id
             )
           end
 
@@ -674,7 +710,11 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok, photo} ->
           if import_record && photo_data["uuid"] do
             Imports.record_imported_entity(
-              import_record, "photo", photo_data["uuid"], "photo", photo.id
+              import_record,
+              "photo",
+              photo_data["uuid"],
+              "photo",
+              photo.id
             )
           end
 
@@ -750,7 +790,9 @@ defmodule Kith.Imports.Sources.Monica do
 
     occurred_at =
       case activity_data["happened_at"] do
-        nil -> DateTime.utc_now() |> DateTime.truncate(:second)
+        nil ->
+          DateTime.utc_now() |> DateTime.truncate(:second)
+
         dt_str ->
           case DateTime.from_iso8601(dt_str) do
             {:ok, dt, _} -> DateTime.truncate(dt, :second)
@@ -770,7 +812,11 @@ defmodule Kith.Imports.Sources.Monica do
       {:ok, activity} ->
         if import_record && activity_data["uuid"] do
           Imports.record_imported_entity(
-            import_record, "activity", activity_data["uuid"], "activity", activity.id
+            import_record,
+            "activity",
+            activity_data["uuid"],
+            "activity",
+            activity.id
           )
         end
 
@@ -807,18 +853,28 @@ defmodule Kith.Imports.Sources.Monica do
       rt_reverse = get_in(rel_data, ["relationship_type", "data", "reverse_name"])
 
       # Skip if already imported (re-import case)
-      existing = if import_record && uuid, do: Imports.find_import_record(account_id, "monica", "relationship", uuid)
+      existing =
+        if import_record && uuid,
+          do: Imports.find_import_record(account_id, "monica", "relationship", uuid)
 
       if existing do
         # Already imported, update the import_id
-        Imports.record_imported_entity(import_record, "relationship", uuid, "relationship", existing.local_entity_id)
+        Imports.record_imported_entity(
+          import_record,
+          "relationship",
+          uuid,
+          "relationship",
+          existing.local_entity_id
+        )
+
         errors
       else
         with contact_is_rec when not is_nil(contact_is_rec) <-
                Imports.find_import_record(account_id, "monica", "contact", contact_is_uuid),
              of_contact_rec when not is_nil(of_contact_rec) <-
                Imports.find_import_record(account_id, "monica", "contact", of_contact_uuid),
-             rt when not is_nil(rt) <- find_or_create_relationship_type(account_id, rt_name, rt_reverse) do
+             rt when not is_nil(rt) <-
+               find_or_create_relationship_type(account_id, rt_name, rt_reverse) do
           contact = %Contacts.Contact{
             id: contact_is_rec.local_entity_id,
             account_id: account_id
@@ -834,14 +890,20 @@ defmodule Kith.Imports.Sources.Monica do
               {:ok, rel} ->
                 if import_record && uuid do
                   Imports.record_imported_entity(
-                    import_record, "relationship", uuid, "relationship", rel.id
+                    import_record,
+                    "relationship",
+                    uuid,
+                    "relationship",
+                    rel.id
                   )
                 end
 
                 errors
 
               {:error, reason} ->
-                msg = "Relationship #{rt_name} between #{contact_is_uuid} and #{of_contact_uuid}: #{inspect_errors(reason)}"
+                msg =
+                  "Relationship #{rt_name} between #{contact_is_uuid} and #{of_contact_uuid}: #{inspect_errors(reason)}"
+
                 Logger.warning("[Monica Import] #{msg}")
                 errors ++ [msg]
             end
@@ -872,7 +934,10 @@ defmodule Kith.Imports.Sources.Monica do
         limit: 1
       )
     ) ||
-      case Contacts.create_relationship_type(account_id, %{name: name, reverse_name: reverse_name || name}) do
+      case Contacts.create_relationship_type(account_id, %{
+             name: name,
+             reverse_name: reverse_name || name
+           }) do
         {:ok, rt} -> rt
         {:error, _} -> nil
       end
@@ -889,7 +954,8 @@ defmodule Kith.Imports.Sources.Monica do
              Imports.find_import_record(account_id, "monica", "contact", uuid),
            through_rec when not is_nil(through_rec) <-
              Imports.find_import_record(account_id, "monica", "contact", through_uuid),
-           contact when not is_nil(contact) <- Repo.get(Contacts.Contact, contact_rec.local_entity_id) do
+           contact when not is_nil(contact) <-
+             Repo.get(Contacts.Contact, contact_rec.local_entity_id) do
         case Contacts.update_contact(contact, %{first_met_through_id: through_rec.local_entity_id}) do
           {:ok, _} ->
             errors

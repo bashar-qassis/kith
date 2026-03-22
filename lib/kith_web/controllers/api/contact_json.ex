@@ -27,7 +27,8 @@ defmodule KithWeb.API.ContactJSON do
       last_talked_to: contact.last_talked_to,
       gender_id: contact.gender_id,
       middle_name: contact.middle_name,
-      first_met_at: format_year_unknown_date(contact.first_met_at, contact.first_met_year_unknown),
+      first_met_at:
+        format_year_unknown_date(contact.first_met_at, contact.first_met_year_unknown),
       first_met_year_unknown: contact.first_met_year_unknown,
       first_met_where: contact.first_met_where,
       first_met_through_id: contact.first_met_through_id,
@@ -220,13 +221,16 @@ defmodule KithWeb.API.ContactJSON do
 
   defp render_first_met_through(%{first_met_through: %Ecto.Association.NotLoaded{}}), do: nil
   defp render_first_met_through(%{first_met_through: nil}), do: nil
+
   defp render_first_met_through(%{first_met_through: contact}) do
     %{id: contact.id, display_name: contact.display_name}
   end
 
   defp format_year_unknown_date(nil, _unknown), do: nil
+
   defp format_year_unknown_date(date, true) do
     "--" <> String.slice(Date.to_iso8601(date), 5, 5)
   end
+
   defp format_year_unknown_date(date, _), do: date
 end

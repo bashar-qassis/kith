@@ -43,7 +43,10 @@ defmodule KithWeb.UserLive.Registration do
             />
             <div x-data="passwordStrength" class="space-y-1">
               <div class="mb-3">
-                <label for={@form[:password].id} class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                <label
+                  for={@form[:password].id}
+                  class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5"
+                >
                   Password
                 </label>
                 <input
@@ -90,7 +93,9 @@ defmodule KithWeb.UserLive.Registration do
               <UI.input
                 field={@form[:tos_accepted]}
                 type="checkbox"
-                label={~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'}
+                label={
+                  ~H'I accept the <.link navigate="/terms" class="text-[var(--color-accent)] hover:underline" target="_blank">Terms of Service</.link>'
+                }
               />
             </div>
           <% end %>

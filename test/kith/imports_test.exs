@@ -48,20 +48,29 @@ defmodule Kith.ImportsTest do
       contact = contact_fixture(account_id)
 
       assert {:ok, %ImportRecord{}} =
-               Imports.record_imported_entity(import, "contact", "uuid-123", "contact", contact.id)
+               Imports.record_imported_entity(
+                 import,
+                 "contact",
+                 "uuid-123",
+                 "contact",
+                 contact.id
+               )
     end
 
     test "upserts on re-import (updates import_id)", %{account_id: account_id, user: user} do
       {:ok, import1} = Imports.create_import(account_id, user.id, %{source: "monica"})
       contact = contact_fixture(account_id)
 
-      {:ok, rec1} = Imports.record_imported_entity(import1, "contact", "uuid-123", "contact", contact.id)
+      {:ok, rec1} =
+        Imports.record_imported_entity(import1, "contact", "uuid-123", "contact", contact.id)
 
       # Complete first import so we can create a second
       Imports.update_import_status(import1, "completed", %{completed_at: DateTime.utc_now()})
 
       {:ok, import2} = Imports.create_import(account_id, user.id, %{source: "monica"})
-      {:ok, rec2} = Imports.record_imported_entity(import2, "contact", "uuid-123", "contact", contact.id)
+
+      {:ok, rec2} =
+        Imports.record_imported_entity(import2, "contact", "uuid-123", "contact", contact.id)
 
       assert rec2.id == rec1.id
       assert rec2.import_id == import2.id
@@ -74,7 +83,8 @@ defmodule Kith.ImportsTest do
       contact = contact_fixture(account_id)
       Imports.record_imported_entity(import, "contact", "uuid-123", "contact", contact.id)
 
-      assert %ImportRecord{} = Imports.find_import_record(account_id, "monica", "contact", "uuid-123")
+      assert %ImportRecord{} =
+               Imports.find_import_record(account_id, "monica", "contact", "uuid-123")
     end
 
     test "returns nil for nonexistent", %{account_id: account_id} do

@@ -218,6 +218,9 @@ call_directions =
     %{name: name, position: pos, inserted_at: now, updated_at: now}
   end)
 
-Repo.insert_all("call_directions", call_directions, on_conflict: :nothing, conflict_target: [:name])
+Repo.insert_all("call_directions", call_directions,
+  on_conflict: :nothing,
+  conflict_target: [:name]
+)
 
 IO.puts("Seeds loaded successfully!")

@@ -9,20 +9,28 @@ defmodule Kith.Workers.PhotoSyncWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{
-    args: %{"import_id" => import_id, "photo_id" => photo_id, "source_photo_id" => source_photo_id},
-    attempt: attempt,
-    max_attempts: max_attempts
-  }) do
+        args: %{
+          "import_id" => import_id,
+          "photo_id" => photo_id,
+          "source_photo_id" => source_photo_id
+        },
+        attempt: attempt,
+        max_attempts: max_attempts
+      }) do
     with {:import, %{} = import} <- {:import, Imports.get_import(import_id)},
          {:photo, %Photo{} = photo} <- {:photo, Repo.get(Photo, photo_id)},
          {:source, {:ok, source_mod}} <- {:source, Imports.resolve_source(import.source)} do
-
       if import.status == "cancelled", do: throw(:cancelled)
 
       case Kith.Storage.check_storage_limit(import.account_id, 0) do
-        :ok -> :ok
+        :ok ->
+          :ok
+
         {:error, _} ->
-          Logger.warning("Storage limit reached for account #{import.account_id}, discarding photo #{photo_id}")
+          Logger.warning(
+            "Storage limit reached for account #{import.account_id}, discarding photo #{photo_id}"
+          )
+
           Repo.delete(photo)
           throw(:discard)
       end
@@ -51,6 +59,7 @@ defmodule Kith.Workers.PhotoSyncWorker do
             Repo.delete(photo)
             Logger.warning("Deleted photo #{photo_id} after #{max_attempts} failed attempts")
           end
+
           {:error, reason}
       end
     else

@@ -101,7 +101,9 @@ defmodule KithWeb.ContactLive.FormComponent do
       >
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">First Name *</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              First Name *
+            </label>
             <input
               type="text"
               name="contact[first_name]"
@@ -119,7 +121,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Last Name</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Last Name
+            </label>
             <input
               type="text"
               name="contact[last_name]"
@@ -129,7 +133,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Nickname</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Nickname
+            </label>
             <input
               type="text"
               name="contact[nickname]"
@@ -139,7 +145,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Gender</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Gender
+            </label>
             <select
               name="contact[gender_id]"
               class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
@@ -157,7 +165,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Birthdate</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Birthdate
+            </label>
             <input
               type="date"
               name="contact[birthdate]"
@@ -167,7 +177,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Occupation</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Occupation
+            </label>
             <input
               type="text"
               name="contact[occupation]"
@@ -177,7 +189,9 @@ defmodule KithWeb.ContactLive.FormComponent do
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Company</label>
+            <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+              Company
+            </label>
             <input
               type="text"
               name="contact[company]"
@@ -194,12 +208,16 @@ defmodule KithWeb.ContactLive.FormComponent do
               checked={Ecto.Changeset.get_field(@changeset, :deceased)}
               class="mt-0.5 size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
             />
-            <label class="text-sm font-medium text-[var(--color-text-primary)] cursor-pointer select-none">Deceased</label>
+            <label class="text-sm font-medium text-[var(--color-text-primary)] cursor-pointer select-none">
+              Deceased
+            </label>
           </div>
 
           <%= if @show_deceased_at do %>
             <div>
-              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Date of Death</label>
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                Date of Death
+              </label>
               <input
                 type="date"
                 name="contact[deceased_at]"
@@ -211,7 +229,9 @@ defmodule KithWeb.ContactLive.FormComponent do
         </div>
 
         <div class="mt-4">
-          <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Description</label>
+          <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+            Description
+          </label>
           <textarea
             name="contact[description]"
             class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"

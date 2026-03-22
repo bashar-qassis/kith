@@ -108,8 +108,10 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
         aria-current={@active && "page"}
         class={[
           "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-150",
-          @active && "bg-[var(--color-surface-elevated)] text-[var(--color-accent)] border-s-2 border-[var(--color-accent)]",
-          !@active && "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
+          @active &&
+            "bg-[var(--color-surface-elevated)] text-[var(--color-accent)] border-s-2 border-[var(--color-accent)]",
+          !@active &&
+            "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
         ]}
       >
         <.icon name={@icon} class="size-5 shrink-0" />

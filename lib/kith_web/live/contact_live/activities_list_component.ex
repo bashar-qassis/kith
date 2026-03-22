@@ -144,7 +144,11 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Activities</h2>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+          <button
+            phx-click="show-form"
+            phx-target={@myself}
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" /> Log Activity
           </button>
         <% end %>
@@ -155,15 +159,32 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
           <div class="p-4">
             <.form for={%{}} phx-submit="save" phx-target={@myself}>
               <div>
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Title</span></label>
-                <input type="text" name="activity[title]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150" required />
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">Title</span>
+                </label>
+                <input
+                  type="text"
+                  name="activity[title]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+                  required
+                />
               </div>
               <div class="mt-2">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Description (optional)</span></label>
-                <textarea name="activity[description]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]" rows="2"></textarea>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                    Description (optional)
+                  </span>
+                </label>
+                <textarea
+                  name="activity[description]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
+                  rows="2"
+                ></textarea>
               </div>
               <div class="mt-2">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">When</span></label>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">When</span>
+                </label>
                 <input
                   type="datetime-local"
                   name="activity[occurred_at]"
@@ -175,7 +196,11 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
 
               <%!-- Contacts multi-select --%>
               <div class="mt-2">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Participants</span></label>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                    Participants
+                  </span>
+                </label>
                 <div class="flex flex-wrap gap-1 mb-2">
                   <%= for c <- @selected_contacts do %>
                     <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)] gap-1">
@@ -222,7 +247,11 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
 
               <%!-- Emotions multi-select --%>
               <div class="mt-2">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">How did it feel?</span></label>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                    How did it feel?
+                  </span>
+                </label>
                 <div class="flex flex-wrap gap-1">
                   <%= for emotion <- @emotions do %>
                     <button
@@ -232,8 +261,10 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
                       phx-target={@myself}
                       class={[
                         "inline-flex items-center rounded-[var(--radius-full)] px-2.5 py-1 text-sm font-medium cursor-pointer transition-colors",
-                        emotion.id in @selected_emotions && "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]",
-                        emotion.id not in @selected_emotions && "border border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                        emotion.id in @selected_emotions &&
+                          "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]",
+                        emotion.id not in @selected_emotions &&
+                          "border border-[var(--color-border)] text-[var(--color-text-secondary)]"
                       ]}
                     >
                       {emotion.name}
@@ -243,7 +274,12 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
               </div>
 
               <div class="flex gap-2 mt-4">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -266,7 +302,11 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
           message="Record shared moments — dinners, trips, coffee chats."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Log Activity
             </button>
           </:actions>
@@ -303,7 +343,10 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
               <%= if activity.contacts != [] do %>
                 <div class="flex flex-wrap gap-1 mt-2">
                   <%= for c <- activity.contacts do %>
-                    <.link navigate={~p"/contacts/#{c.id}"} class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)]">
+                    <.link
+                      navigate={~p"/contacts/#{c.id}"}
+                      class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                    >
                       {c.display_name}
                     </.link>
                   <% end %>
@@ -313,7 +356,9 @@ defmodule KithWeb.ContactLive.ActivitiesListComponent do
               <%= if activity.emotions != [] do %>
                 <div class="flex flex-wrap gap-1 mt-1">
                   <%= for e <- activity.emotions do %>
-                    <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)]">{e.name}</span>
+                    <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                      {e.name}
+                    </span>
                   <% end %>
                 </div>
               <% end %>

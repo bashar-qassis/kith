@@ -27,7 +27,19 @@ defmodule Kith.Contacts.Gift do
 
   def changeset(gift, attrs) do
     gift
-    |> cast(attrs, [:name, :description, :occasion, :date, :amount, :direction, :status, :purchase_url, :is_private, :contact_id, :currency_id])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :occasion,
+      :date,
+      :amount,
+      :direction,
+      :status,
+      :purchase_url,
+      :is_private,
+      :contact_id,
+      :currency_id
+    ])
     |> validate_required([:name, :direction])
     |> validate_inclusion(:occasion, @occasions)
     |> validate_inclusion(:direction, @directions)

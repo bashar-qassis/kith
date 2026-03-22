@@ -108,13 +108,23 @@ defmodule KithWeb.ContactLive.TasksComponent do
      |> put_flash(:info, "Task deleted.")}
   end
 
-  defp priority_badge_class("high"), do: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-  defp priority_badge_class("medium"), do: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-  defp priority_badge_class("low"), do: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-  defp priority_badge_class(_), do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
+  defp priority_badge_class("high"),
+    do: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+
+  defp priority_badge_class("medium"),
+    do: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+
+  defp priority_badge_class("low"),
+    do: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+
+  defp priority_badge_class(_),
+    do: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
 
   defp overdue?(%{due_date: nil}), do: false
-  defp overdue?(%{due_date: _due_date, status: status}) when status in ["completed", "cancelled"], do: false
+
+  defp overdue?(%{due_date: _due_date, status: status}) when status in ["completed", "cancelled"],
+    do: false
+
   defp overdue?(%{due_date: due_date}), do: Date.compare(due_date, Date.utc_today()) == :lt
 
   @impl true
@@ -142,7 +152,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
             <.form for={%{}} phx-submit="save-task" phx-target={@myself}>
               <div class="space-y-3">
                 <div>
-                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Title *</label>
+                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                    Title *
+                  </label>
                   <input
                     type="text"
                     name="task[title]"
@@ -151,7 +163,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Description</label>
+                  <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                    Description
+                  </label>
                   <textarea
                     name="task[description]"
                     rows="2"
@@ -160,7 +174,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Due Date</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Due Date
+                    </label>
                     <input
                       type="date"
                       name="task[due_date]"
@@ -168,7 +184,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Priority</label>
+                    <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                      Priority
+                    </label>
                     <select
                       name="task[priority]"
                       class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
@@ -181,7 +199,12 @@ defmodule KithWeb.ContactLive.TasksComponent do
                 </div>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -205,7 +228,11 @@ defmodule KithWeb.ContactLive.TasksComponent do
           message="Track things you need to do for this contact."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Task
             </button>
           </:actions>
@@ -224,7 +251,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                 <.form for={%{}} phx-submit="update-task" phx-target={@myself}>
                   <div class="space-y-3">
                     <div>
-                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Title *</label>
+                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        Title *
+                      </label>
                       <input
                         type="text"
                         name="task[title]"
@@ -234,7 +263,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Description</label>
+                      <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                        Description
+                      </label>
                       <textarea
                         name="task[description]"
                         rows="2"
@@ -243,7 +274,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Due Date</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Due Date
+                        </label>
                         <input
                           type="date"
                           name="task[due_date]"
@@ -252,7 +285,9 @@ defmodule KithWeb.ContactLive.TasksComponent do
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Priority</label>
+                        <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                          Priority
+                        </label>
                         <select
                           name="task[priority]"
                           class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
@@ -265,7 +300,12 @@ defmodule KithWeb.ContactLive.TasksComponent do
                     </div>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                    <button
+                      type="submit"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    >
+                      Save
+                    </button>
                     <button
                       type="button"
                       phx-click="cancel-form"
@@ -290,13 +330,22 @@ defmodule KithWeb.ContactLive.TasksComponent do
                       >
                       </button>
                     <% else %>
-                      <.icon name="hero-check-circle-solid" class="size-5 text-[var(--color-success)] mt-0.5 flex-shrink-0" />
+                      <.icon
+                        name="hero-check-circle-solid"
+                        class="size-5 text-[var(--color-success)] mt-0.5 flex-shrink-0"
+                      />
                     <% end %>
                     <div class="flex-1 min-w-0">
-                      <p class={["text-sm font-medium text-[var(--color-text-primary)]", task.status == "completed" && "line-through"]}>
+                      <p class={[
+                        "text-sm font-medium text-[var(--color-text-primary)]",
+                        task.status == "completed" && "line-through"
+                      ]}>
                         {task.title}
                       </p>
-                      <p :if={task.description} class="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2">
+                      <p
+                        :if={task.description}
+                        class="text-xs text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2"
+                      >
                         {task.description}
                       </p>
                       <div class="flex items-center gap-2 mt-1">
@@ -310,7 +359,10 @@ defmodule KithWeb.ContactLive.TasksComponent do
                         >
                           Due <.date_display date={task.due_date} />
                         </span>
-                        <span class={["inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium", priority_badge_class(task.priority)]}>
+                        <span class={[
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          priority_badge_class(task.priority)
+                        ]}>
                           {String.capitalize(task.priority)}
                         </span>
                       </div>

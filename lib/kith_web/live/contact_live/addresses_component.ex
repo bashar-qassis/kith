@@ -111,8 +111,13 @@ defmodule KithWeb.ContactLive.AddressesComponent do
     ~H"""
     <.form for={%{}} phx-submit={@action} phx-target={@target}>
       <div>
-        <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Label</span></label>
-        <select name="address[label]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150">
+        <label class="block mb-1">
+          <span class="text-sm font-medium text-[var(--color-text-primary)]">Label</span>
+        </label>
+        <select
+          name="address[label]"
+          class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+        >
           <option value="">—</option>
           <%= for label <- @labels do %>
             <option value={label} selected={@address_label == label}>{label}</option>
@@ -120,8 +125,15 @@ defmodule KithWeb.ContactLive.AddressesComponent do
         </select>
       </div>
       <div class="mt-2">
-        <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Street</span></label>
-        <input type="text" name="address[line1]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150" value={@line1} />
+        <label class="block mb-1">
+          <span class="text-sm font-medium text-[var(--color-text-primary)]">Street</span>
+        </label>
+        <input
+          type="text"
+          name="address[line1]"
+          class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+          value={@line1}
+        />
       </div>
       <div class="mt-2">
         <input
@@ -134,11 +146,20 @@ defmodule KithWeb.ContactLive.AddressesComponent do
       </div>
       <div class="grid grid-cols-2 gap-3 mt-2">
         <div>
-          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">City</span></label>
-          <input type="text" name="address[city]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150" value={@city} />
+          <label class="block mb-1">
+            <span class="text-sm font-medium text-[var(--color-text-primary)]">City</span>
+          </label>
+          <input
+            type="text"
+            name="address[city]"
+            class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+            value={@city}
+          />
         </div>
         <div>
-          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Province/State</span></label>
+          <label class="block mb-1">
+            <span class="text-sm font-medium text-[var(--color-text-primary)]">Province/State</span>
+          </label>
           <input
             type="text"
             name="address[province]"
@@ -149,7 +170,9 @@ defmodule KithWeb.ContactLive.AddressesComponent do
       </div>
       <div class="grid grid-cols-2 gap-3 mt-2">
         <div>
-          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Postal Code</span></label>
+          <label class="block mb-1">
+            <span class="text-sm font-medium text-[var(--color-text-primary)]">Postal Code</span>
+          </label>
           <input
             type="text"
             name="address[postal_code]"
@@ -158,7 +181,9 @@ defmodule KithWeb.ContactLive.AddressesComponent do
           />
         </div>
         <div>
-          <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Country</span></label>
+          <label class="block mb-1">
+            <span class="text-sm font-medium text-[var(--color-text-primary)]">Country</span>
+          </label>
           <input
             type="text"
             name="address[country]"
@@ -168,7 +193,12 @@ defmodule KithWeb.ContactLive.AddressesComponent do
         </div>
       </div>
       <div class="flex gap-2 mt-3">
-        <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+        <button
+          type="submit"
+          class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+        >
+          Save
+        </button>
         <button
           type="button"
           phx-click="cancel-form"
@@ -191,7 +221,12 @@ defmodule KithWeb.ContactLive.AddressesComponent do
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Addresses</h3>
         <%= if @can_edit do %>
-          <button id={"add-address-#{@contact_id}"} phx-click="show-form" phx-target={@myself} class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer">
+          <button
+            id={"add-address-#{@contact_id}"}
+            phx-click="show-form"
+            phx-target={@myself}
+            class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" />
           </button>
         <% end %>
@@ -222,7 +257,11 @@ defmodule KithWeb.ContactLive.AddressesComponent do
           message="Add a home, work, or other address for this person."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Address
             </button>
           </:actions>
@@ -250,9 +289,13 @@ defmodule KithWeb.ContactLive.AddressesComponent do
                 <.icon name="hero-map-pin" class="size-4 text-[var(--color-accent)] mt-0.5 shrink-0" />
                 <div class="min-w-0">
                   <%= if addr.label do %>
-                    <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] mb-1">{addr.label}</span>
+                    <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] mb-1">
+                      {addr.label}
+                    </span>
                   <% end %>
-                  <p class="text-sm text-[var(--color-text-primary)] break-words">{format_address(addr)}</p>
+                  <p class="text-sm text-[var(--color-text-primary)] break-words">
+                    {format_address(addr)}
+                  </p>
                   <a
                     href={maps_url(addr)}
                     target="_blank"

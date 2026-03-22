@@ -87,7 +87,9 @@ defmodule KithWeb.UserLive.RegistrationTest do
 
       result =
         lv
-        |> form("#registration_form", user: %{email: unique_user_email(), password: valid_user_password()})
+        |> form("#registration_form",
+          user: %{email: unique_user_email(), password: valid_user_password()}
+        )
         |> render_submit()
 
       assert result =~ "you must accept the Terms of Service"

@@ -129,7 +129,11 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
           <%= for entry <- @uploads.document.entries do %>
             <div class="text-sm mt-1 flex items-center gap-2">
               <span>{entry.client_name}</span>
-              <progress value={entry.progress} max="100" class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]">
+              <progress
+                value={entry.progress}
+                max="100"
+                class="h-2 w-24 rounded-[var(--radius-full)] accent-[var(--color-accent)]"
+              >
                 {entry.progress}%
               </progress>
               <button
@@ -162,7 +166,10 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
         <%= for doc <- @documents do %>
           <div class="flex items-center justify-between py-2 px-3 rounded-[var(--radius-lg)] hover:bg-[var(--color-surface-sunken)]/50">
             <div class="flex items-center gap-3">
-              <.icon name={file_icon(doc.content_type)} class="size-5 text-[var(--color-text-disabled)]" />
+              <.icon
+                name={file_icon(doc.content_type)}
+                class="size-5 text-[var(--color-text-disabled)]"
+              />
               <div>
                 <a
                   href={Storage.url(doc.storage_key)}

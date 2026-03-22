@@ -25,7 +25,7 @@ defmodule Kith.AuditLogs do
     query =
       AuditLog
       |> scope_to_account(account_id)
-      |> order_by([l], [desc: l.inserted_at, desc: l.id])
+      |> order_by([l], desc: l.inserted_at, desc: l.id)
       |> apply_filters(filters)
       |> apply_cursor(cursor)
       |> limit(^(limit + 1))

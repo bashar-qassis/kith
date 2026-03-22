@@ -23,9 +23,9 @@ defmodule Kith.Repo.Migrations.CreateImportsAndImportRecords do
 
     # Concurrent import guard: only one pending/processing import per account
     create unique_index(:imports, [:account_id],
-      where: "status IN ('pending', 'processing')",
-      name: :imports_one_active_per_account_idx
-    )
+             where: "status IN ('pending', 'processing')",
+             name: :imports_one_active_per_account_idx
+           )
 
     create table(:import_records) do
       add :account_id, references(:accounts, on_delete: :delete_all), null: false
@@ -38,10 +38,11 @@ defmodule Kith.Repo.Migrations.CreateImportsAndImportRecords do
       timestamps(type: :utc_datetime)
     end
 
-    create unique_index(:import_records,
-      [:account_id, :source, :source_entity_type, :source_entity_id],
-      name: :import_records_source_unique_idx
-    )
+    create unique_index(
+             :import_records,
+             [:account_id, :source, :source_entity_type, :source_entity_id],
+             name: :import_records_source_unique_idx
+           )
 
     create index(:import_records, [:import_id])
     create index(:import_records, [:local_entity_type, :local_entity_id])

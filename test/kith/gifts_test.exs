@@ -110,7 +110,13 @@ defmodule Kith.GiftsTest do
       {account, user} = setup_account()
       contact = insert(:contact, account: account)
 
-      attrs = %{"name" => "Test", "direction" => "given", "status" => "lost", "contact_id" => contact.id}
+      attrs = %{
+        "name" => "Test",
+        "direction" => "given",
+        "status" => "lost",
+        "contact_id" => contact.id
+      }
+
       assert {:error, changeset} = Gifts.create_gift(account.id, user.id, attrs)
       assert errors_on(changeset).status
     end
@@ -131,7 +137,9 @@ defmodule Kith.GiftsTest do
       contact = insert(:contact, account: account)
       gift = insert(:gift, account: account, contact: contact, creator: user)
 
-      assert {:ok, updated} = Gifts.update_gift(gift, %{name: "Updated gift", status: "purchased"})
+      assert {:ok, updated} =
+               Gifts.update_gift(gift, %{name: "Updated gift", status: "purchased"})
+
       assert updated.name == "Updated gift"
       assert updated.status == "purchased"
     end

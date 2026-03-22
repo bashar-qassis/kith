@@ -123,7 +123,11 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Life Events</h2>
         <%= if @can_edit do %>
-          <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+          <button
+            phx-click="show-form"
+            phx-target={@myself}
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-plus" class="size-4" /> Add Event
           </button>
         <% end %>
@@ -135,7 +139,9 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
             <.form for={%{}} phx-submit="save" phx-target={@myself}>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Type</span></label>
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">Type</span>
+                  </label>
                   <select
                     name="life_event[life_event_type_id]"
                     class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
@@ -148,7 +154,9 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
                   </select>
                 </div>
                 <div>
-                  <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Date</span></label>
+                  <label class="block mb-1">
+                    <span class="text-sm font-medium text-[var(--color-text-primary)]">Date</span>
+                  </label>
                   <input
                     type="date"
                     name="life_event[occurred_on]"
@@ -159,11 +167,24 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
                 </div>
               </div>
               <div class="mt-3">
-                <label class="block mb-1"><span class="text-sm font-medium text-[var(--color-text-primary)]">Note (optional)</span></label>
-                <textarea name="life_event[note]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]" rows="2"></textarea>
+                <label class="block mb-1">
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                    Note (optional)
+                  </span>
+                </label>
+                <textarea
+                  name="life_event[note]"
+                  class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
+                  rows="2"
+                ></textarea>
               </div>
               <div class="flex gap-2 mt-3">
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   phx-click="cancel-form"
@@ -186,7 +207,11 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
           message="Milestones like birthdays, promotions, and moves live here."
         >
           <:actions :if={@can_edit}>
-            <button phx-click="show-form" phx-target={@myself} class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">
+            <button
+              phx-click="show-form"
+              phx-target={@myself}
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Event
             </button>
           </:actions>
@@ -225,10 +250,19 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
                     </div>
                   </div>
                   <div class="mt-2">
-                    <textarea name="life_event[note]" class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]" rows="2">{le.note}</textarea>
+                    <textarea
+                      name="life_event[note]"
+                      class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150 min-h-[80px]"
+                      rows="2"
+                    >{le.note}</textarea>
                   </div>
                   <div class="flex gap-2 mt-3">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer">Save</button>
+                    <button
+                      type="submit"
+                      class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    >
+                      Save
+                    </button>
                     <button
                       type="button"
                       phx-click="cancel-form"
