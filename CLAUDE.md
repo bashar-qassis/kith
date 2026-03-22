@@ -132,6 +132,10 @@ See `.env.example` for all env vars. Key ones:
 - `PHX_HOST` — hostname for URL generation
 - `CLOAK_PRIMARY_KEY` — encryption key for sensitive data
 
+## Commit Rules
+
+- Never add `Co-Authored-By` lines to commits. All commits should be attributed solely to the git user.
+
 ## Gotchas
 
 - MIME types: `.vcf` registered as `text/vcard` in config.exs (needed for LiveView uploads)
