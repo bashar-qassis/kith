@@ -8,7 +8,7 @@
     <%!-- Header --%>
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-        {@page_title}
+        Contacts
       </h1>
       <div class="flex items-center gap-3">
         <%= if can?(assigns, :create, :contact) do %>
@@ -18,6 +18,54 @@
         <% end %>
       </div>
     </div>
+
+    <%!-- Secondary navigation --%>
+    <nav class="flex items-center gap-1 border-b border-[var(--color-border)]">
+      <.link
+        navigate={~p"/contacts"}
+        class={[
+          "inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors",
+          if(@live_action == :index,
+            do: "border-[var(--color-accent)] text-[var(--color-accent)]",
+            else:
+              "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
+          )
+        ]}
+      >
+        <.icon name="hero-user-group" class="size-4" /> All
+      </.link>
+      <.link
+        navigate={~p"/contacts/archived"}
+        class={[
+          "inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors",
+          if(@live_action == :archived,
+            do: "border-[var(--color-accent)] text-[var(--color-accent)]",
+            else:
+              "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
+          )
+        ]}
+      >
+        <.icon name="hero-archive-box" class="size-4" /> Archived
+      </.link>
+      <.link
+        navigate={~p"/contacts/duplicates"}
+        class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)] transition-colors"
+      >
+        <.icon name="hero-document-duplicate" class="size-4" /> Duplicates
+        <span
+          :if={@pending_duplicates_count > 0}
+          class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-[var(--radius-full)] bg-[var(--color-warning-subtle)] text-[var(--color-warning)] text-xs font-medium"
+        >
+          {@pending_duplicates_count}
+        </span>
+      </.link>
+      <.link
+        navigate={~p"/contacts/trash"}
+        class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)] transition-colors"
+      >
+        <.icon name="hero-trash" class="size-4" /> Trash
+      </.link>
+    </nav>
 
     <%!-- Search and filters --%>
     <div class="flex flex-col sm:flex-row gap-4">
@@ -59,21 +107,11 @@
         <label class="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
-            checked={@show_archived}
-            phx-click="toggle-archived"
-            class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
-          />
-          <span class="text-sm text-[var(--color-text-secondary)]">Archived</span>
-        </label>
-
-        <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
             checked={@show_deceased}
             phx-click="toggle-deceased"
             class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
           />
-          <span class="text-sm text-[var(--color-text-secondary)]">Deceased</span>
+          <span class="text-sm text-[var(--color-text-secondary)]">Include deceased</span>
         </label>
 
         <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -342,37 +380,6 @@
       <UI.button variant="secondary" size="sm" phx-click="load-more">
         Load more
       </UI.button>
-    </div>
-
-    <%!-- Navigation links --%>
-    <div class="flex justify-center gap-6 text-sm">
-      <%= if @live_action != :archived do %>
-        <.link
-          navigate={~p"/contacts/archived"}
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
-        >
-          View Archived Contacts
-        </.link>
-      <% else %>
-        <.link
-          navigate={~p"/contacts"}
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
-        >
-          &larr; Back to Contacts
-        </.link>
-      <% end %>
-      <.link
-        navigate={~p"/contacts/duplicates"}
-        class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
-      >
-        Duplicates
-      </.link>
-      <.link
-        navigate={~p"/contacts/trash"}
-        class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
-      >
-        Trash
-      </.link>
     </div>
   </div>
 </Layouts.app>

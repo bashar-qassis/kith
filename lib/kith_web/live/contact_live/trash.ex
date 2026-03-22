@@ -29,17 +29,18 @@ defmodule KithWeb.ContactLive.Trash do
       pending_duplicates_count={@pending_duplicates_count}
     >
       <div class="space-y-6">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
-            Trash
-          </h1>
+        <div class="mb-4">
           <.link
             navigate={~p"/contacts"}
             class="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
           >
-            <.icon name="hero-arrow-left" class="size-4" /> Back to Contacts
+            <.icon name="hero-arrow-left" class="size-4 rtl:rotate-180" /> Back to Contacts
           </.link>
         </div>
+
+        <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+          Trash
+        </h1>
 
         <div class="flex items-center gap-3 rounded-[var(--radius-lg)] bg-[var(--color-warning-subtle)] border-s-4 border-[var(--color-warning)] p-4">
           <.icon name="hero-exclamation-triangle" class="size-5 text-[var(--color-warning)] shrink-0" />

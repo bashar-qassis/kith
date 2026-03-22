@@ -64,13 +64,6 @@ defmodule KithWeb.ContactLive.Index do
      |> load_contacts()}
   end
 
-  def handle_event("toggle-archived", _params, socket) do
-    {:noreply,
-     socket
-     |> update(:show_archived, &(!&1))
-     |> load_contacts()}
-  end
-
   def handle_event("toggle-deceased", _params, socket) do
     {:noreply,
      socket
