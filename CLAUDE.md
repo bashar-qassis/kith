@@ -135,6 +135,7 @@ See `.env.example` for all env vars. Key ones:
 ## Commit Rules
 
 - Never add `Co-Authored-By` lines to commits. All commits should be attributed solely to the git user.
+- Always run `mix test` before every commit and ensure 0 failures. If tests fail, fix them before committing.
 
 ## Gotchas
 
