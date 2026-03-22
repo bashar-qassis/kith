@@ -34,6 +34,9 @@ defmodule Kith.Imports.Sources.Monica do
       {:ok, %{"contacts" => _, "account" => _}} ->
         {:ok, %{}}
 
+      {:ok, %{"version" => _, "account" => %{"data" => sections}}} when is_list(sections) ->
+        {:ok, %{}}
+
       {:ok, _} ->
         {:error, "JSON file is missing required \"contacts\" or \"account\" keys"}
 
@@ -46,8 +49,9 @@ defmodule Kith.Imports.Sources.Monica do
   def parse_summary(data) do
     case Jason.decode(data) do
       {:ok, parsed} ->
-        contacts = get_in(parsed, ["contacts", "data"]) || []
-        relationships = get_in(parsed, ["relationships", "data"]) || []
+        normalized = normalize(parsed)
+        contacts = get_in(normalized, ["contacts", "data"]) || []
+        relationships = get_in(normalized, ["relationships", "data"]) || []
 
         {notes_count, photos_count, activities_count} =
           Enum.reduce(contacts, {0, 0, MapSet.new()}, fn contact, {notes, photos, act_set} ->
@@ -80,7 +84,8 @@ defmodule Kith.Imports.Sources.Monica do
 
     case Jason.decode(data) do
       {:ok, parsed} ->
-        do_import(account_id, user_id, parsed, import_record)
+        normalized = normalize(parsed)
+        do_import(account_id, user_id, normalized, import_record)
 
       {:error, _} ->
         {:error, "File is not valid JSON"}
@@ -180,6 +185,7 @@ defmodule Kith.Imports.Sources.Monica do
 
     {:ok,
      %{
+       imported: summary.contacts,
        contacts: summary.contacts,
        notes: summary.notes,
        skipped: summary.skipped,
@@ -876,6 +882,257 @@ defmodule Kith.Imports.Sources.Monica do
           errors ++ [msg]
       end
     end)
+  end
+
+  # ── v4 format normalization ────────────────────────────────────────────
+  #
+  # Monica's JSON export comes in two flavours:
+  #   v2  – the legacy API-style format with `contacts.data[]`
+  #   v4  – the 1.0-preview export format with `account.data[]` sections
+  #
+  # We detect the format and normalize v4 → v2 so the rest of the import
+  # pipeline can remain format-agnostic.
+
+  defp normalize(%{"version" => "1.0" <> _rest, "account" => %{"data" => sections}} = parsed)
+       when is_list(sections) do
+    normalize_v4(parsed, sections)
+  end
+
+  defp normalize(parsed), do: parsed
+
+  defp normalize_v4(parsed, sections) do
+    raw_contacts = find_section_values(sections, "contact")
+    raw_relationships = find_section_values(sections, "relationship")
+    raw_photos = find_section_values(sections, "photo")
+    raw_activities = find_section_values(sections, "activity")
+
+    # Contact-level photos and activities are UUID references to top-level objects
+    photo_lookup = Map.new(raw_photos, fn p -> {p["uuid"], p} end)
+    activity_lookup = Map.new(raw_activities, fn a -> {a["uuid"], a} end)
+    lookups = %{photos: photo_lookup, activities: activity_lookup}
+
+    contacts = deduplicate_by_uuid(raw_contacts)
+    transformed_contacts = Enum.map(contacts, &transform_v4_contact(&1, lookups))
+    transformed_relationships = Enum.map(raw_relationships, &transform_v4_relationship/1)
+
+    %{
+      "contacts" => %{"data" => transformed_contacts},
+      "relationships" => %{"data" => transformed_relationships},
+      "account" => %{"data" => parsed["account"]},
+      "version" => parsed["version"]
+    }
+  end
+
+  defp find_section_values(sections, type) do
+    case Enum.find(sections, &(&1["type"] == type)) do
+      nil -> []
+      section -> section["values"] || []
+    end
+  end
+
+  defp deduplicate_by_uuid(entries) do
+    entries
+    |> Enum.group_by(& &1["uuid"])
+    |> Enum.map(fn {_uuid, group} ->
+      # Prefer the entry with the most sub-data, then latest updated_at
+      Enum.max_by(group, fn e ->
+        sub_count = (e["data"] || []) |> Enum.map(&(&1["count"] || 0)) |> Enum.sum()
+        {sub_count, e["updated_at"] || ""}
+      end)
+    end)
+  end
+
+  defp transform_v4_contact(v4, lookups) do
+    props = v4["properties"] || %{}
+    sub_data = v4["data"] || []
+
+    gender_name = parse_gender_from_vcard(props["vcard"])
+    tags = (props["tags"] || []) |> Enum.map(&%{"name" => &1})
+
+    contact_fields = find_sub_values(sub_data, "contact_field")
+    addresses = find_sub_values(sub_data, "address")
+    notes = find_sub_values(sub_data, "note")
+    reminders = find_sub_values(sub_data, "reminder")
+    pets = find_sub_values(sub_data, "pet")
+
+    # Contact-level photos/activities may be UUID strings referencing top-level objects
+    photos = resolve_uuid_refs(find_sub_values(sub_data, "photo"), lookups.photos)
+    activities = resolve_uuid_refs(find_sub_values(sub_data, "activity"), lookups.activities)
+
+    %{
+      "uuid" => v4["uuid"],
+      "first_name" => props["first_name"],
+      "last_name" => props["last_name"],
+      "middle_name" => props["middle_name"],
+      "nickname" => props["nickname"],
+      "description" => props["description"],
+      "company" => props["company"],
+      "job" => props["occupation"],
+      "is_starred" => props["is_starred"] || false,
+      "is_active" => props["is_active"],
+      "is_dead" => props["is_dead"] || false,
+      "gender" => if(gender_name, do: %{"data" => %{"name" => gender_name}}),
+      "birthdate" => %{"data" => parse_v4_birthdate(props)},
+      "first_met_date" => %{"data" => parse_v4_first_met(props)},
+      "first_met_through" => nil,
+      "tags" => %{"data" => tags},
+      "contact_fields" => %{"data" => Enum.map(contact_fields, &transform_v4_field/1)},
+      "addresses" => %{"data" => Enum.map(addresses, &transform_v4_address/1)},
+      "notes" => %{"data" => Enum.map(notes, &transform_v4_note/1)},
+      "reminders" => %{"data" => Enum.map(reminders, &transform_v4_reminder/1)},
+      "pets" => %{"data" => Enum.map(pets, &transform_v4_pet/1)},
+      "photos" => %{"data" => Enum.map(photos, &transform_v4_photo/1)},
+      "activities" => %{"data" => Enum.map(activities, &transform_v4_activity/1)}
+    }
+  end
+
+  defp find_sub_values(sub_data, type) do
+    case Enum.find(sub_data, &(&1["type"] == type)) do
+      nil -> []
+      section -> section["values"] || []
+    end
+  end
+
+  defp resolve_uuid_refs(values, lookup) do
+    Enum.flat_map(values, fn
+      uuid when is_binary(uuid) ->
+        case Map.get(lookup, uuid) do
+          nil -> []
+          obj -> [obj]
+        end
+
+      %{} = obj ->
+        [obj]
+
+      _ ->
+        []
+    end)
+  end
+
+  defp parse_gender_from_vcard(nil), do: nil
+
+  defp parse_gender_from_vcard(vcard) do
+    case Regex.run(~r/GENDER:(\w)/, vcard) do
+      [_, "M"] -> "Male"
+      [_, "F"] -> "Female"
+      [_, "O"] -> "Other"
+      [_, "N"] -> "None"
+      _ -> nil
+    end
+  end
+
+  defp parse_v4_birthdate(%{"birthdate" => bd}) when is_binary(bd), do: %{"date" => bd}
+  defp parse_v4_birthdate(_), do: nil
+
+  defp parse_v4_first_met(%{"first_met_date" => d}) when is_binary(d), do: %{"date" => d}
+  defp parse_v4_first_met(_), do: nil
+
+  defp transform_v4_field(field) do
+    props = field["properties"] || %{}
+    value = props["data"]
+    type_name = infer_field_type(value)
+
+    %{
+      "uuid" => field["uuid"],
+      "content" => value,
+      "contact_field_type" => %{"data" => %{"name" => type_name}}
+    }
+  end
+
+  defp infer_field_type(nil), do: "Other"
+
+  defp infer_field_type(value) do
+    cond do
+      String.contains?(value, "@") -> "Email"
+      String.match?(value, ~r/^https?:\/\//) -> "Website"
+      String.match?(value, ~r/^[\d\+\(\)\-\s\.]+$/) -> "Phone"
+      true -> "Other"
+    end
+  end
+
+  defp transform_v4_address(addr) do
+    props = addr["properties"] || %{}
+
+    %{
+      "uuid" => addr["uuid"],
+      "name" => props["name"],
+      "street" => props["street"],
+      "city" => props["city"],
+      "province" => props["province"],
+      "postal_code" => props["postal_code"],
+      "country" => props["country"]
+    }
+  end
+
+  defp transform_v4_note(note) do
+    props = note["properties"] || %{}
+
+    %{
+      "uuid" => note["uuid"],
+      "body" => props["body"],
+      "created_at" => note["created_at"]
+    }
+  end
+
+  defp transform_v4_reminder(reminder) do
+    props = reminder["properties"] || %{}
+
+    %{
+      "uuid" => reminder["uuid"],
+      "title" => props["title"],
+      "next_expected_date" => props["initial_date"],
+      "frequency_type" => props["frequency_type"]
+    }
+  end
+
+  defp transform_v4_pet(pet) do
+    props = pet["properties"] || %{}
+    category = (props["category"] || "other") |> String.capitalize()
+
+    %{
+      "uuid" => pet["uuid"],
+      "name" => props["name"],
+      "pet_category" => %{"data" => %{"name" => category}}
+    }
+  end
+
+  defp transform_v4_photo(photo) do
+    props = photo["properties"] || %{}
+
+    %{
+      "uuid" => photo["uuid"],
+      "original_filename" => props["original_filename"] || "photo.jpg",
+      "filesize" => props["filesize"] || 0,
+      "mime_type" => props["mime_type"] || "image/jpeg"
+    }
+  end
+
+  defp transform_v4_activity(activity) do
+    props = activity["properties"] || %{}
+
+    %{
+      "uuid" => activity["uuid"],
+      "title" => props["summary"] || props["title"],
+      "description" => props["description"],
+      "happened_at" => props["happened_at"]
+    }
+  end
+
+  defp transform_v4_relationship(rel) do
+    props = rel["properties"] || %{}
+    type_name = (props["type"] || "friend") |> String.capitalize()
+
+    %{
+      "uuid" => rel["uuid"],
+      "contact_is" => props["contact_is"],
+      "of_contact" => props["of_contact"],
+      "relationship_type" => %{
+        "data" => %{
+          "name" => type_name,
+          "reverse_name" => type_name
+        }
+      }
+    }
   end
 
   # ── Helpers ───────────────────────────────────────────────────────────
