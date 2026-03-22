@@ -61,7 +61,7 @@ defmodule KithWeb.ContactLive.RemindersComponent do
                 </div>
                 <div class="text-xs text-[var(--color-text-tertiary)]">
                   {type_label(reminder.type)}
-                  <span :if={reminder.frequency}> ·   {frequency_label(reminder.frequency)}</span>
+                  <span :if={reminder.frequency}>&middot; {frequency_label(reminder.frequency)}</span>
                 </div>
                 <div class="text-xs text-[var(--color-text-tertiary)]">
                   Next: <.date_display date={reminder.next_reminder_date} />

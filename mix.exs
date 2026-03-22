@@ -10,6 +10,7 @@ defmodule Kith.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      dialyzer: dialyzer(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
@@ -28,6 +29,14 @@ defmodule Kith.MixProject do
   def cli do
     [
       preferred_envs: [precommit: :test]
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+      plt_add_apps: [:mix, :ex_unit],
+      flags: [:error_handling, :underspecs, :unknown]
     ]
   end
 
@@ -160,7 +169,20 @@ defmodule Kith.MixProject do
         "esbuild kith --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "credo --strict",
+        "test"
+      ],
+      quality: [
+        "compile --warnings-as-errors",
+        "format --check-formatted",
+        "credo --strict",
+        "sobelow --config",
+        "dialyzer"
+      ]
     ]
   end
 end

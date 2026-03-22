@@ -9,11 +9,15 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
   "dependencies": {
     "@playwright/test": "^1.58.2"
   }

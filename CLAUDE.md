@@ -20,7 +20,10 @@ mix ecto.reset               # Drop + create + migrate + seed
 # Code quality
 mix format                   # Format all .ex/.exs/.heex files
 mix compile --warnings-as-errors
-mix precommit                # compile (warnings-as-errors) + unlock unused + format + test
+mix credo --strict           # Static analysis (style/consistency)
+mix dialyzer                 # Type-based static analysis (first run builds PLT ~5-12 min)
+mix quality                  # All static analysis: compile + format + credo + sobelow + dialyzer
+mix precommit                # compile + unlock unused + format + credo + test
 
 # Tests — ExUnit
 mix test                     # All unit/integration tests

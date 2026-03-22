@@ -1,0 +1,1 @@
+mix compile --warnings-as-errors && mix format --check-formatted && mix credo --strict

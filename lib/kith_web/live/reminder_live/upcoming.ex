@@ -164,7 +164,7 @@ defmodule KithWeb.ReminderLive.Upcoming do
                     </.link>
                     <p class="text-sm text-[var(--color-text-tertiary)]">
                       {type_label(reminder.type)}
-                      <span :if={reminder.title}> —  {reminder.title}</span>
+                      <span :if={reminder.title}>&mdash; {reminder.title}</span>
                     </p>
                   </div>
                 </div>
