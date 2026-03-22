@@ -243,7 +243,7 @@
               <% end %>
               <td class="px-4 py-3">
                 <.link navigate={~p"/contacts/#{contact.id}"}>
-                  <KithUI.avatar name={contact.display_name} size={:sm} />
+                  <KithUI.avatar name={contact.display_name} src={contact_photo_url(contact)} size={:sm} />
                 </.link>
               </td>
               <td class="px-4 py-3">

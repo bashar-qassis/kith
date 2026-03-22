@@ -252,7 +252,7 @@ defmodule KithWeb.ContactLive.Index do
       deceased: socket.assigns.show_deceased,
       favorites_only: socket.assigns.show_favorites_only,
       tag_ids: socket.assigns.selected_tag_ids,
-      preload: [:tags]
+      preload: [:tags, :photos]
     ]
   end
 
@@ -284,4 +284,14 @@ defmodule KithWeb.ContactLive.Index do
   defp toggle_tag_id(selected, id) do
     if id in selected, do: List.delete(selected, id), else: [id | selected]
   end
+
+  defp contact_photo_url(%{photos: photos}) when is_list(photos) do
+    photo =
+      Enum.find(photos, &(&1.is_cover && !Kith.Contacts.Photo.pending_sync?(&1))) ||
+        Enum.find(photos, &(!Kith.Contacts.Photo.pending_sync?(&1)))
+
+    if photo, do: Kith.Storage.url(photo.storage_key)
+  end
+
+  defp contact_photo_url(_), do: nil
 end
