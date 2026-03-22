@@ -19,6 +19,7 @@ import "./alpine/recovery_codes"
 import "./alpine/lightbox"
 import "./alpine/dismissible"
 import "./alpine/command_palette"
+import "./alpine/copy_text"
 window.Alpine = Alpine
 Alpine.start()
 
