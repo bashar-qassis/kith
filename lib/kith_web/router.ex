@@ -347,8 +347,8 @@ defmodule KithWeb.Router do
       # Contact management
       live "/contacts", ContactLive.Index, :index
       live "/contacts/archived", ContactLive.Index, :archived
-      live "/contacts/trash", ContactLive.Trash, :index
-      live "/contacts/duplicates", ContactLive.Duplicates, :index
+      live "/contacts/trash", ContactLive.Index, :trash
+      live "/contacts/duplicates", ContactLive.Index, :duplicates
       live "/contacts/new", ContactLive.New, :new
       live "/contacts/:id", ContactLive.Show, :show
       live "/contacts/:id/edit", ContactLive.Edit, :edit

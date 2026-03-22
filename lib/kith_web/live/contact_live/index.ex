@@ -2,6 +2,8 @@ defmodule KithWeb.ContactLive.Index do
   use KithWeb, :live_view
 
   alias Kith.Contacts
+  alias Kith.DuplicateDetection
+  alias Kith.AuditLogs
 
   @sort_options %{
     "name_asc" => %{order_by: [:display_name], order_directions: [:asc]},
@@ -27,7 +29,9 @@ defmodule KithWeb.ContactLive.Index do
      |> assign(:selected_ids, MapSet.new())
      |> assign(:contacts, [])
      |> assign(:meta, nil)
-     |> assign(:tags, Contacts.list_tags(account_id))}
+     |> assign(:tags, Contacts.list_tags(account_id))
+     |> assign(:candidates, [])
+     |> assign(:trashed_contacts, [])}
   end
 
   @impl true
@@ -47,6 +51,20 @@ defmodule KithWeb.ContactLive.Index do
     |> assign(:page_title, "Archived Contacts")
     |> assign(:show_archived, :only)
     |> load_contacts()
+  end
+
+  defp apply_action(socket, :duplicates, _params) do
+    candidates = DuplicateDetection.list_candidates(socket.assigns.account_id)
+
+    socket
+    |> assign(:page_title, "Duplicate Contacts")
+    |> assign(:candidates, candidates)
+  end
+
+  defp apply_action(socket, :trash, _params) do
+    socket
+    |> assign(:page_title, "Trash")
+    |> assign(:trashed_contacts, Contacts.list_trashed_contacts(socket.assigns.account_id))
   end
 
   @impl true
@@ -217,6 +235,82 @@ defmodule KithWeb.ContactLive.Index do
      |> load_contacts()}
   end
 
+  # ── Duplicates events ──────────────────────────────────────────────────
+
+  def handle_event("dismiss", %{"id" => id}, socket) do
+    candidate =
+      DuplicateDetection.get_candidate!(socket.assigns.account_id, String.to_integer(id))
+
+    {:ok, _} = DuplicateDetection.dismiss_candidate(candidate)
+
+    candidates = DuplicateDetection.list_candidates(socket.assigns.account_id)
+
+    {:noreply,
+     socket
+     |> assign(:candidates, candidates)
+     |> assign(:pending_duplicates_count, length(candidates))
+     |> put_flash(:info, "Duplicate dismissed.")}
+  end
+
+  def handle_event("scan", _params, socket) do
+    user = socket.assigns.current_scope.user
+
+    if Kith.Policy.can?(user, :manage, :account) do
+      Oban.insert(
+        Kith.Workers.DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id})
+      )
+
+      {:noreply, put_flash(socket, :info, "Duplicate scan started. Results will appear shortly.")}
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized.")}
+    end
+  end
+
+  # ── Trash events ─────────────────────────────────────────────────────
+
+  def handle_event("restore", %{"id" => id}, socket) do
+    account_id = socket.assigns.account_id
+    user = socket.assigns.current_scope.user
+    Kith.Policy.authorize!(user, :manage, :contact)
+
+    contact = Contacts.get_contact!(account_id, String.to_integer(id))
+    {:ok, _} = Contacts.restore_contact(contact)
+
+    AuditLogs.log_event(account_id, user, :contact_restored,
+      contact_id: contact.id,
+      contact_name: contact.display_name
+    )
+
+    {:noreply,
+     socket
+     |> put_flash(
+       :info,
+       "#{contact.display_name} has been restored. Note: reminders were not automatically re-enabled."
+     )
+     |> assign(:trashed_contacts, Contacts.list_trashed_contacts(account_id))}
+  end
+
+  def handle_event("permanent-delete", %{"id" => id}, socket) do
+    account_id = socket.assigns.account_id
+    user = socket.assigns.current_scope.user
+    Kith.Policy.authorize!(user, :manage, :contact)
+
+    contact = Contacts.get_contact!(account_id, String.to_integer(id))
+    display_name = contact.display_name
+
+    {:ok, _} = Contacts.hard_delete_contact(contact)
+
+    AuditLogs.log_event(account_id, user, :contact_purged,
+      contact_id: contact.id,
+      contact_name: display_name
+    )
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "#{display_name} has been permanently deleted.")
+     |> assign(:trashed_contacts, Contacts.list_trashed_contacts(account_id))}
+  end
+
   defp perform_bulk_action(socket, action_fn, event, flash_label) do
     account_id = socket.assigns.account_id
     user = socket.assigns.current_scope.user
@@ -302,4 +396,18 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   defp contact_photo_url(_), do: nil
+
+  defp days_until_deletion(deleted_at) do
+    DateTime.diff(DateTime.utc_now(), deleted_at, :day) |> then(&(30 - &1))
+  end
+
+  defp days_remaining_label(deleted_at) do
+    remaining = days_until_deletion(deleted_at)
+
+    cond do
+      remaining <= 0 -> "Overdue for deletion"
+      remaining == 1 -> "1 day"
+      true -> "#{remaining} days"
+    end
+  end
 end
