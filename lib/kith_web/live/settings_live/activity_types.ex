@@ -101,7 +101,12 @@ defmodule KithWeb.SettingsLive.ActivityTypes do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Activity Types
@@ -114,9 +119,16 @@ defmodule KithWeb.SettingsLive.ActivityTypes do
             <h2 class="text-lg font-semibold mb-4">
               {if @editing_activity_type, do: "Edit Activity Type", else: "New Activity Type"}
             </h2>
-            <.form for={@changeset} phx-change="validate" phx-submit="save" class="flex gap-3 items-end flex-wrap">
+            <.form
+              for={@changeset}
+              phx-change="validate"
+              phx-submit="save"
+              class="flex gap-3 items-end flex-wrap"
+            >
               <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Name</label>
+                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="activity_type_category[name]"
@@ -160,7 +172,13 @@ defmodule KithWeb.SettingsLive.ActivityTypes do
                 </div>
                 <%= if @can_edit && !is_nil(atc.account_id) do %>
                   <div class="flex gap-1">
-                    <UI.button variant="ghost" size="sm" phx-click="edit" phx-value-id={atc.id} class="!px-2">
+                    <UI.button
+                      variant="ghost"
+                      size="sm"
+                      phx-click="edit"
+                      phx-value-id={atc.id}
+                      class="!px-2"
+                    >
                       <UI.icon name="hero-pencil-square" class="size-4" />
                     </UI.button>
                     <UI.button

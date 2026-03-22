@@ -2,6 +2,7 @@ defmodule KithWeb.ContactLive.Merge do
   use KithWeb, :live_view
 
   alias Kith.Contacts
+  alias Kith.DuplicateDetection
   alias Kith.Policy
 
   @mergeable_fields ~w(first_name last_name nickname birthdate description occupation company avatar)
@@ -18,11 +19,12 @@ defmodule KithWeb.ContactLive.Merge do
      |> assign(:search_results, [])
      |> assign(:field_choices, default_field_choices())
      |> assign(:preview, nil)
-     |> assign(:merging, false)}
+     |> assign(:merging, false)
+     |> assign(:candidate_id, nil)}
   end
 
   @impl true
-  def handle_params(%{"id" => id}, _uri, socket) do
+  def handle_params(%{"id" => id} = params, _uri, socket) do
     scope = socket.assigns.current_scope
     user = scope.user
     account_id = scope.account.id
@@ -41,20 +43,51 @@ defmodule KithWeb.ContactLive.Merge do
          |> put_flash(:error, "Contact not found")
          |> push_navigate(to: ~p"/contacts")}
       else
-        {:noreply,
-         socket
-         |> assign(:page_title, "Merge #{contact_a.display_name || "Contact"}")
-         |> assign(:contact_a, contact_a)
-         |> assign(:contact_b, nil)
-         |> assign(:step, 1)
-         |> assign(:search_query, "")
-         |> assign(:search_results, [])
-         |> assign(:field_choices, default_field_choices())
-         |> assign(:preview, nil)
-         |> assign(:merging, false)}
+        socket =
+          socket
+          |> assign(:page_title, "Merge #{contact_a.display_name || "Contact"}")
+          |> assign(:contact_a, contact_a)
+          |> assign(:contact_b, nil)
+          |> assign(:step, 1)
+          |> assign(:search_query, "")
+          |> assign(:search_results, [])
+          |> assign(:field_choices, default_field_choices())
+          |> assign(:preview, nil)
+          |> assign(:merging, false)
+          |> assign(:candidate_id, nil)
+
+        socket = maybe_preselect_contact(socket, params, account_id)
+
+        {:noreply, socket}
       end
     end
   end
+
+  defp maybe_preselect_contact(
+         socket,
+         %{"with" => with_id, "candidate_id" => candidate_id},
+         account_id
+       ) do
+    case Contacts.get_contact(account_id, String.to_integer(with_id), preload: [:tags, :gender]) do
+      nil ->
+        socket
+
+      contact_b ->
+        socket
+        |> assign(:contact_b, contact_b)
+        |> assign(:candidate_id, String.to_integer(candidate_id))
+        |> assign(:step, 2)
+    end
+  end
+
+  defp maybe_preselect_contact(socket, %{"with" => with_id}, account_id) do
+    case Contacts.get_contact(account_id, String.to_integer(with_id), preload: [:tags, :gender]) do
+      nil -> socket
+      contact_b -> socket |> assign(:contact_b, contact_b) |> assign(:step, 2)
+    end
+  end
+
+  defp maybe_preselect_contact(socket, _params, _account_id), do: socket
 
   # ── Step 1: Search ─────────────────────────────────────────────────────
 
@@ -134,10 +167,21 @@ defmodule KithWeb.ContactLive.Merge do
 
     case Contacts.merge_contacts(contact_a.id, contact_b.id, field_choices) do
       {:ok, _result} ->
-        # Log the merge
         scope = socket.assigns.current_scope
+        account_id = scope.account.id
 
-        Kith.AuditLogs.log_event(scope.account.id, scope.user, :contact_merged,
+        # Mark duplicate candidate as merged (if came from duplicates page)
+        if candidate_id = socket.assigns[:candidate_id] do
+          candidate = DuplicateDetection.get_candidate!(account_id, candidate_id)
+          DuplicateDetection.mark_merged(candidate)
+        end
+
+        # Dismiss any other pending candidates involving either contact
+        DuplicateDetection.dismiss_candidates_for_contact(account_id, contact_a.id)
+        DuplicateDetection.dismiss_candidates_for_contact(account_id, contact_b.id)
+
+        # Log the merge
+        Kith.AuditLogs.log_event(account_id, scope.user, :contact_merged,
           contact_id: contact_a.id,
           contact_name: contact_a.display_name,
           metadata: %{
@@ -183,11 +227,20 @@ defmodule KithWeb.ContactLive.Merge do
     assigns = assign(assigns, :mergeable_fields, @mergeable_fields)
 
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-4xl mx-auto space-y-6">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Merge Contacts</h1>
-          <span class="text-sm text-[var(--color-text-tertiary)]">Step {@step} of 4 — {step_label(@step)}</span>
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+            Merge Contacts
+          </h1>
+          <span class="text-sm text-[var(--color-text-tertiary)]">
+            Step {@step} of 4 — {step_label(@step)}
+          </span>
         </div>
 
         <%!-- Step indicator (horizontal stepper) --%>
@@ -208,7 +261,9 @@ defmodule KithWeb.ContactLive.Merge do
               <KithUI.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:md} />
               <div>
                 <p class="text-sm text-[var(--color-text-tertiary)]">Merging from:</p>
-                <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>
+                <span class="font-semibold text-[var(--color-text-primary)]">
+                  {@contact_a.display_name}
+                </span>
               </div>
             </div>
 
@@ -228,7 +283,10 @@ defmodule KithWeb.ContactLive.Merge do
               />
             </form>
 
-            <div :if={@search_results != []} class="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] divide-y divide-[var(--color-border-subtle)] overflow-hidden">
+            <div
+              :if={@search_results != []}
+              class="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] divide-y divide-[var(--color-border-subtle)] overflow-hidden"
+            >
               <button
                 :for={contact <- @search_results}
                 phx-click="select-contact"
@@ -236,7 +294,9 @@ defmodule KithWeb.ContactLive.Merge do
                 class="w-full text-start px-4 py-3 hover:bg-[var(--color-surface-sunken)] flex items-center justify-between transition-colors cursor-pointer"
               >
                 <div>
-                  <span class="font-medium text-[var(--color-text-primary)]">{contact.display_name}</span>
+                  <span class="font-medium text-[var(--color-text-primary)]">
+                    {contact.display_name}
+                  </span>
                   <span :if={contact.company} class="text-sm text-[var(--color-text-tertiary)] ms-2">
                     {contact.company}
                   </span>
@@ -273,7 +333,9 @@ defmodule KithWeb.ContactLive.Merge do
               :for={field <- @mergeable_fields}
               class="grid grid-cols-3 gap-4 py-3 border-t border-[var(--color-border-subtle)] items-center"
             >
-              <div class="text-sm font-medium text-[var(--color-text-secondary)]">{humanize(field)}</div>
+              <div class="text-sm font-medium text-[var(--color-text-secondary)]">
+                {humanize(field)}
+              </div>
               <button
                 phx-click="choose-field"
                 phx-value-field={field}
@@ -281,7 +343,8 @@ defmodule KithWeb.ContactLive.Merge do
                 class={[
                   "text-start text-sm px-3 py-2 rounded-[var(--radius-md)] border transition-colors cursor-pointer",
                   if(Map.get(@field_choices, field) == "survivor",
-                    do: "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
+                    do:
+                      "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
                     else: "border-[var(--color-border)] hover:border-[var(--color-border-focus)]/50"
                   )
                 ]}
@@ -295,7 +358,8 @@ defmodule KithWeb.ContactLive.Merge do
                 class={[
                   "text-start text-sm px-3 py-2 rounded-[var(--radius-md)] border transition-colors cursor-pointer",
                   if(Map.get(@field_choices, field) == "non_survivor",
-                    do: "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
+                    do:
+                      "border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
                     else: "border-[var(--color-border)] hover:border-[var(--color-border-focus)]/50"
                   )
                 ]}
@@ -317,7 +381,9 @@ defmodule KithWeb.ContactLive.Merge do
             <:header>Merge Preview</:header>
             <p class="text-sm text-[var(--color-text-secondary)] mb-4">
               This is what will happen when you merge
-              <span class="font-semibold text-[var(--color-text-primary)]">{@contact_b.display_name}</span>
+              <span class="font-semibold text-[var(--color-text-primary)]">
+                {@contact_b.display_name}
+              </span>
               into <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>:
             </p>
 
@@ -372,15 +438,21 @@ defmodule KithWeb.ContactLive.Merge do
         <div :if={@step == 4}>
           <UI.card>
             <div class="text-center py-4">
-              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Final Confirmation</h3>
+              <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
+                Final Confirmation
+              </h3>
               <p class="text-[var(--color-text-secondary)] mb-6">
                 This action cannot be easily undone. Are you sure you want to merge
-                <span class="font-semibold text-[var(--color-text-primary)]">{@contact_b.display_name}</span>
+                <span class="font-semibold text-[var(--color-text-primary)]">
+                  {@contact_b.display_name}
+                </span>
                 into <span class="font-semibold text-[var(--color-text-primary)]">{@contact_a.display_name}</span>?
               </p>
 
               <div class="flex justify-center gap-3">
-                <UI.button variant="secondary" phx-click="back" disabled={@merging}>Go Back</UI.button>
+                <UI.button variant="secondary" phx-click="back" disabled={@merging}>
+                  Go Back
+                </UI.button>
                 <UI.button variant="danger" phx-click="execute-merge" disabled={@merging}>
                   {if @merging, do: "Merging...", else: "Merge Contacts"}
                 </UI.button>

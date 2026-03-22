@@ -137,7 +137,12 @@ defmodule KithWeb.SettingsLive.Integrations do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Integrations
@@ -166,7 +171,9 @@ defmodule KithWeb.SettingsLive.Integrations do
 
           <form phx-submit="save-immich" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Server URL</label>
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                Server URL
+              </label>
               <input
                 type="url"
                 name="immich_url"
@@ -177,7 +184,9 @@ defmodule KithWeb.SettingsLive.Integrations do
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">API Key</label>
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1">
+                API Key
+              </label>
               <input
                 type="password"
                 name="immich_api_key"
@@ -205,7 +214,13 @@ defmodule KithWeb.SettingsLive.Integrations do
               <UI.button type="submit" size="sm">
                 Save
               </UI.button>
-              <UI.button type="button" variant="ghost" size="sm" phx-click="test-connection" class="border border-[var(--color-border)]">
+              <UI.button
+                type="button"
+                variant="ghost"
+                size="sm"
+                phx-click="test-connection"
+                class="border border-[var(--color-border)]"
+              >
                 Test Connection
               </UI.button>
               <UI.button
@@ -241,15 +256,21 @@ defmodule KithWeb.SettingsLive.Integrations do
             <%!-- Stats grid --%>
             <div class="grid grid-cols-3 gap-4 mt-4">
               <div class="text-center p-3 rounded-[var(--radius-lg)] bg-[var(--color-surface-sunken)]">
-                <div class="text-xl font-semibold text-[var(--color-text-primary)]">{@immich_contacts_scanned}</div>
+                <div class="text-xl font-semibold text-[var(--color-text-primary)]">
+                  {@immich_contacts_scanned}
+                </div>
                 <div class="text-xs text-[var(--color-text-tertiary)] mt-0.5">Contacts scanned</div>
               </div>
               <div class="text-center p-3 rounded-[var(--radius-lg)] bg-[var(--color-surface-sunken)]">
-                <div class="text-xl font-semibold text-[var(--color-text-primary)]">{@immich_matches_found}</div>
+                <div class="text-xl font-semibold text-[var(--color-text-primary)]">
+                  {@immich_matches_found}
+                </div>
                 <div class="text-xs text-[var(--color-text-tertiary)] mt-0.5">Matches found</div>
               </div>
               <div class="text-center p-3 rounded-[var(--radius-lg)] bg-[var(--color-surface-sunken)]">
-                <div class="text-xl font-semibold text-[var(--color-text-primary)]">{@immich_pending_count}</div>
+                <div class="text-xl font-semibold text-[var(--color-text-primary)]">
+                  {@immich_pending_count}
+                </div>
                 <div class="text-xs text-[var(--color-text-tertiary)] mt-0.5">Pending review</div>
               </div>
             </div>
@@ -259,8 +280,7 @@ defmodule KithWeb.SettingsLive.Integrations do
                 navigate={~p"/contacts/immich-review"}
                 class="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline inline-flex items-center gap-1"
               >
-                Review pending contacts
-                <.icon name="hero-arrow-right" class="size-3.5" />
+                Review pending contacts <.icon name="hero-arrow-right" class="size-3.5" />
               </.link>
             </p>
           </div>

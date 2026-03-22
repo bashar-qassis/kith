@@ -26,6 +26,7 @@ defmodule KithWeb.Layouts do
   attr :flash, :map, required: true
   attr :current_scope, :map, default: nil
   attr :current_path, :string, default: "/"
+  attr :pending_duplicates_count, :integer, default: 0
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -72,6 +73,7 @@ defmodule KithWeb.Layouts do
             icon="hero-user-group"
             label="Contacts"
             match_prefix="/contacts"
+            badge_count={@pending_duplicates_count}
           />
           <.sidebar_link
             path={~p"/reminders/upcoming"}
@@ -153,8 +155,7 @@ defmodule KithWeb.Layouts do
                 method="delete"
                 class="flex items-center gap-2 px-3 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-surface-sunken)] transition-colors"
               >
-                <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
-                Log out
+                <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
               </.link>
             </div>
           </div>
@@ -165,7 +166,9 @@ defmodule KithWeb.Layouts do
       <div class="flex-1 flex flex-col overflow-hidden">
         <%!-- Mobile top bar --%>
         <header class="md:hidden flex items-center justify-between px-4 h-14 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
-          <a href="/" class="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">Kith</a>
+          <a href="/" class="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">
+            Kith
+          </a>
           <%= if @current_scope && @current_scope.user do %>
             <.link
               href={~p"/users/log-out"}
@@ -290,8 +293,10 @@ defmodule KithWeb.Layouts do
       aria-current={@active && "page"}
       class={[
         "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-150",
-        @active && "bg-[var(--color-surface-elevated)] text-[var(--color-accent)] border-s-2 border-[var(--color-accent)]",
-        !@active && "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
+        @active &&
+          "bg-[var(--color-surface-elevated)] text-[var(--color-accent)] border-s-2 border-[var(--color-accent)]",
+        !@active &&
+          "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
       ]}
     >
       <.icon name={@icon} class="size-5 shrink-0" />
@@ -399,7 +404,10 @@ defmodule KithWeb.Layouts do
         data-phx-theme="system"
         aria-label="System theme"
       >
-        <.icon name="hero-computer-desktop-micro" class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors" />
+        <.icon
+          name="hero-computer-desktop-micro"
+          class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
+        />
       </button>
 
       <button
@@ -408,7 +416,10 @@ defmodule KithWeb.Layouts do
         data-phx-theme="light"
         aria-label="Light theme"
       >
-        <.icon name="hero-sun-micro" class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors" />
+        <.icon
+          name="hero-sun-micro"
+          class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
+        />
       </button>
 
       <button
@@ -417,7 +428,10 @@ defmodule KithWeb.Layouts do
         data-phx-theme="dark"
         aria-label="Dark theme"
       >
-        <.icon name="hero-moon-micro" class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors" />
+        <.icon
+          name="hero-moon-micro"
+          class="size-3.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
+        />
       </button>
     </div>
     """

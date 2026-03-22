@@ -94,10 +94,17 @@ defmodule KithWeb.ContactLive.ImmichReview do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-4xl mx-auto space-y-6">
         <div>
-          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Immich Photo Review</h1>
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+            Immich Photo Review
+          </h1>
           <p class="text-sm text-[var(--color-text-tertiary)] mt-1">
             Review photo suggestions for {@contact && @contact.display_name}
           </p>
@@ -108,7 +115,9 @@ defmodule KithWeb.ContactLive.ImmichReview do
             <div class="flex items-center gap-4">
               <KithUI.avatar name={@contact.display_name} size={:lg} />
               <div>
-                <h3 class="text-lg font-semibold text-[var(--color-text-primary)]">{@contact.display_name}</h3>
+                <h3 class="text-lg font-semibold text-[var(--color-text-primary)]">
+                  {@contact.display_name}
+                </h3>
                 <p class="text-sm text-[var(--color-text-tertiary)]">
                   {length(@candidates)} pending suggestion(s)
                 </p>
@@ -131,7 +140,9 @@ defmodule KithWeb.ContactLive.ImmichReview do
 
           <div :if={@candidates != []} class="mt-6">
             <div class="flex justify-between items-center mb-4">
-              <p class="text-sm text-[var(--color-text-secondary)]">{length(@candidates)} pending suggestion(s)</p>
+              <p class="text-sm text-[var(--color-text-secondary)]">
+                {length(@candidates)} pending suggestion(s)
+              </p>
               <button
                 phx-click="reject-all"
                 data-confirm="Reject all candidates?"

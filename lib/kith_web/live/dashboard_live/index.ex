@@ -63,7 +63,12 @@ defmodule KithWeb.DashboardLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="space-y-6">
         <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
           Dashboard
@@ -145,7 +150,9 @@ defmodule KithWeb.DashboardLive.Index do
                 >
                   <KithUI.avatar name={contact.display_name} size={:sm} />
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-[var(--color-text-primary)] truncate">{contact.display_name}</p>
+                    <p class="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                      {contact.display_name}
+                    </p>
                     <div class="flex gap-1 mt-0.5">
                       <KithUI.tag_badge :for={tag <- Enum.take(contact.tags, 3)} tag={tag} />
                     </div>

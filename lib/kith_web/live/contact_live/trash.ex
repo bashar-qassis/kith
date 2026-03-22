@@ -22,10 +22,17 @@ defmodule KithWeb.ContactLive.Trash do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="space-y-6">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Trash</h1>
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+            Trash
+          </h1>
           <.link
             navigate={~p"/contacts"}
             class="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
@@ -36,21 +43,35 @@ defmodule KithWeb.ContactLive.Trash do
 
         <div class="flex items-center gap-3 rounded-[var(--radius-lg)] bg-[var(--color-warning-subtle)] border-s-4 border-[var(--color-warning)] p-4">
           <.icon name="hero-exclamation-triangle" class="size-5 text-[var(--color-warning)] shrink-0" />
-          <span class="text-sm text-[var(--color-text-primary)]">Contacts in trash are permanently deleted after 30 days.</span>
+          <span class="text-sm text-[var(--color-text-primary)]">
+            Contacts in trash are permanently deleted after 30 days.
+          </span>
         </div>
 
         <%= if @contacts == [] do %>
-          <KithUI.empty_state icon="hero-trash" title="Trash is empty" message="Deleted contacts will appear here for 30 days before permanent removal." />
+          <KithUI.empty_state
+            icon="hero-trash"
+            title="Trash is empty"
+            message="Deleted contacts will appear here for 30 days before permanent removal."
+          />
         <% else %>
           <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-[var(--color-border)]">
-                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Name</th>
-                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Deleted On</th>
-                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Time Remaining</th>
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Name
+                  </th>
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Deleted On
+                  </th>
+                  <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Time Remaining
+                  </th>
                   <%= if authorized?(@current_scope.user, :update, :contact) do %>
-                    <th class="px-4 py-3 text-end text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Actions</th>
+                    <th class="px-4 py-3 text-end text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                      Actions
+                    </th>
                   <% end %>
                 </tr>
               </thead>
@@ -60,14 +81,18 @@ defmodule KithWeb.ContactLive.Trash do
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-3">
                         <KithUI.avatar name={contact.display_name} size={:sm} />
-                        <span class="font-medium text-[var(--color-text-primary)]">{contact.display_name}</span>
+                        <span class="font-medium text-[var(--color-text-primary)]">
+                          {contact.display_name}
+                        </span>
                       </div>
                     </td>
                     <td class="px-4 py-3">
                       <KithUI.date_display date={contact.deleted_at} />
                     </td>
                     <td class="px-4 py-3">
-                      <UI.badge variant={if(days_until_deletion(contact.deleted_at) <= 7, do: "error", else: "warning")}>
+                      <UI.badge variant={
+                        if(days_until_deletion(contact.deleted_at) <= 7, do: "error", else: "warning")
+                      }>
                         {days_remaining_label(contact.deleted_at)}
                       </UI.badge>
                     </td>

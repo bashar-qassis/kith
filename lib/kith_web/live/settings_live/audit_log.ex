@@ -136,7 +136,12 @@ defmodule KithWeb.SettingsLive.AuditLog do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Audit Log
@@ -144,9 +149,15 @@ defmodule KithWeb.SettingsLive.AuditLog do
         </UI.header>
 
         <%!-- Filters --%>
-        <form phx-change="filter" phx-submit="filter" class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <form
+          phx-change="filter"
+          phx-submit="filter"
+          class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3"
+        >
           <div>
-            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Event Type</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">
+              Event Type
+            </label>
             <select
               name="event_type"
               class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20"
@@ -162,7 +173,9 @@ defmodule KithWeb.SettingsLive.AuditLog do
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Contact Name</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">
+              Contact Name
+            </label>
             <input
               type="text"
               name="contact_name"
@@ -173,7 +186,9 @@ defmodule KithWeb.SettingsLive.AuditLog do
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">User Name</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">
+              User Name
+            </label>
             <input
               type="text"
               name="user_name"
@@ -184,7 +199,9 @@ defmodule KithWeb.SettingsLive.AuditLog do
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">From</label>
+            <label class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">
+              From
+            </label>
             <input
               type="date"
               name="date_from"
@@ -217,11 +234,21 @@ defmodule KithWeb.SettingsLive.AuditLog do
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-[var(--color-border)]">
-                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Timestamp</th>
-                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">User</th>
-                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Event</th>
-                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Contact</th>
-                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Details</th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Timestamp
+                </th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  User
+                </th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Event
+                </th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Contact
+                </th>
+                <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Details
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -236,7 +263,9 @@ defmodule KithWeb.SettingsLive.AuditLog do
                   :for={entry <- @entries}
                   class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors duration-150"
                 >
-                  <td class="px-4 py-3 text-xs whitespace-nowrap text-[var(--color-text-secondary)]">{format_timestamp(entry.inserted_at)}</td>
+                  <td class="px-4 py-3 text-xs whitespace-nowrap text-[var(--color-text-secondary)]">
+                    {format_timestamp(entry.inserted_at)}
+                  </td>
                   <td class="px-4 py-3 text-[var(--color-text-primary)]">{entry.user_name}</td>
                   <td class="px-4 py-3">
                     <UI.badge>{event_label(entry.event)}</UI.badge>
@@ -250,7 +279,9 @@ defmodule KithWeb.SettingsLive.AuditLog do
                         {entry.contact_name}
                       </.link>
                     <% else %>
-                      <span class="text-[var(--color-text-tertiary)]">{entry.contact_name || "-"}</span>
+                      <span class="text-[var(--color-text-tertiary)]">
+                        {entry.contact_name || "-"}
+                      </span>
                     <% end %>
                   </td>
                   <td class="px-4 py-3 text-xs text-[var(--color-text-tertiary)] max-w-xs truncate">

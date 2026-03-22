@@ -102,10 +102,17 @@ defmodule KithWeb.ReminderLive.Upcoming do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-4xl mx-auto space-y-6">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">Upcoming Reminders</h1>
+          <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+            Upcoming Reminders
+          </h1>
 
           <%!-- Pill-shaped button group --%>
           <div class="inline-flex rounded-[var(--radius-full)] border border-[var(--color-border)] p-0.5 bg-[var(--color-surface-sunken)]">
@@ -157,7 +164,7 @@ defmodule KithWeb.ReminderLive.Upcoming do
                     </.link>
                     <p class="text-sm text-[var(--color-text-tertiary)]">
                       {type_label(reminder.type)}
-                      <span :if={reminder.title}> — {reminder.title}</span>
+                      <span :if={reminder.title}> —  {reminder.title}</span>
                     </p>
                   </div>
                 </div>
@@ -191,7 +198,14 @@ defmodule KithWeb.ReminderLive.Upcoming do
                         </summary>
                         <div class="absolute end-0 top-full mt-1 z-10 w-36 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-lg py-1">
                           <button
-                            :for={{duration, label} <- [{"15_minutes", "15 minutes"}, {"1_hour", "1 hour"}, {"1_day", "1 day"}, {"3_days", "3 days"}]}
+                            :for={
+                              {duration, label} <- [
+                                {"15_minutes", "15 minutes"},
+                                {"1_hour", "1 hour"},
+                                {"1_day", "1 day"},
+                                {"3_days", "3 days"}
+                              ]
+                            }
                             phx-click="snooze-instance"
                             phx-value-id={instance.id}
                             phx-value-duration={duration}

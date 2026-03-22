@@ -1,4 +1,9 @@
-<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_path={@current_path}
+  pending_duplicates_count={@pending_duplicates_count}
+>
   <%= if @contact do %>
     <%!-- Back link --%>
     <div class="mb-4">
@@ -10,6 +15,24 @@
       </.link>
     </div>
 
+    <div
+      :if={@duplicate_candidates != []}
+      class="mb-4 p-3 rounded-[var(--radius-lg)] border border-[var(--color-warning)] bg-[var(--color-warning-subtle)]"
+    >
+      <div class="flex items-center gap-2">
+        <.icon name="hero-exclamation-triangle" class="size-5 text-[var(--color-warning)]" />
+        <span class="text-sm font-medium text-[var(--color-text-primary)]">
+          Potential duplicate{if length(@duplicate_candidates) > 1, do: "s"} detected
+        </span>
+        <.link
+          navigate={~p"/contacts/duplicates"}
+          class="ms-auto text-sm text-[var(--color-accent)] hover:underline"
+        >
+          Review
+        </.link>
+      </div>
+    </div>
+
     <div class="flex flex-col lg:flex-row gap-8">
       <%!-- Sidebar --%>
       <aside class="lg:w-80 shrink-0 space-y-4">
@@ -19,7 +42,9 @@
             <KithUI.avatar name={@contact.display_name} size={:lg} />
 
             <div class="flex items-center gap-2 mt-3">
-              <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">{@contact.display_name}</h1>
+              <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
+                {@contact.display_name}
+              </h1>
               <button
                 phx-click="toggle-favorite"
                 class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-warning)] transition-colors cursor-pointer"
@@ -32,11 +57,23 @@
               </button>
             </div>
 
-            <p :if={@contact.nickname} class="text-sm text-[var(--color-text-tertiary)]">"{@contact.nickname}"</p>
-            <UI.badge :if={@contact.is_archived} variant="warning" class="mt-2">Archived</UI.badge>
+            <p :if={@contact.nickname} class="text-sm text-[var(--color-text-tertiary)]">
+              "{@contact.nickname}"
+            </p>
+            <UI.badge :if={@contact.is_archived} variant="warning" class="mt-2">
+              Archived
+            </UI.badge>
             <UI.badge :if={@contact.deceased} variant="error" class="mt-2">Deceased</UI.badge>
-            <UI.badge :if={@contact.immich_status == "linked"} variant="success" class="mt-2">Immich linked</UI.badge>
-            <UI.badge :if={@contact.immich_status == "needs_review"} variant="warning" class="mt-2">Immich review needed</UI.badge>
+            <UI.badge :if={@contact.immich_status == "linked"} variant="success" class="mt-2">
+              Immich linked
+            </UI.badge>
+            <UI.badge
+              :if={@contact.immich_status == "needs_review"}
+              variant="warning"
+              class="mt-2"
+            >
+              Immich review needed
+            </UI.badge>
           </div>
 
           <%!-- Metadata --%>
@@ -50,7 +87,12 @@
               <dt class="text-[var(--color-text-tertiary)]">Birthday</dt>
               <dd class="text-[var(--color-text-primary)]">
                 <KithUI.date_display date={@contact.birthdate} />
-                <span :if={age = compute_age(@contact.birthdate)} class="text-[var(--color-text-tertiary)]">({age}y)</span>
+                <span
+                  :if={age = compute_age(@contact.birthdate)}
+                  class="text-[var(--color-text-tertiary)]"
+                >
+                  ({age}y)
+                </span>
               </dd>
             </div>
 
@@ -148,7 +190,9 @@
           <%= if @contact.description do %>
             <div class="w-full mt-4 border-t border-[var(--color-border-subtle)] pt-4">
               <span class="text-sm font-medium text-[var(--color-text-primary)]">About</span>
-              <p class="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">{@contact.description}</p>
+              <p class="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
+                {@contact.description}
+              </p>
             </div>
           <% end %>
 
@@ -186,7 +230,9 @@
 
                 <div :if={@contact.first_met_additional_info}>
                   <dt class="text-[var(--color-text-tertiary)]">Notes</dt>
-                  <dd class="text-[var(--color-text-secondary)] mt-0.5 leading-relaxed">{@contact.first_met_additional_info}</dd>
+                  <dd class="text-[var(--color-text-secondary)] mt-0.5 leading-relaxed">
+                    {@contact.first_met_additional_info}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -258,7 +304,12 @@
         <%= if can?(assigns, :update, :contact) do %>
           <UI.card>
             <div class="space-y-2">
-              <UI.button variant="secondary" size="sm" navigate={~p"/contacts/#{@contact.id}/edit"} class="w-full">
+              <UI.button
+                variant="secondary"
+                size="sm"
+                navigate={~p"/contacts/#{@contact.id}/edit"}
+                class="w-full"
+              >
                 <.icon name="hero-pencil-square" class="size-4" /> Edit
               </UI.button>
 
@@ -282,7 +333,12 @@
                 <.icon name="hero-trash" class="size-4" /> Delete
               </UI.button>
 
-              <UI.button variant="secondary" size="sm" navigate={~p"/contacts/#{@contact.id}/merge"} class="w-full">
+              <UI.button
+                variant="secondary"
+                size="sm"
+                navigate={~p"/contacts/#{@contact.id}/merge"}
+                class="w-full"
+              >
                 <.icon name="hero-arrows-right-left" class="size-4" /> Merge
               </UI.button>
             </div>
@@ -295,11 +351,23 @@
         <div class="border-b border-[var(--color-border)] mb-6">
           <nav class="flex gap-6 -mb-px">
             <button
-              :for={tab <- [:notes, :life_events, :activities, :calls, :tasks, :gifts, :conversations, :photos]}
+              :for={
+                tab <- [
+                  :notes,
+                  :life_events,
+                  :activities,
+                  :calls,
+                  :tasks,
+                  :gifts,
+                  :conversations,
+                  :photos
+                ]
+              }
               class={[
                 "py-3 text-sm font-medium border-b-2 transition-colors duration-200 cursor-pointer",
                 @active_tab == tab && "border-[var(--color-accent)] text-[var(--color-accent)]",
-                @active_tab != tab && "border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
+                @active_tab != tab &&
+                  "border-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
               ]}
               phx-click="switch-tab"
               phx-value-tab={tab}
@@ -320,7 +388,6 @@
                 current_user_id={@current_user_id}
                 can_edit={can?(assigns, :create, :note)}
               />
-
             <% :life_events -> %>
               <.live_component
                 module={KithWeb.ContactLive.LifeEventsListComponent}
@@ -329,7 +396,6 @@
                 account_id={@account_id}
                 can_edit={can?(assigns, :create, :life_event)}
               />
-
             <% :activities -> %>
               <.live_component
                 module={KithWeb.ContactLive.ActivitiesListComponent}
@@ -338,7 +404,6 @@
                 account_id={@account_id}
                 can_edit={can?(assigns, :create, :activity)}
               />
-
             <% :calls -> %>
               <.live_component
                 module={KithWeb.ContactLive.CallsListComponent}
@@ -347,7 +412,6 @@
                 account_id={@account_id}
                 can_edit={can?(assigns, :create, :call)}
               />
-
             <% :tasks -> %>
               <.live_component
                 module={KithWeb.ContactLive.TasksComponent}
@@ -357,7 +421,6 @@
                 current_user_id={@current_user_id}
                 can_edit={can?(assigns, :create, :task)}
               />
-
             <% :gifts -> %>
               <.live_component
                 module={KithWeb.ContactLive.GiftsComponent}
@@ -367,7 +430,6 @@
                 current_user_id={@current_user_id}
                 can_edit={can?(assigns, :create, :gift)}
               />
-
             <% :conversations -> %>
               <.live_component
                 module={KithWeb.ContactLive.ConversationsComponent}
@@ -377,7 +439,6 @@
                 current_user_id={@current_user_id}
                 can_edit={can?(assigns, :create, :conversation)}
               />
-
             <% :photos -> %>
               <.live_component
                 module={KithWeb.ContactLive.PhotosGalleryComponent}

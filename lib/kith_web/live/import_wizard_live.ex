@@ -168,10 +168,17 @@ defmodule KithWeb.ImportWizardLive do
         key = String.trim(socket.assigns.api_key)
 
         cond do
-          url == "" -> {:error, "Monica URL is required."}
-          key == "" -> {:error, "Monica API key is required."}
-          socket.assigns.uploads.import_file.entries == [] -> {:error, "Please select your Monica export (.json) file."}
-          true -> :ok
+          url == "" ->
+            {:error, "Monica URL is required."}
+
+          key == "" ->
+            {:error, "Monica API key is required."}
+
+          socket.assigns.uploads.import_file.entries == [] ->
+            {:error, "Please select your Monica export (.json) file."}
+
+          true ->
+            :ok
         end
     end
   end
@@ -185,7 +192,9 @@ defmodule KithWeb.ImportWizardLive do
     results =
       consume_uploaded_entries(socket, :import_file, fn %{path: path}, entry ->
         data = File.read!(path)
-        storage_key = "imports/#{account_id}/#{Ecto.UUID.generate()}#{Path.extname(entry.client_name)}"
+
+        storage_key =
+          "imports/#{account_id}/#{Ecto.UUID.generate()}#{Path.extname(entry.client_name)}"
 
         case Kith.Storage.upload_binary(data, storage_key) do
           {:ok, _} -> {:ok, {storage_key, entry.client_name, byte_size(data)}}
@@ -255,7 +264,12 @@ defmodule KithWeb.ImportWizardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Import Contacts
@@ -267,13 +281,16 @@ defmodule KithWeb.ImportWizardLive do
           <form id="import-source-form" phx-submit="next_step" phx-change="validate">
             <%!-- Source selection --%>
             <div class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4">
-              <p class="text-sm font-medium text-[var(--color-text-primary)] mb-4">Select import source</p>
+              <p class="text-sm font-medium text-[var(--color-text-primary)] mb-4">
+                Select import source
+              </p>
 
               <div class="space-y-3">
                 <label class={[
                   "flex items-start gap-3 p-3 rounded-[var(--radius-md)] border cursor-pointer transition-colors",
                   @source == "vcard" && "border-[var(--color-accent)] bg-[var(--color-accent)]/5",
-                  @source != "vcard" && "border-[var(--color-border)] hover:border-[var(--color-text-tertiary)]"
+                  @source != "vcard" &&
+                    "border-[var(--color-border)] hover:border-[var(--color-text-tertiary)]"
                 ]}>
                   <input
                     type="radio"
@@ -295,7 +312,8 @@ defmodule KithWeb.ImportWizardLive do
                 <label class={[
                   "flex items-start gap-3 p-3 rounded-[var(--radius-md)] border cursor-pointer transition-colors",
                   @source == "monica" && "border-[var(--color-accent)] bg-[var(--color-accent)]/5",
-                  @source != "monica" && "border-[var(--color-border)] hover:border-[var(--color-text-tertiary)]"
+                  @source != "monica" &&
+                    "border-[var(--color-border)] hover:border-[var(--color-text-tertiary)]"
                 ]}>
                   <input
                     type="radio"
@@ -320,7 +338,9 @@ defmodule KithWeb.ImportWizardLive do
             <%!-- File upload --%>
             <div class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4">
               <p class="text-sm font-medium text-[var(--color-text-primary)] mb-3">
-                {if @source == "vcard", do: "Upload vCard file (.vcf)", else: "Upload Monica export (.json)"}
+                {if @source == "vcard",
+                  do: "Upload vCard file (.vcf)",
+                  else: "Upload Monica export (.json)"}
               </p>
 
               <div
@@ -330,7 +350,9 @@ defmodule KithWeb.ImportWizardLive do
                 <.live_file_input upload={@uploads.import_file} class="hidden" />
                 <p class="text-[var(--color-text-tertiary)]">
                   Drag and drop your
-                  <span class="font-semibold">{if @source == "vcard", do: ".vcf", else: ".json"}</span>
+                  <span class="font-semibold">
+                    {if @source == "vcard", do: ".vcf", else: ".json"}
+                  </span>
                   file here, or
                   <label
                     for={@uploads.import_file.ref}
@@ -427,7 +449,9 @@ defmodule KithWeb.ImportWizardLive do
                         phx-value-option="first_met_details"
                         class="rounded border-[var(--color-border)]"
                       />
-                      <span class="text-sm text-[var(--color-text-primary)]">First-met details (where/how you met)</span>
+                      <span class="text-sm text-[var(--color-text-primary)]">
+                        First-met details (where/how you met)
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -446,7 +470,9 @@ defmodule KithWeb.ImportWizardLive do
         <%!-- Step 2: Confirmation --%>
         <div :if={@step == :confirm} class="mt-6">
           <div class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4">
-            <h3 class="text-base font-semibold text-[var(--color-text-primary)] mb-4">Review import settings</h3>
+            <h3 class="text-base font-semibold text-[var(--color-text-primary)] mb-4">
+              Review import settings
+            </h3>
 
             <dl class="space-y-3 text-sm">
               <div class="flex justify-between">
@@ -463,12 +489,20 @@ defmodule KithWeb.ImportWizardLive do
                 </dd>
               </div>
 
-              <div :if={@source == "monica" && String.trim(@api_url) != ""} class="flex justify-between">
+              <div
+                :if={@source == "monica" && String.trim(@api_url) != ""}
+                class="flex justify-between"
+              >
                 <dt class="text-[var(--color-text-secondary)]">Monica URL</dt>
-                <dd class="font-medium text-[var(--color-text-primary)] truncate max-w-xs">{@api_url}</dd>
+                <dd class="font-medium text-[var(--color-text-primary)] truncate max-w-xs">
+                  {@api_url}
+                </dd>
               </div>
 
-              <div :if={@source == "monica" && String.trim(@api_url) != ""} class="flex justify-between">
+              <div
+                :if={@source == "monica" && String.trim(@api_url) != ""}
+                class="flex justify-between"
+              >
                 <dt class="text-[var(--color-text-secondary)]">API sync</dt>
                 <dd class="font-medium text-[var(--color-text-primary)]">
                   {api_sync_description(@api_options)}
@@ -547,7 +581,8 @@ defmodule KithWeb.ImportWizardLive do
                 :if={(@results["skipped"] || @results[:skipped] || 0) > 0}
                 class="text-[var(--color-warning)]"
               >
-                <span class="font-semibold">{@results["skipped"] || @results[:skipped]}</span> entries skipped
+                <span class="font-semibold">{@results["skipped"] || @results[:skipped]}</span>
+                entries skipped
               </p>
               <p
                 :if={(@results["skipped_duplicates"] || @results[:skipped_duplicates] || 0) > 0}
@@ -558,7 +593,7 @@ defmodule KithWeb.ImportWizardLive do
             </div>
 
             <div
-              :if={@results && ((@results["errors"] || @results[:errors] || []) != [])}
+              :if={@results && (@results["errors"] || @results[:errors] || []) != []}
               class="mt-4"
             >
               <details class="text-sm">
@@ -572,7 +607,10 @@ defmodule KithWeb.ImportWizardLive do
             </div>
 
             <div class="mt-6 flex gap-3">
-              <.link navigate={~p"/contacts"} class="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors">
+              <.link
+                navigate={~p"/contacts"}
+                class="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
+              >
                 View contacts
               </.link>
               <UI.button variant="secondary" size="sm" phx-click="restart">

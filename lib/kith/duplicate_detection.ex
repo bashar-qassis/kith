@@ -36,4 +36,24 @@ defmodule Kith.DuplicateDetection do
     |> where([d], d.status == "pending")
     |> Repo.aggregate(:count)
   end
+
+  def pending_candidates_for_contact(account_id, contact_id) do
+    from(dc in DuplicateCandidate,
+      where: dc.account_id == ^account_id,
+      where: dc.status == "pending",
+      where: dc.contact_id == ^contact_id or dc.duplicate_contact_id == ^contact_id,
+      order_by: [desc: :score],
+      preload: [:contact, :duplicate_contact]
+    )
+    |> Repo.all()
+  end
+
+  def dismiss_candidates_for_contact(account_id, contact_id) do
+    from(dc in DuplicateCandidate,
+      where: dc.account_id == ^account_id,
+      where: dc.status == "pending",
+      where: dc.contact_id == ^contact_id or dc.duplicate_contact_id == ^contact_id
+    )
+    |> Repo.update_all(set: [status: "dismissed", resolved_at: DateTime.utc_now()])
+  end
 end

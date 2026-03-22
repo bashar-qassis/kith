@@ -130,7 +130,12 @@ defmodule KithWeb.SettingsLive.Import do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Import Contacts
@@ -147,7 +152,10 @@ defmodule KithWeb.SettingsLive.Import do
         </div>
 
         <%!-- Results --%>
-        <div :if={@results} class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
+        <div
+          :if={@results}
+          class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6"
+        >
           <h3 class="text-lg font-semibold mb-3">Import Results</h3>
 
           <div class="space-y-2">
@@ -174,15 +182,23 @@ defmodule KithWeb.SettingsLive.Import do
           </div>
 
           <div class="mt-4">
-            <.link navigate={~p"/contacts"} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline text-sm">
+            <.link
+              navigate={~p"/contacts"}
+              class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline text-sm"
+            >
               View imported contacts
             </.link>
           </div>
         </div>
 
         <%!-- Progress --%>
-        <div :if={@progress} class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6">
-          <p class="text-[var(--color-text-secondary)] mb-2">Processing import... This may take a few minutes.</p>
+        <div
+          :if={@progress}
+          class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6"
+        >
+          <p class="text-[var(--color-text-secondary)] mb-2">
+            Processing import... This may take a few minutes.
+          </p>
           <div class="w-full bg-[var(--color-border)] rounded-full h-2">
             <div
               class="bg-[var(--color-accent)] h-2 rounded-full transition-all duration-300"
@@ -209,7 +225,10 @@ defmodule KithWeb.SettingsLive.Import do
               <p class="text-[var(--color-text-tertiary)]">
                 Drag and drop a <span class="font-semibold">.vcf</span>
                 file here, or
-                <label for={@uploads.vcf_file.ref} class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline cursor-pointer">
+                <label
+                  for={@uploads.vcf_file.ref}
+                  class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] hover:underline cursor-pointer"
+                >
                   browse
                 </label>
               </p>
@@ -228,12 +247,19 @@ defmodule KithWeb.SettingsLive.Import do
             </div>
 
             <%!-- Upload errors --%>
-            <p :for={err <- upload_errors(@uploads.vcf_file)} class="mt-2 text-sm text-[var(--color-error)]">
+            <p
+              :for={err <- upload_errors(@uploads.vcf_file)}
+              class="mt-2 text-sm text-[var(--color-error)]"
+            >
               {upload_error_message(err)}
             </p>
 
             <div class="mt-4">
-              <UI.button type="submit" size="sm" disabled={@importing || @uploads.vcf_file.entries == []}>
+              <UI.button
+                type="submit"
+                size="sm"
+                disabled={@importing || @uploads.vcf_file.entries == []}
+              >
                 {if @importing, do: "Importing...", else: "Import Contacts"}
               </UI.button>
             </div>

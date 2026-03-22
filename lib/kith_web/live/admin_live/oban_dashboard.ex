@@ -107,7 +107,12 @@ defmodule KithWeb.AdminLive.ObanDashboard do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <UI.header>
         Oban Dashboard
         <:subtitle>Background job monitoring (refreshes every 5s)</:subtitle>
@@ -139,23 +144,50 @@ defmodule KithWeb.AdminLive.ObanDashboard do
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-[var(--color-border)]">
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">ID</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Worker</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Queue</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">State</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Attempt</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Last Run</th>
-                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Actions</th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    ID
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Worker
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Queue
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    State
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Attempt
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Last Run
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={job <- @recent_failures} class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors">
-                  <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">{job.id}</td>
-                  <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">{short_worker(job.worker)}</td>
+                <tr
+                  :for={job <- @recent_failures}
+                  class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+                >
+                  <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
+                    {job.id}
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">
+                    {short_worker(job.worker)}
+                  </td>
                   <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.queue}</td>
-                  <td class="px-3 py-2"><UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge></td>
-                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.attempt}/{job.max_attempts}</td>
-                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{format_time(job.attempted_at)}</td>
+                  <td class="px-3 py-2">
+                    <UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge>
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                    {job.attempt}/{job.max_attempts}
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                    {format_time(job.attempted_at)}
+                  </td>
                   <td class="px-3 py-2 space-x-1">
                     <button
                       phx-click="retry-job"
@@ -187,22 +219,47 @@ defmodule KithWeb.AdminLive.ObanDashboard do
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-[var(--color-border)]">
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">ID</th>
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Worker</th>
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Queue</th>
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">State</th>
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Attempt</th>
-                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Inserted</th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  ID
+                </th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Worker
+                </th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Queue
+                </th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  State
+                </th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Attempt
+                </th>
+                <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  Inserted
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={job <- @recent_jobs} class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors">
-                <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">{job.id}</td>
-                <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">{short_worker(job.worker)}</td>
+              <tr
+                :for={job <- @recent_jobs}
+                class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+              >
+                <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
+                  {job.id}
+                </td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">
+                  {short_worker(job.worker)}
+                </td>
                 <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.queue}</td>
-                <td class="px-3 py-2"><UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge></td>
-                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{job.attempt}/{job.max_attempts}</td>
-                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">{format_time(job.inserted_at)}</td>
+                <td class="px-3 py-2">
+                  <UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge>
+                </td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                  {job.attempt}/{job.max_attempts}
+                </td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                  {format_time(job.inserted_at)}
+                </td>
               </tr>
             </tbody>
           </table>

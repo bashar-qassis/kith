@@ -137,7 +137,12 @@ defmodule KithWeb.SettingsLive.Account do
     assigns = assign(assigns, :feature_modules, @feature_modules)
 
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Account Settings
@@ -193,7 +198,10 @@ defmodule KithWeb.SettingsLive.Account do
                   phx-value-feature={key}
                   class={[
                     "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                    if(Map.get(@feature_flags, key, true), do: "bg-[var(--color-accent)]", else: "bg-[var(--color-border)]")
+                    if(Map.get(@feature_flags, key, true),
+                      do: "bg-[var(--color-accent)]",
+                      else: "bg-[var(--color-border)]"
+                    )
                   ]}
                 >
                   <span class={[
@@ -263,7 +271,12 @@ defmodule KithWeb.SettingsLive.Account do
                 class="w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
               />
               <div class="mt-4">
-                <UI.button type="submit" variant="danger" size="sm" disabled={@delete_confirmation != @account.name}>
+                <UI.button
+                  type="submit"
+                  variant="danger"
+                  size="sm"
+                  disabled={@delete_confirmation != @account.name}
+                >
                   Delete Account Permanently
                 </UI.button>
               </div>

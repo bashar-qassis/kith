@@ -156,7 +156,12 @@ defmodule KithWeb.JournalLive.Index do
     assigns = assign(assigns, :moods, @moods)
 
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-3xl mx-auto">
         <%!-- Header --%>
         <div class="flex items-center justify-between mb-6">
@@ -206,7 +211,9 @@ defmodule KithWeb.JournalLive.Index do
         <%= if @show_form do %>
           <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-sm mb-6">
             <div class="p-5">
-              <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-4">New Journal Entry</h2>
+              <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-4">
+                New Journal Entry
+              </h2>
               <.form for={%{}} phx-submit="save-entry">
                 <div class="space-y-4">
                   <%!-- Title --%>
@@ -266,7 +273,10 @@ defmodule KithWeb.JournalLive.Index do
                         value={default_datetime()}
                         class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] outline-none transition-colors"
                       />
-                      <p :if={@form_errors[:occurred_at]} class="mt-1 text-xs text-[var(--color-error)]">
+                      <p
+                        :if={@form_errors[:occurred_at]}
+                        class="mt-1 text-xs text-[var(--color-error)]"
+                      >
                         {Enum.join(@form_errors[:occurred_at], ", ")}
                       </p>
                     </div>
@@ -313,7 +323,11 @@ defmodule KithWeb.JournalLive.Index do
         <%= if @entries == [] and not @show_form do %>
           <KithUI.empty_state
             icon="hero-book-open"
-            title={if @mood_filter, do: "No #{mood_label(@mood_filter)} entries", else: "No journal entries yet"}
+            title={
+              if @mood_filter,
+                do: "No #{mood_label(@mood_filter)} entries",
+                else: "No journal entries yet"
+            }
             message={
               if @mood_filter,
                 do: "Try a different mood filter or write a new entry.",
@@ -345,7 +359,9 @@ defmodule KithWeb.JournalLive.Index do
                     <.form for={%{}} phx-submit="update-entry">
                       <div class="space-y-4">
                         <div>
-                          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Title</label>
+                          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                            Title
+                          </label>
                           <input
                             type="text"
                             name="entry[title]"
@@ -355,19 +371,26 @@ defmodule KithWeb.JournalLive.Index do
                           />
                         </div>
                         <div>
-                          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Content</label>
+                          <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                            Content
+                          </label>
                           <textarea
                             name="entry[content]"
                             rows="5"
                             class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] outline-none transition-colors resize-y"
                           >{entry.content}</textarea>
-                          <p :if={@form_errors[:content]} class="mt-1 text-xs text-[var(--color-error)]">
+                          <p
+                            :if={@form_errors[:content]}
+                            class="mt-1 text-xs text-[var(--color-error)]"
+                          >
                             {Enum.join(@form_errors[:content], ", ")}
                           </p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Mood</label>
+                            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                              Mood
+                            </label>
                             <select
                               name="entry[mood]"
                               class="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] outline-none transition-colors cursor-pointer"
@@ -379,7 +402,9 @@ defmodule KithWeb.JournalLive.Index do
                             </select>
                           </div>
                           <div>
-                            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Date</label>
+                            <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                              Date
+                            </label>
                             <input
                               type="datetime-local"
                               name="entry[occurred_at]"
@@ -430,7 +455,10 @@ defmodule KithWeb.JournalLive.Index do
                       <div class="flex-1 min-w-0">
                         <%!-- Title + private badge --%>
                         <div class="flex items-center gap-2">
-                          <h3 :if={entry.title} class="text-base font-semibold text-[var(--color-text-primary)] truncate">
+                          <h3
+                            :if={entry.title}
+                            class="text-base font-semibold text-[var(--color-text-primary)] truncate"
+                          >
                             {entry.title}
                           </h3>
                           <span

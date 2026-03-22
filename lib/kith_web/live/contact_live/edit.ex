@@ -47,7 +47,12 @@ defmodule KithWeb.ContactLive.Edit do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-3xl mx-auto">
         <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight mb-6">
           {if @contact, do: "Edit #{@contact.display_name}", else: "Edit Contact"}

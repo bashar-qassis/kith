@@ -36,17 +36,24 @@ defmodule KithWeb.ContactLive.New do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-3xl mx-auto">
-        <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight mb-6">New Contact</h1>
+        <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight mb-6">
+          New Contact
+        </h1>
 
         <UI.simple_form
+          :let={f}
           for={@changeset}
           id="contact-form"
           as={:contact}
           phx-change="validate"
           phx-submit="save"
-          :let={f}
         >
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UI.input field={f[:first_name]} type="text" label="First Name *" required />

@@ -223,7 +223,14 @@ defmodule KithWeb.UserAuth do
     socket = mount_current_scope(socket, session)
 
     if socket.assigns.current_scope && socket.assigns.current_scope.user do
-      {:cont, socket}
+      account_id = socket.assigns.current_scope.account.id
+
+      {:cont,
+       Phoenix.Component.assign(
+         socket,
+         :pending_duplicates_count,
+         Kith.DuplicateDetection.pending_count(account_id)
+       )}
     else
       socket =
         socket
@@ -279,7 +286,9 @@ defmodule KithWeb.UserAuth do
     # When called from tests with a bare %LiveView.Socket{}, skip the hook.
     if socket.private[:lifecycle] do
       socket
-      |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+      |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params,
+                                                                            uri,
+                                                                            socket ->
         path = URI.parse(uri).path || "/"
         {:cont, Phoenix.Component.assign(socket, :current_path, path)}
       end)
@@ -294,7 +303,8 @@ defmodule KithWeb.UserAuth do
               []
             end
 
-          {:halt, Phoenix.LiveView.push_event(socket, "command_palette_results", %{contacts: contacts})}
+          {:halt,
+           Phoenix.LiveView.push_event(socket, "command_palette_results", %{contacts: contacts})}
 
         "command_palette_navigate", %{"path" => path}, socket ->
           {:halt, Phoenix.LiveView.push_navigate(socket, to: path)}

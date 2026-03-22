@@ -101,7 +101,12 @@ defmodule KithWeb.SettingsLive.LifeEventTypes do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Life Event Types
@@ -114,9 +119,16 @@ defmodule KithWeb.SettingsLive.LifeEventTypes do
             <h2 class="text-lg font-semibold mb-4">
               {if @editing_life_event_type, do: "Edit Life Event Type", else: "New Life Event Type"}
             </h2>
-            <.form for={@changeset} phx-change="validate" phx-submit="save" class="flex gap-3 items-end flex-wrap">
+            <.form
+              for={@changeset}
+              phx-change="validate"
+              phx-submit="save"
+              class="flex gap-3 items-end flex-wrap"
+            >
               <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Name</label>
+                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="life_event_type[name]"
@@ -126,7 +138,9 @@ defmodule KithWeb.SettingsLive.LifeEventTypes do
                 />
               </div>
               <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Category</label>
+                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                  Category
+                </label>
                 <input
                   type="text"
                   name="life_event_type[category]"
@@ -175,7 +189,13 @@ defmodule KithWeb.SettingsLive.LifeEventTypes do
                 </div>
                 <%= if @can_edit && !is_nil(let.account_id) do %>
                   <div class="flex gap-1">
-                    <UI.button variant="ghost" size="sm" phx-click="edit" phx-value-id={let.id} class="!px-2">
+                    <UI.button
+                      variant="ghost"
+                      size="sm"
+                      phx-click="edit"
+                      phx-value-id={let.id}
+                      class="!px-2"
+                    >
                       <UI.icon name="hero-pencil-square" class="size-4" />
                     </UI.button>
                     <UI.button

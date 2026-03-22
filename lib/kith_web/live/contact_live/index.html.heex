@@ -1,8 +1,15 @@
-<Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_path={@current_path}
+  pending_duplicates_count={@pending_duplicates_count}
+>
   <div class="space-y-6">
     <%!-- Header --%>
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">{@page_title}</h1>
+      <h1 class="text-2xl font-semibold text-[var(--color-text-primary)] tracking-tight">
+        {@page_title}
+      </h1>
       <div class="flex items-center gap-3">
         <%= if can?(assigns, :create, :contact) do %>
           <UI.button size="sm" navigate={~p"/contacts/new"}>
@@ -17,7 +24,10 @@
       <div class="flex-1">
         <form phx-change="search" phx-submit="search">
           <div class="relative">
-            <.icon name="hero-magnifying-glass" class="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-text-tertiary)]" />
+            <.icon
+              name="hero-magnifying-glass"
+              class="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-[var(--color-text-tertiary)]"
+            />
             <input
               type="text"
               name="search"
@@ -38,7 +48,9 @@
         >
           <option value="name_asc" selected={@sort == "name_asc"}>Name A-Z</option>
           <option value="name_desc" selected={@sort == "name_desc"}>Name Z-A</option>
-          <option value="recently_added" selected={@sort == "recently_added"}>Recently Added</option>
+          <option value="recently_added" selected={@sort == "recently_added"}>
+            Recently Added
+          </option>
           <option value="recently_contacted" selected={@sort == "recently_contacted"}>
             Recently Contacted
           </option>
@@ -79,7 +91,9 @@
     <%!-- Tag filter --%>
     <%= if @tags != [] do %>
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Tags:</span>
+        <span class="text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+          Tags:
+        </span>
         <%= for tag <- @tags do %>
           <label class="cursor-pointer">
             <input
@@ -87,14 +101,17 @@
               value={tag.id}
               checked={to_string(tag.id) in @selected_tag_ids}
               phx-click="filter-tags"
-              phx-value-tag_ids={toggle_tag_id(@selected_tag_ids, to_string(tag.id)) |> Jason.encode!()}
+              phx-value-tag_ids={
+                toggle_tag_id(@selected_tag_ids, to_string(tag.id)) |> Jason.encode!()
+              }
               class="hidden"
             />
             <span class={[
               "inline-flex items-center rounded-[var(--radius-full)] px-2.5 py-1 text-xs font-medium transition-colors duration-150",
               if(to_string(tag.id) in @selected_tag_ids,
                 do: "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]",
-                else: "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
+                else:
+                  "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)]"
               )
             ]}>
               {tag.name}
@@ -108,12 +125,20 @@
     <%= if MapSet.size(@selected_ids) > 0 and can?(assigns, :update, :contact) do %>
       <div class="sticky bottom-4 z-30 mx-auto max-w-fit animate-in slide-in-from-bottom-4 fade-in duration-200">
         <div class="flex items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-overlay)] shadow-[var(--shadow-dropdown)] px-4 py-2.5">
-          <span class="text-sm font-medium text-[var(--color-text-primary)]">{MapSet.size(@selected_ids)} selected</span>
+          <span class="text-sm font-medium text-[var(--color-text-primary)]">
+            {MapSet.size(@selected_ids)} selected
+          </span>
           <div class="w-px h-5 bg-[var(--color-border)]" />
-          <button phx-click="bulk-favorite" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
+          <button
+            phx-click="bulk-favorite"
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-star" class="size-3.5" /> Favorite
           </button>
-          <button phx-click="bulk-archive" class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer">
+          <button
+            phx-click="bulk-archive"
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+          >
             <.icon name="hero-archive-box" class="size-3.5" /> Archive
           </button>
           <button
@@ -195,15 +220,26 @@
                   type="checkbox"
                   class="size-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] accent-[var(--color-accent)] cursor-pointer"
                   phx-click="select-all"
-                  checked={MapSet.size(@selected_ids) > 0 and MapSet.size(@selected_ids) == length(@contacts)}
+                  checked={
+                    MapSet.size(@selected_ids) > 0 and
+                      MapSet.size(@selected_ids) == length(@contacts)
+                  }
                 />
               </th>
             <% end %>
             <th class="w-12 px-4 py-3"></th>
-            <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Name</th>
-            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Company</th>
-            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Tags</th>
-            <th class="hidden lg:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">Last Contacted</th>
+            <th class="px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+              Name
+            </th>
+            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+              Company
+            </th>
+            <th class="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+              Tags
+            </th>
+            <th class="hidden lg:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+              Last Contacted
+            </th>
             <th class="w-10 px-4 py-3"></th>
           </tr>
         </thead>
@@ -214,7 +250,11 @@
                 <KithUI.empty_state
                   icon="hero-user-group"
                   title="No contacts found"
-                  message={if @search != "", do: "Try a different search term.", else: "Add your first contact to get started."}
+                  message={
+                    if @search != "",
+                      do: "Try a different search term.",
+                      else: "Add your first contact to get started."
+                  }
                 >
                   <:actions>
                     <UI.button :if={@search == ""} size="sm" navigate={~p"/contacts/new"}>
@@ -243,7 +283,11 @@
               <% end %>
               <td class="px-4 py-3">
                 <.link navigate={~p"/contacts/#{contact.id}"}>
-                  <KithUI.avatar name={contact.display_name} src={contact_photo_url(contact)} size={:sm} />
+                  <KithUI.avatar
+                    name={contact.display_name}
+                    src={contact_photo_url(contact)}
+                    size={:sm}
+                  />
                 </.link>
               </td>
               <td class="px-4 py-3">
@@ -253,19 +297,26 @@
                 >
                   {contact.display_name}
                 </.link>
-                <UI.badge :if={contact.is_archived} variant="default" class="ms-1.5">archived</UI.badge>
-                <UI.badge :if={contact.deceased} variant="default" class="ms-1.5">deceased</UI.badge>
+                <UI.badge :if={contact.is_archived} variant="default" class="ms-1.5">
+                  archived
+                </UI.badge>
+                <UI.badge :if={contact.deceased} variant="default" class="ms-1.5">
+                  deceased
+                </UI.badge>
               </td>
               <td class="hidden md:table-cell px-4 py-3 text-[var(--color-text-secondary)]">
                 {contact.company}
               </td>
               <td class="hidden md:table-cell px-4 py-3">
                 <div class="flex flex-wrap gap-1">
-                  <KithUI.tag_badge :for={tag <- (contact.tags || [])} tag={tag} />
+                  <KithUI.tag_badge :for={tag <- contact.tags || []} tag={tag} />
                 </div>
               </td>
               <td class="hidden lg:table-cell px-4 py-3 text-sm">
-                <KithUI.relative_time :if={contact.last_talked_to} datetime={contact.last_talked_to} />
+                <KithUI.relative_time
+                  :if={contact.last_talked_to}
+                  datetime={contact.last_talked_to}
+                />
               </td>
               <td class="px-4 py-3">
                 <button
@@ -310,6 +361,12 @@
           &larr; Back to Contacts
         </.link>
       <% end %>
+      <.link
+        navigate={~p"/contacts/duplicates"}
+        class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+      >
+        Duplicates
+      </.link>
       <.link
         navigate={~p"/contacts/trash"}
         class="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"

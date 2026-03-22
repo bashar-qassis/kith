@@ -8,6 +8,7 @@ defmodule KithWeb.ContactLive.Show do
 
   alias Kith.Contacts
   alias Kith.AuditLogs
+  alias Kith.DuplicateDetection
 
   @tabs ~w(notes life_events activities calls tasks gifts conversations photos)a
 
@@ -20,7 +21,8 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:active_tab, :notes)
      |> assign(:tags, [])
      |> assign(:tag_search, "")
-     |> assign(:show_tag_dropdown, false)}
+     |> assign(:show_tag_dropdown, false)
+     |> assign(:duplicate_candidates, [])}
   end
 
   @impl true
@@ -38,7 +40,11 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:account_id, account_id)
      |> assign(:current_user_id, user_id)
      |> assign(:contact, contact)
-     |> assign(:tags, Contacts.list_tags(account_id))}
+     |> assign(:tags, Contacts.list_tags(account_id))
+     |> assign(
+       :duplicate_candidates,
+       DuplicateDetection.pending_candidates_for_contact(account_id, contact.id)
+     )}
   end
 
   @impl true
@@ -46,7 +52,8 @@ defmodule KithWeb.ContactLive.Show do
     contact = socket.assigns.contact
     {:ok, updated} = Contacts.update_contact(contact, %{favorite: !contact.favorite})
 
-    {:noreply, assign(socket, :contact, Kith.Repo.preload(updated, [:tags, :gender, :first_met_through]))}
+    {:noreply,
+     assign(socket, :contact, Kith.Repo.preload(updated, [:tags, :gender, :first_met_through]))}
   end
 
   def handle_event("archive", _params, socket) do
@@ -128,7 +135,8 @@ defmodule KithWeb.ContactLive.Show do
 
     Contacts.tag_contact(contact, tag)
 
-    updated_contact = Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
+    updated_contact =
+      Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
 
     {:noreply,
      socket
@@ -144,7 +152,8 @@ defmodule KithWeb.ContactLive.Show do
 
     Contacts.untag_contact(contact, tag)
 
-    updated_contact = Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
+    updated_contact =
+      Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
 
     {:noreply, assign(socket, :contact, updated_contact)}
   end

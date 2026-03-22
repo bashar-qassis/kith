@@ -101,7 +101,12 @@ defmodule KithWeb.SettingsLive.Emotions do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Emotions
@@ -114,9 +119,16 @@ defmodule KithWeb.SettingsLive.Emotions do
             <h2 class="text-lg font-semibold mb-4">
               {if @editing_emotion, do: "Edit Emotion", else: "New Emotion"}
             </h2>
-            <.form for={@changeset} phx-change="validate" phx-submit="save" class="flex gap-3 items-end flex-wrap">
+            <.form
+              for={@changeset}
+              phx-change="validate"
+              phx-submit="save"
+              class="flex gap-3 items-end flex-wrap"
+            >
               <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">Name</label>
+                <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="emotion[name]"
@@ -151,7 +163,9 @@ defmodule KithWeb.SettingsLive.Emotions do
             <%= for emotion <- @emotions do %>
               <div class="flex items-center justify-between p-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)]">
                 <div class="flex items-center gap-3">
-                  <span class="text-sm font-medium text-[var(--color-text-primary)]">{emotion.name}</span>
+                  <span class="text-sm font-medium text-[var(--color-text-primary)]">
+                    {emotion.name}
+                  </span>
                   <%= if is_nil(emotion.account_id) do %>
                     <span class="inline-flex items-center rounded-[var(--radius-full)] bg-[var(--color-surface-sunken)] px-2 py-0.5 text-xs text-[var(--color-text-tertiary)]">
                       Default
@@ -160,7 +174,13 @@ defmodule KithWeb.SettingsLive.Emotions do
                 </div>
                 <%= if @can_edit && !is_nil(emotion.account_id) do %>
                   <div class="flex gap-1">
-                    <UI.button variant="ghost" size="sm" phx-click="edit" phx-value-id={emotion.id} class="!px-2">
+                    <UI.button
+                      variant="ghost"
+                      size="sm"
+                      phx-click="edit"
+                      phx-value-id={emotion.id}
+                      class="!px-2"
+                    >
                       <UI.icon name="hero-pencil-square" class="size-4" />
                     </UI.button>
                     <UI.button

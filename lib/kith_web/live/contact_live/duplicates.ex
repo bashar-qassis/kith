@@ -29,7 +29,9 @@ defmodule KithWeb.ContactLive.Duplicates do
 
   @impl true
   def handle_event("dismiss", %{"id" => id}, socket) do
-    candidate = DuplicateDetection.get_candidate!(socket.assigns.account_id, String.to_integer(id))
+    candidate =
+      DuplicateDetection.get_candidate!(socket.assigns.account_id, String.to_integer(id))
+
     {:ok, _} = DuplicateDetection.dismiss_candidate(candidate)
 
     candidates = DuplicateDetection.list_candidates(socket.assigns.account_id)
@@ -37,6 +39,7 @@ defmodule KithWeb.ContactLive.Duplicates do
     {:noreply,
      socket
      |> assign(:candidates, candidates)
+     |> assign(:pending_duplicates_count, length(candidates))
      |> put_flash(:info, "Duplicate dismissed.")}
   end
 
@@ -44,7 +47,9 @@ defmodule KithWeb.ContactLive.Duplicates do
     user = socket.assigns.current_scope.user
 
     if Policy.can?(user, :manage, :account) do
-      Oban.insert(Kith.Workers.DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id}))
+      Oban.insert(
+        Kith.Workers.DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id})
+      )
 
       {:noreply, put_flash(socket, :info, "Duplicate scan started. Results will appear shortly.")}
     else
@@ -55,8 +60,22 @@ defmodule KithWeb.ContactLive.Duplicates do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} current_path={@current_path}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_path={@current_path}
+      pending_duplicates_count={@pending_duplicates_count}
+    >
       <div class="max-w-4xl mx-auto">
+        <div class="mb-4">
+          <.link
+            navigate={~p"/contacts"}
+            class="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
+          >
+            <.icon name="hero-arrow-left" class="size-4 rtl:rotate-180" /> Back to Contacts
+          </.link>
+        </div>
+
         <div class="flex items-center justify-between mb-6">
           <div>
             <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Duplicate Contacts</h1>
@@ -86,9 +105,12 @@ defmodule KithWeb.ContactLive.Duplicates do
                   <div class="flex items-center gap-2">
                     <span class={[
                       "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                      candidate.score >= 0.8 && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                      candidate.score >= 0.5 && candidate.score < 0.8 && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                      candidate.score < 0.5 && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      candidate.score >= 0.8 &&
+                        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                      candidate.score >= 0.5 && candidate.score < 0.8 &&
+                        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                      candidate.score < 0.5 &&
+                        "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     ]}>
                       {Float.round(candidate.score * 100, 0)}% match
                     </span>
@@ -103,12 +125,18 @@ defmodule KithWeb.ContactLive.Duplicates do
 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3">
-                    <.link navigate={~p"/contacts/#{candidate.contact.id}"} class="text-sm font-semibold text-[var(--color-accent)] hover:underline">
+                    <.link
+                      navigate={~p"/contacts/#{candidate.contact.id}"}
+                      class="text-sm font-semibold text-[var(--color-accent)] hover:underline"
+                    >
                       {candidate.contact.display_name}
                     </.link>
                   </div>
                   <div class="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3">
-                    <.link navigate={~p"/contacts/#{candidate.duplicate_contact.id}"} class="text-sm font-semibold text-[var(--color-accent)] hover:underline">
+                    <.link
+                      navigate={~p"/contacts/#{candidate.duplicate_contact.id}"}
+                      class="text-sm font-semibold text-[var(--color-accent)] hover:underline"
+                    >
                       {candidate.duplicate_contact.display_name}
                     </.link>
                   </div>
@@ -116,7 +144,9 @@ defmodule KithWeb.ContactLive.Duplicates do
 
                 <div class="flex gap-2 mt-3">
                   <.link
-                    navigate={~p"/contacts/#{candidate.contact.id}/merge"}
+                    navigate={
+                      ~p"/contacts/#{candidate.contact.id}/merge?with=#{candidate.duplicate_contact.id}&candidate_id=#{candidate.id}"
+                    }
                     class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
                   >
                     <.icon name="hero-arrows-right-left" class="size-4" /> Merge
