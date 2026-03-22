@@ -30,7 +30,7 @@ defmodule KithWeb.ContactLive.Show do
 
     contact =
       Contacts.get_contact!(account_id, String.to_integer(id))
-      |> Kith.Repo.preload([:tags, :gender])
+      |> Kith.Repo.preload([:tags, :gender, :first_met_through])
 
     {:noreply,
      socket
@@ -46,7 +46,7 @@ defmodule KithWeb.ContactLive.Show do
     contact = socket.assigns.contact
     {:ok, updated} = Contacts.update_contact(contact, %{favorite: !contact.favorite})
 
-    {:noreply, assign(socket, :contact, Kith.Repo.preload(updated, [:tags, :gender]))}
+    {:noreply, assign(socket, :contact, Kith.Repo.preload(updated, [:tags, :gender, :first_met_through]))}
   end
 
   def handle_event("archive", _params, socket) do
@@ -63,7 +63,7 @@ defmodule KithWeb.ContactLive.Show do
 
     {:noreply,
      socket
-     |> assign(:contact, Kith.Repo.preload(updated, [:tags, :gender]))
+     |> assign(:contact, Kith.Repo.preload(updated, [:tags, :gender, :first_met_through]))
      |> put_flash(:info, "#{contact.display_name} archived.")}
   end
 
@@ -81,7 +81,7 @@ defmodule KithWeb.ContactLive.Show do
 
     {:noreply,
      socket
-     |> assign(:contact, Kith.Repo.preload(updated, [:tags, :gender]))
+     |> assign(:contact, Kith.Repo.preload(updated, [:tags, :gender, :first_met_through]))
      |> put_flash(:info, "#{contact.display_name} unarchived.")}
   end
 
@@ -128,7 +128,7 @@ defmodule KithWeb.ContactLive.Show do
 
     Contacts.tag_contact(contact, tag)
 
-    updated_contact = Kith.Repo.preload(contact, [:tags, :gender], force: true)
+    updated_contact = Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
 
     {:noreply,
      socket
@@ -144,7 +144,7 @@ defmodule KithWeb.ContactLive.Show do
 
     Contacts.untag_contact(contact, tag)
 
-    updated_contact = Kith.Repo.preload(contact, [:tags, :gender], force: true)
+    updated_contact = Kith.Repo.preload(contact, [:tags, :gender, :first_met_through], force: true)
 
     {:noreply, assign(socket, :contact, updated_contact)}
   end
@@ -174,6 +174,13 @@ defmodule KithWeb.ContactLive.Show do
   defp tab_label(:gifts), do: "Gifts"
   defp tab_label(:conversations), do: "Conversations"
   defp tab_label(:photos), do: "Photos"
+
+  defp has_first_met_data?(contact) do
+    contact.first_met_at != nil or
+      contact.first_met_where not in [nil, ""] or
+      contact.first_met_through_id != nil or
+      contact.first_met_additional_info not in [nil, ""]
+  end
 
   defp filtered_tags(tags, contact_tags, search) do
     contact_tag_ids = Enum.map(contact_tags, & &1.id) |> MapSet.new()

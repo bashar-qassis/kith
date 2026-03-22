@@ -494,12 +494,17 @@ defmodule KithWeb.KithUI do
   attr :date, :any, required: true
   attr :locale, :string, default: "en"
   attr :format, :atom, default: :medium
+  attr :year_unknown, :boolean, default: false
 
   def date_display(assigns) do
     formatted =
-      case Kith.Cldr.Date.to_string(assigns.date, locale: assigns.locale, format: assigns.format) do
-        {:ok, str} -> str
-        _ -> to_string(assigns.date)
+      if assigns.year_unknown do
+        format_month_day(assigns.date)
+      else
+        case Kith.Cldr.Date.to_string(assigns.date, locale: assigns.locale, format: assigns.format) do
+          {:ok, str} -> str
+          _ -> to_string(assigns.date)
+        end
       end
 
     assigns = assign(assigns, :formatted, formatted)
@@ -508,6 +513,12 @@ defmodule KithWeb.KithUI do
     <time id={@id} datetime={to_string(@date)} class="text-[var(--color-text-secondary)]">{@formatted}</time>
     """
   end
+
+  defp format_month_day(%Date{} = date) do
+    Calendar.strftime(date, "%B %-d")
+  end
+
+  defp format_month_day(date), do: to_string(date)
 
   # ==========================================================================
   # Datetime Display

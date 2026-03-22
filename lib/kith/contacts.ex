@@ -417,6 +417,11 @@ defmodule Kith.Contacts do
         %{relationship: r, related_contact: r.related_contact, label: r.relationship_type.name}
       end)
 
+    # Track which contacts already appear via forward relationships so we can
+    # skip the reverse side of bidirectional pairs (e.g. Monica exports both
+    # A→B and B→A for every relationship).
+    forward_contact_ids = MapSet.new(forward, & &1.related_contact.id)
+
     reverse =
       from(r in Relationship,
         where: r.related_contact_id == ^contact_id,
@@ -430,6 +435,7 @@ defmodule Kith.Contacts do
           label: r.relationship_type.reverse_name
         }
       end)
+      |> Enum.reject(&MapSet.member?(forward_contact_ids, &1.related_contact.id))
 
     forward ++ reverse
   end

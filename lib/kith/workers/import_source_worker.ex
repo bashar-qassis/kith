@@ -29,6 +29,8 @@ defmodule Kith.Workers.ImportSourceWorker do
 
       if import.api_url && import.api_key_encrypted && import.api_options do
         enqueue_async_jobs(import)
+      else
+        Logger.info("Import #{import_id}: skipping async jobs (api_url=#{inspect(!!import.api_url)}, api_key=#{inspect(!!import.api_key_encrypted)}, api_options=#{inspect(import.api_options)})")
       end
 
       topic = "import:#{import.account_id}"
@@ -60,10 +62,12 @@ defmodule Kith.Workers.ImportSourceWorker do
 
   defp enqueue_async_jobs(import) do
     import_records = Kith.Imports.list_import_records(import.id)
+    Logger.info("Import #{import.id}: #{length(import_records)} import records, api_options=#{inspect(import.api_options)}")
 
     # Photo sync jobs
     if import.api_options["photos"] || import.api_options[:photos] do
       photo_records = Enum.filter(import_records, &(&1.source_entity_type == "photo"))
+      Logger.info("Import #{import.id}: enqueuing #{length(photo_records)} photo sync jobs")
 
       photo_records
       |> Enum.with_index()

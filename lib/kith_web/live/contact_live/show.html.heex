@@ -151,6 +151,46 @@
               <p class="text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">{@contact.description}</p>
             </div>
           <% end %>
+
+          <%!-- How We Met --%>
+          <%= if has_first_met_data?(@contact) do %>
+            <div class="w-full mt-4 border-t border-[var(--color-border-subtle)] pt-4">
+              <span class="text-sm font-medium text-[var(--color-text-primary)]">How We Met</span>
+              <dl class="mt-2 space-y-2 text-sm">
+                <div :if={@contact.first_met_at} class="flex justify-between">
+                  <dt class="text-[var(--color-text-tertiary)]">Date</dt>
+                  <dd class="text-[var(--color-text-primary)]">
+                    <KithUI.date_display
+                      date={@contact.first_met_at}
+                      year_unknown={@contact.first_met_year_unknown}
+                    />
+                  </dd>
+                </div>
+
+                <div :if={@contact.first_met_where} class="flex justify-between">
+                  <dt class="text-[var(--color-text-tertiary)]">Where</dt>
+                  <dd class="text-[var(--color-text-primary)]">{@contact.first_met_where}</dd>
+                </div>
+
+                <div :if={@contact.first_met_through} class="flex justify-between">
+                  <dt class="text-[var(--color-text-tertiary)]">Through</dt>
+                  <dd>
+                    <.link
+                      navigate={~p"/contacts/#{@contact.first_met_through.id}"}
+                      class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                    >
+                      {@contact.first_met_through.display_name}
+                    </.link>
+                  </dd>
+                </div>
+
+                <div :if={@contact.first_met_additional_info}>
+                  <dt class="text-[var(--color-text-tertiary)]">Notes</dt>
+                  <dd class="text-[var(--color-text-secondary)] mt-0.5 leading-relaxed">{@contact.first_met_additional_info}</dd>
+                </div>
+              </dl>
+            </div>
+          <% end %>
         </UI.card>
 
         <%!-- Sidebar sub-sections --%>
