@@ -650,10 +650,23 @@ defmodule Kith.Imports.Sources.Monica do
     photos = get_in(contact_data, ["photos", "data"]) || []
 
     Enum.each(photos, fn photo_data ->
+      file_name = photo_data["original_filename"] || "photo.jpg"
+
+      {storage_key, file_size} =
+        case decode_data_url(photo_data["dataUrl"]) do
+          {:ok, binary} ->
+            key = Kith.Storage.generate_key(contact.account_id, "photos", file_name)
+            {:ok, _} = Kith.Storage.upload_binary(binary, key)
+            {key, byte_size(binary)}
+
+          :error ->
+            {"pending_sync:#{photo_data["uuid"]}", photo_data["filesize"] || 0}
+        end
+
       attrs = %{
-        "file_name" => photo_data["original_filename"] || "photo.jpg",
-        "storage_key" => "pending_sync:#{photo_data["uuid"]}",
-        "file_size" => photo_data["filesize"] || 0,
+        "file_name" => file_name,
+        "storage_key" => storage_key,
+        "file_size" => file_size,
         "content_type" => photo_data["mime_type"] || "image/jpeg"
       }
 
@@ -670,6 +683,17 @@ defmodule Kith.Imports.Sources.Monica do
       end
     end)
   end
+
+  defp decode_data_url("data:" <> rest) do
+    case String.split(rest, ",", parts: 2) do
+      [_meta, encoded] -> {:ok, Base.decode64!(encoded)}
+      _ -> :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  defp decode_data_url(_), do: :error
 
   defp import_activities(contact, user_id, contact_data, ref_data, import_record, activity_set) do
     activities = get_in(contact_data, ["activities", "data"]) || []
@@ -1103,7 +1127,8 @@ defmodule Kith.Imports.Sources.Monica do
       "uuid" => photo["uuid"],
       "original_filename" => props["original_filename"] || "photo.jpg",
       "filesize" => props["filesize"] || 0,
-      "mime_type" => props["mime_type"] || "image/jpeg"
+      "mime_type" => props["mime_type"] || "image/jpeg",
+      "dataUrl" => props["dataUrl"]
     }
   end
 
