@@ -1,5 +1,31 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(mix test*)",
+      "Bash(mix format*)",
+      "Bash(mix compile*)",
+      "Bash(mix ecto.migrate*)",
+      "Bash(mix deps.get*)",
+      "Bash(mix phx.routes*)",
+      "Bash(npx playwright test*)",
+      "Bash(mix precommit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(git stash*)"
+    ],
+    "deny": [
+      "Bash(mix ecto.drop*)",
+      "Bash(mix ecto.reset*)",
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)"
+    ]
   }
 }

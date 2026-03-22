@@ -53,3 +53,6 @@ erl_crash.dump
 
 # Git worktrees
 .worktrees/
+
+# Claude Code local overrides
+.claude.local.md
