@@ -47,6 +47,38 @@ services:
       "
     restart: "no"
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4000:4000"
+    environment:
+      DB_HOST: postgres
+      SMTP_HOST: mailpit
+      PHX_IP: "0.0.0.0"
+    volumes:
+      - .:/app
+      - deps:/app/deps
+      - build:/app/_build
+      - node_modules:/app/assets/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        mix deps.get &&
+        cd assets && npm install && cd .. &&
+        mix tailwind.install --if-missing &&
+        mix esbuild.install --if-missing &&
+        mix ecto.create &&
+        mix ecto.migrate &&
+        exec mix phx.server
+      "
+
 volumes:
   postgres_dev_data:
   minio_dev_data:
+  deps:
+  build:
+  node_modules:
