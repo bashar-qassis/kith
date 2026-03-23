@@ -96,6 +96,13 @@ defmodule KithWeb.Layouts do
             label="Settings"
             match_prefix="/settings"
           />
+          <.sidebar_link
+            path={~p"/admin/oban"}
+            current_path={@current_path}
+            icon="hero-queue-list"
+            label="Jobs"
+            match_prefix="/admin"
+          />
         </nav>
 
         <%!-- Cmd+K hint --%>
@@ -224,6 +231,13 @@ defmodule KithWeb.Layouts do
             icon="hero-cog-6-tooth"
             label="Settings"
             match_prefix="/settings"
+          />
+          <.mobile_nav_link
+            path={~p"/admin/oban"}
+            current_path={@current_path}
+            icon="hero-queue-list"
+            label="Jobs"
+            match_prefix="/admin"
           />
         </nav>
       </div>
