@@ -13,8 +13,8 @@ defmodule Kith.Workers.DisplayNameRecomputeWorker do
     unique: [period: 60, fields: [:args], keys: [:account_id]]
 
   import Ecto.Query
-  alias Kith.Repo
   alias Kith.Contacts.Contact
+  alias Kith.Repo
 
   @batch_size 500
 
@@ -52,26 +52,18 @@ defmodule Kith.Workers.DisplayNameRecomputeWorker do
   defp compute_display_name(contact, format) do
     first = contact.first_name || ""
     last = contact.last_name || ""
-
-    case format do
-      "first_last" ->
-        String.trim("#{first} #{last}")
-
-      "last_first" ->
-        String.trim("#{last} #{first}")
-
-      "first_only" ->
-        first
-
-      "last_first_comma" ->
-        if last != "" and first != "" do
-          "#{last}, #{first}"
-        else
-          String.trim("#{last}#{first}")
-        end
-
-      _ ->
-        String.trim("#{first} #{last}")
-    end
+    format_name(first, last, format)
   end
+
+  defp format_name(first, last, "first_last"), do: String.trim("#{first} #{last}")
+  defp format_name(first, last, "last_first"), do: String.trim("#{last} #{first}")
+  defp format_name(first, _last, "first_only"), do: first
+
+  defp format_name(first, last, "last_first_comma") do
+    if last != "" and first != "",
+      do: "#{last}, #{first}",
+      else: String.trim("#{last}#{first}")
+  end
+
+  defp format_name(first, last, _), do: String.trim("#{first} #{last}")
 end

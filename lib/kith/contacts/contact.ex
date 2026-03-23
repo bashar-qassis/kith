@@ -155,24 +155,25 @@ defmodule Kith.Contacts.Contact do
     with {_, through_id} when not is_nil(through_id) <-
            {:change, get_change(changeset, :first_met_through_id)},
          account_id when not is_nil(account_id) <- get_field(changeset, :account_id) do
-      contact_id = get_field(changeset, :id)
-
-      cond do
-        contact_id && through_id == contact_id ->
-          add_error(changeset, :first_met_through_id, "cannot reference the contact itself")
-
-        true ->
-          case Kith.Repo.get(Kith.Contacts.Contact, through_id) do
-            %{account_id: ^account_id} ->
-              changeset
-
-            _ ->
-              add_error(changeset, :first_met_through_id, "must be a contact in the same account")
-          end
-      end
+      validate_through_contact(changeset, through_id, account_id)
     else
       {:change, nil} -> changeset
       _ -> changeset
+    end
+  end
+
+  defp validate_through_contact(changeset, through_id, account_id) do
+    contact_id = get_field(changeset, :id)
+
+    cond do
+      contact_id && through_id == contact_id ->
+        add_error(changeset, :first_met_through_id, "cannot reference the contact itself")
+
+      match?(%{account_id: ^account_id}, Kith.Repo.get(Kith.Contacts.Contact, through_id)) ->
+        changeset
+
+      true ->
+        add_error(changeset, :first_met_through_id, "must be a contact in the same account")
     end
   end
 
@@ -183,8 +184,7 @@ defmodule Kith.Contacts.Contact do
 
     display_name =
       [first, middle, last]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.reject(&(&1 == ""))
+      |> Enum.reject(&(is_nil(&1) or &1 == ""))
       |> Enum.join(" ")
 
     put_change(changeset, :display_name, display_name)

@@ -15,8 +15,8 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
     max_attempts: 3
 
   import Ecto.Query
-  alias Kith.Repo
   alias Kith.Contacts.{Contact, ContactField, DuplicateCandidate}
+  alias Kith.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"account_id" => account_id}}) do
@@ -167,23 +167,23 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
   end
 
   defp merge_matches(name_matches, email_matches, phone_matches) do
-    # Group all matches by pair and compute weighted score
-    all =
-      (name_matches ++ email_matches ++ phone_matches)
-      |> Enum.group_by(fn {pair, _score, _reasons} -> pair end)
+    (name_matches ++ email_matches ++ phone_matches)
+    |> Enum.group_by(fn {pair, _score, _reasons} -> pair end)
+    |> Enum.map(&compute_merged_score/1)
+  end
 
-    Enum.map(all, fn {pair, matches} ->
-      reasons = matches |> Enum.flat_map(fn {_, _, r} -> r end) |> Enum.uniq()
-      name_sim = Enum.find_value(matches, 0.0, fn {_, s, r} -> if "name_match" in r, do: s end)
-      has_email = "email_match" in reasons
-      has_phone = "phone_match" in reasons
+  defp compute_merged_score({pair, matches}) do
+    reasons = matches |> Enum.flat_map(fn {_, _, r} -> r end) |> Enum.uniq()
+    name_sim = Enum.find_value(matches, 0.0, &extract_name_score/1)
 
-      score =
-        name_sim * 0.4 + if(has_email, do: 0.35, else: 0.0) + if(has_phone, do: 0.25, else: 0.0)
+    email_weight = if "email_match" in reasons, do: 0.35, else: 0.0
+    phone_weight = if "phone_match" in reasons, do: 0.25, else: 0.0
+    score = min(name_sim * 0.4 + email_weight + phone_weight, 1.0)
 
-      score = min(score, 1.0)
+    {pair, Float.round(score, 2), reasons}
+  end
 
-      {pair, Float.round(score, 2), reasons}
-    end)
+  defp extract_name_score({_, score, reasons}) do
+    if "name_match" in reasons, do: score
   end
 end

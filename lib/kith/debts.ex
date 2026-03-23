@@ -2,8 +2,8 @@ defmodule Kith.Debts do
   import Ecto.Query, warn: false
   import Kith.Scope
   alias Ecto.Multi
-  alias Kith.Repo
   alias Kith.Contacts.{Debt, DebtPayment}
+  alias Kith.Repo
 
   def list_debts(account_id, contact_id) do
     Debt

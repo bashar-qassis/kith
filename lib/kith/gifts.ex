@@ -1,8 +1,8 @@
 defmodule Kith.Gifts do
   import Ecto.Query, warn: false
   import Kith.Scope
-  alias Kith.Repo
   alias Kith.Contacts.Gift
+  alias Kith.Repo
 
   def list_gifts(account_id, contact_id) do
     Gift

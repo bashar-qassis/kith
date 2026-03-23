@@ -25,13 +25,15 @@ defmodule KithWeb.API.LifeEventTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      case Contacts.create_life_event_type(account_id, attrs) do
-        {:ok, type} -> conn |> put_status(201) |> json(%{data: type_json(type)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        case Contacts.create_life_event_type(account_id, attrs) do
+          {:ok, type} -> conn |> put_status(201) |> json(%{data: type_json(type)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 
@@ -40,15 +42,17 @@ defmodule KithWeb.API.LifeEventTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      type = Contacts.get_life_event_type!(account_id, String.to_integer(id))
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        type = Contacts.get_life_event_type!(account_id, String.to_integer(id))
 
-      case Contacts.update_life_event_type(type, attrs) do
-        {:ok, updated} -> json(conn, %{data: type_json(updated)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.update_life_event_type(type, attrs) do
+          {:ok, updated} -> json(conn, %{data: type_json(updated)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -59,15 +63,17 @@ defmodule KithWeb.API.LifeEventTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      type = Contacts.get_life_event_type!(account_id, String.to_integer(id))
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        type = Contacts.get_life_event_type!(account_id, String.to_integer(id))
 
-      case Contacts.delete_life_event_type(type) do
-        {:ok, _} -> send_resp(conn, 204, "")
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.delete_life_event_type(type) do
+          {:ok, _} -> send_resp(conn, 204, "")
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}

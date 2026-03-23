@@ -35,39 +35,32 @@ defmodule KithWeb.API.DocumentController do
 
     with true <- Policy.can?(user, :create, :document),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id) do
-      case params["file"] do
-        %Plug.Upload{} = upload ->
-          dest = Storage.generate_key(account_id, "documents", upload.filename)
-
-          case Storage.upload(upload.path, dest) do
-            {:ok, storage_key} ->
-              attrs = %{
-                "file_name" => upload.filename,
-                "content_type" => upload.content_type,
-                "file_size" => File.stat!(upload.path).size,
-                "storage_key" => storage_key
-              }
-
-              case Contacts.create_document(contact, attrs) do
-                {:ok, doc} ->
-                  conn
-                  |> put_status(201)
-                  |> json(%{data: doc_json(doc)})
-
-                {:error, cs} ->
-                  {:error, cs}
-              end
-
-            {:error, reason} ->
-              {:error, :bad_request, "Upload failed: #{inspect(reason)}"}
-          end
-
-        nil ->
-          {:error, :bad_request, "Missing file upload."}
-      end
+      upload_document(conn, contact, account_id, params["file"])
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
+    end
+  end
+
+  defp upload_document(_conn, _contact, _account_id, nil) do
+    {:error, :bad_request, "Missing file upload."}
+  end
+
+  defp upload_document(conn, contact, account_id, %Plug.Upload{} = upload) do
+    dest = Storage.generate_key(account_id, "documents", upload.filename)
+
+    with {:ok, storage_key} <- Storage.upload(upload.path, dest),
+         attrs = %{
+           "file_name" => upload.filename,
+           "content_type" => upload.content_type,
+           "file_size" => File.stat!(upload.path).size,
+           "storage_key" => storage_key
+         },
+         {:ok, doc} <- Contacts.create_document(contact, attrs) do
+      conn |> put_status(201) |> json(%{data: doc_json(doc)})
+    else
+      {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
+      {:error, reason} -> {:error, :bad_request, "Upload failed: #{inspect(reason)}"}
     end
   end
 
@@ -76,17 +69,19 @@ defmodule KithWeb.API.DocumentController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :delete, :document) do
-      case Document |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
-        nil ->
-          {:error, :not_found}
+    case Policy.can?(user, :delete, :document) do
+      true ->
+        case Document |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
+          nil ->
+            {:error, :not_found}
 
-        doc ->
-          Kith.Repo.delete(doc)
-          send_resp(conn, 204, "")
-      end
-    else
-      false -> {:error, :forbidden}
+          doc ->
+            Kith.Repo.delete(doc)
+            send_resp(conn, 204, "")
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 

@@ -3,8 +3,8 @@ defmodule Kith.Workers.ApiSupplementWorker do
 
   require Logger
 
-  alias Kith.Imports
   alias Kith.Contacts.Contact
+  alias Kith.Imports
   alias Kith.Repo
 
   @impl Oban.Worker

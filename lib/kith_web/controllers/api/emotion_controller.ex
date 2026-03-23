@@ -25,13 +25,15 @@ defmodule KithWeb.API.EmotionController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      case Contacts.create_emotion(account_id, attrs) do
-        {:ok, emotion} -> conn |> put_status(201) |> json(%{data: emotion_json(emotion)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        case Contacts.create_emotion(account_id, attrs) do
+          {:ok, emotion} -> conn |> put_status(201) |> json(%{data: emotion_json(emotion)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 
@@ -40,15 +42,17 @@ defmodule KithWeb.API.EmotionController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      emotion = Contacts.get_emotion!(account_id, String.to_integer(id))
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        emotion = Contacts.get_emotion!(account_id, String.to_integer(id))
 
-      case Contacts.update_emotion(emotion, attrs) do
-        {:ok, updated} -> json(conn, %{data: emotion_json(updated)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.update_emotion(emotion, attrs) do
+          {:ok, updated} -> json(conn, %{data: emotion_json(updated)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -59,15 +63,17 @@ defmodule KithWeb.API.EmotionController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      emotion = Contacts.get_emotion!(account_id, String.to_integer(id))
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        emotion = Contacts.get_emotion!(account_id, String.to_integer(id))
 
-      case Contacts.delete_emotion(emotion) do
-        {:ok, _} -> send_resp(conn, 204, "")
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.delete_emotion(emotion) do
+          {:ok, _} -> send_resp(conn, 204, "")
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}

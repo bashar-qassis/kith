@@ -10,6 +10,9 @@ defmodule Kith.Workers.ImportSourceWorker do
   require Logger
 
   alias Kith.Imports
+  alias Kith.Storage
+  alias Kith.Workers.ApiSupplementWorker
+  alias Kith.Workers.PhotoSyncWorker
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"import_id" => import_id}}) do
@@ -58,7 +61,7 @@ defmodule Kith.Workers.ImportSourceWorker do
   defp load_file(nil), do: {:error, "No file storage key"}
 
   defp load_file(key) do
-    case Kith.Storage.read(key) do
+    case Storage.read(key) do
       {:ok, data} -> {:ok, data}
       {:error, reason} -> {:error, "Failed to load file: #{inspect(reason)}"}
     end
@@ -68,77 +71,75 @@ defmodule Kith.Workers.ImportSourceWorker do
   defp ensure_map(m) when is_map(m), do: m
 
   defp enqueue_async_jobs(import) do
-    import_records = Kith.Imports.list_import_records(import.id)
+    import_records = Imports.list_import_records(import.id)
 
     Logger.info(
       "Import #{import.id}: #{length(import_records)} import records, api_options=#{inspect(import.api_options)}"
     )
 
-    # Photo sync jobs
-    if import.api_options["photos"] || import.api_options[:photos] do
-      photo_records = Enum.filter(import_records, &(&1.source_entity_type == "photo"))
-      Logger.info("Import #{import.id}: enqueuing #{length(photo_records)} photo sync jobs")
+    maybe_enqueue_photo_sync_jobs(import, import_records)
+    maybe_enqueue_first_met_jobs(import, import_records)
+  end
 
-      photo_records
-      |> Enum.with_index()
-      |> Enum.each(fn {rec, idx} ->
-        batch = div(idx, 50)
-        delay = batch * 60
+  defp maybe_enqueue_photo_sync_jobs(import, import_records) do
+    unless import.api_options["photos"] || import.api_options[:photos], do: :skip
 
-        %{
-          import_id: import.id,
-          photo_id: rec.local_entity_id,
-          source_photo_id: rec.source_entity_id
-        }
-        |> Kith.Workers.PhotoSyncWorker.new(
-          scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second)
-        )
-        |> Oban.insert()
+    photo_records = Enum.filter(import_records, &(&1.source_entity_type == "photo"))
+    Logger.info("Import #{import.id}: enqueuing #{length(photo_records)} photo sync jobs")
+
+    enqueue_batched_jobs(photo_records, fn rec, delay ->
+      %{
+        import_id: import.id,
+        photo_id: rec.local_entity_id,
+        source_photo_id: rec.source_entity_id
+      }
+      |> PhotoSyncWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+      |> Oban.insert()
+    end)
+  end
+
+  defp maybe_enqueue_first_met_jobs(import, import_records) do
+    unless import.api_options["first_met_details"] || import.api_options[:first_met_details],
+      do: :skip
+
+    contacts_with_first_met = extract_first_met_uuids(import)
+
+    contact_records =
+      Enum.filter(import_records, fn rec ->
+        rec.source_entity_type == "contact" and
+          MapSet.member?(contacts_with_first_met, rec.source_entity_id)
       end)
+
+    enqueue_batched_jobs(contact_records, fn rec, delay ->
+      %{
+        import_id: import.id,
+        contact_id: rec.local_entity_id,
+        source_contact_id: rec.source_entity_id,
+        key: "first_met_details"
+      }
+      |> ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+      |> Oban.insert()
+    end)
+  end
+
+  defp extract_first_met_uuids(import) do
+    with {:ok, data} <- Storage.read(import.file_storage_key),
+         {:ok, parsed} <- Jason.decode(data) do
+      (get_in(parsed, ["contacts", "data"]) || [])
+      |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
+      |> Enum.map(& &1["uuid"])
+      |> MapSet.new()
+    else
+      _ -> MapSet.new()
     end
+  end
 
-    # API supplement jobs — only for contacts with first_met_date in export
-    if import.api_options["first_met_details"] || import.api_options[:first_met_details] do
-      contacts_with_first_met =
-        case Kith.Storage.read(import.file_storage_key) do
-          {:ok, data} ->
-            case Jason.decode(data) do
-              {:ok, parsed} ->
-                (get_in(parsed, ["contacts", "data"]) || [])
-                |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
-                |> Enum.map(& &1["uuid"])
-                |> MapSet.new()
-
-              _ ->
-                MapSet.new()
-            end
-
-          _ ->
-            MapSet.new()
-        end
-
-      contact_records =
-        import_records
-        |> Enum.filter(&(&1.source_entity_type == "contact"))
-        |> Enum.filter(&MapSet.member?(contacts_with_first_met, &1.source_entity_id))
-
-      contact_records
-      |> Enum.with_index()
-      |> Enum.each(fn {rec, idx} ->
-        batch = div(idx, 50)
-        delay = batch * 60
-
-        %{
-          import_id: import.id,
-          contact_id: rec.local_entity_id,
-          source_contact_id: rec.source_entity_id,
-          key: "first_met_details"
-        }
-        |> Kith.Workers.ApiSupplementWorker.new(
-          scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second)
-        )
-        |> Oban.insert()
-      end)
-    end
+  defp enqueue_batched_jobs(records, enqueue_fn) do
+    records
+    |> Enum.with_index()
+    |> Enum.each(fn {rec, idx} ->
+      delay = div(idx, 50) * 60
+      enqueue_fn.(rec, delay)
+    end)
   end
 end

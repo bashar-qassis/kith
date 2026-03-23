@@ -6,14 +6,18 @@ defmodule Kith.Accounts do
   import Ecto.Query, warn: false
   alias Kith.Repo
 
+  alias Kith.Workers.AccountDeletionWorker
+  alias Kith.Workers.AccountResetWorker
+  alias Kith.Workers.DisplayNameRecomputeWorker
+
   alias Kith.Accounts.{
     Account,
     AccountInvitation,
     User,
-    UserToken,
+    UserIdentity,
     UserNotifier,
     UserRecoveryCode,
-    UserIdentity,
+    UserToken,
     WebauthnCredential
   }
 
@@ -379,19 +383,21 @@ defmodule Kith.Accounts do
   """
   def enable_totp(user, secret, code) do
     if valid_totp_code?(secret, code) do
-      Repo.transact(fn ->
-        changeset =
-          user
-          |> Ecto.Changeset.change(%{totp_secret: secret, totp_enabled: true})
-
-        with {:ok, user} <- Repo.update(changeset),
-             raw_codes <- generate_recovery_codes(user) do
-          {:ok, {user, raw_codes}}
-        end
-      end)
+      do_enable_totp(user, secret)
     else
       {:error, :invalid_code}
     end
+  end
+
+  defp do_enable_totp(user, secret) do
+    Repo.transact(fn ->
+      changeset = Ecto.Changeset.change(user, %{totp_secret: secret, totp_enabled: true})
+
+      with {:ok, user} <- Repo.update(changeset),
+           raw_codes <- generate_recovery_codes(user) do
+        {:ok, {user, raw_codes}}
+      end
+    end)
   end
 
   @doc """
@@ -824,7 +830,7 @@ defmodule Kith.Accounts do
       {:ok, updated_user} = result ->
         if format_changed? do
           %{account_id: user.account_id, display_name_format: updated_user.display_name_format}
-          |> Kith.Workers.DisplayNameRecomputeWorker.new()
+          |> DisplayNameRecomputeWorker.new()
           |> Oban.insert()
         end
 
@@ -1063,20 +1069,22 @@ defmodule Kith.Accounts do
 
   @doc "Gets a pending invitation by token (public, no scope needed)."
   def get_invitation_by_token(raw_token) do
-    with {:ok, token_hash} <- AccountInvitation.hash_token(raw_token) do
-      invitation =
-        from(i in AccountInvitation,
-          where: i.token_hash == ^token_hash,
-          preload: [:account]
-        )
-        |> Repo.one()
+    case AccountInvitation.hash_token(raw_token) do
+      {:ok, token_hash} ->
+        invitation =
+          from(i in AccountInvitation,
+            where: i.token_hash == ^token_hash,
+            preload: [:account]
+          )
+          |> Repo.one()
 
-      case invitation do
-        nil -> {:error, :not_found}
-        inv -> {:ok, inv}
-      end
-    else
-      :error -> {:error, :invalid_token}
+        case invitation do
+          nil -> {:error, :not_found}
+          inv -> {:ok, inv}
+        end
+
+      :error ->
+        {:error, :invalid_token}
     end
   end
 
@@ -1121,22 +1129,7 @@ defmodule Kith.Accounts do
     else
       target = get_user!(target_user_id)
 
-      if target.role == "admin" and new_role != "admin" do
-        # Check if this is the last admin
-        admin_count =
-          Repo.aggregate(
-            from(u in User,
-              where: u.account_id == ^target.account_id and u.role == "admin"
-            ),
-            :count
-          )
-
-        if admin_count <= 1 do
-          {:error, :last_admin}
-        else
-          do_update_role(target, new_role)
-        end
-      else
+      with :ok <- check_not_last_admin_demotion(target, new_role) do
         do_update_role(target, new_role)
       end
     end
@@ -1173,24 +1166,33 @@ defmodule Kith.Accounts do
     else
       target = get_user!(target_user_id)
 
-      if target.role == "admin" do
-        admin_count =
-          Repo.aggregate(
-            from(u in User,
-              where: u.account_id == ^target.account_id and u.role == "admin"
-            ),
-            :count
-          )
-
-        if admin_count <= 1 do
-          {:error, :last_admin}
-        else
-          do_remove_user(target)
-        end
-      else
+      with :ok <- check_not_last_admin_removal(target) do
         do_remove_user(target)
       end
     end
+  end
+
+  defp check_not_last_admin_demotion(%{role: "admin"} = target, new_role)
+       when new_role != "admin" do
+    check_admin_count(target.account_id)
+  end
+
+  defp check_not_last_admin_demotion(_target, _new_role), do: :ok
+
+  defp check_not_last_admin_removal(%{role: "admin"} = target) do
+    check_admin_count(target.account_id)
+  end
+
+  defp check_not_last_admin_removal(_target), do: :ok
+
+  defp check_admin_count(account_id) do
+    admin_count =
+      Repo.aggregate(
+        from(u in User, where: u.account_id == ^account_id and u.role == "admin"),
+        :count
+      )
+
+    if admin_count <= 1, do: {:error, :last_admin}, else: :ok
   end
 
   defp do_remove_user(user) do
@@ -1269,7 +1271,7 @@ defmodule Kith.Accounts do
   """
   def request_account_reset(account_id, "RESET") do
     %{account_id: account_id}
-    |> Kith.Workers.AccountResetWorker.new()
+    |> AccountResetWorker.new()
     |> Oban.insert()
 
     {:ok, :queued}
@@ -1293,7 +1295,7 @@ defmodule Kith.Accounts do
 
       # Queue the deletion job
       %{account_id: account_id}
-      |> Kith.Workers.AccountDeletionWorker.new()
+      |> AccountDeletionWorker.new()
       |> Oban.insert()
 
       {:ok, :queued}

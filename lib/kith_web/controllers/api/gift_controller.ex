@@ -5,7 +5,7 @@ defmodule KithWeb.API.GiftController do
 
   use KithWeb, :controller
 
-  alias Kith.{Gifts, Contacts, Policy, Repo}
+  alias Kith.{Contacts, Gifts, Policy, Repo}
   alias Kith.Contacts.Gift
   alias Kith.Scope, as: TenantScope
   alias KithWeb.API.Pagination

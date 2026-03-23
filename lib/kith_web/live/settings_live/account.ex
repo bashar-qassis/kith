@@ -28,12 +28,7 @@ defmodule KithWeb.SettingsLive.Account do
   def handle_params(_params, _uri, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :manage, :account) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You do not have permission to access account settings.")
-       |> push_navigate(to: ~p"/")}
-    else
+    if Kith.Policy.can?(user, :manage, :account) do
       account = socket.assigns.current_scope.account
       rules = Reminders.list_reminder_rules(account.id)
 
@@ -43,6 +38,11 @@ defmodule KithWeb.SettingsLive.Account do
        |> assign(:rules, rules)
        |> assign(:feature_flags, account.feature_flags || %{})
        |> assign(:account_form, to_form(Accounts.Account.settings_changeset(account, %{})))}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to access account settings.")
+       |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -69,10 +69,7 @@ defmodule KithWeb.SettingsLive.Account do
 
     case Accounts.update_account(account, %{feature_flags: new_flags}) do
       {:ok, updated} ->
-        if feature == "immich" do
-          event = if Map.get(new_flags, "immich"), do: :immich_linked, else: :immich_unlinked
-          Kith.AuditLogs.log_event(account.id, user, event)
-        end
+        maybe_log_immich_toggle(account, user, feature, new_flags)
 
         {:noreply,
          socket
@@ -113,6 +110,13 @@ defmodule KithWeb.SettingsLive.Account do
       {:noreply, put_flash(socket, :error, "Account name does not match.")}
     end
   end
+
+  defp maybe_log_immich_toggle(account, user, "immich", new_flags) do
+    event = if Map.get(new_flags, "immich"), do: :immich_linked, else: :immich_unlinked
+    Kith.AuditLogs.log_event(account.id, user, event)
+  end
+
+  defp maybe_log_immich_toggle(_account, _user, _feature, _flags), do: :ok
 
   @feature_modules [
     {"reminders", "Reminders", "Enable birthday and event reminders"},

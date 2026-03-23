@@ -7,7 +7,9 @@ defmodule Kith.Immich.Settings do
   """
 
   alias Kith.Accounts.Account
+  alias Kith.Immich.Client
   alias Kith.Repo
+  alias Kith.Workers.ImmichSyncWorker
 
   @doc "Returns the current Immich settings for an account."
   def get_settings(%Account{} = account) do
@@ -48,7 +50,7 @@ defmodule Kith.Immich.Settings do
         {:error, :missing_api_key}
 
       true ->
-        case Kith.Immich.Client.list_people(base_url, api_key) do
+        case Client.list_people(base_url, api_key) do
           {:ok, people} -> {:ok, length(people)}
           {:error, reason} -> {:error, reason}
         end
@@ -59,20 +61,20 @@ defmodule Kith.Immich.Settings do
   def enable(%Account{} = account) do
     account
     |> Ecto.Changeset.change(%{immich_enabled: true, immich_status: "ok"})
-    |> Kith.Repo.update()
+    |> Repo.update()
   end
 
   @doc "Disables the Immich integration for an account."
   def disable(%Account{} = account) do
     account
     |> Ecto.Changeset.change(%{immich_enabled: false, immich_status: "disabled"})
-    |> Kith.Repo.update()
+    |> Repo.update()
   end
 
   @doc "Triggers an immediate Immich sync by enqueuing the worker."
   def trigger_manual_sync(%Account{} = account) do
     %{account_id: account.id}
-    |> Kith.Workers.ImmichSyncWorker.new()
+    |> ImmichSyncWorker.new()
     |> Oban.insert()
   end
 

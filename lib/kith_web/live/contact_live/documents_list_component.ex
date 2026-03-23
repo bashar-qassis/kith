@@ -79,20 +79,20 @@ defmodule KithWeb.ContactLive.DocumentsListComponent do
   defp format_size(bytes) when bytes < 1_048_576, do: "#{Float.round(bytes / 1024, 1)} KB"
   defp format_size(bytes), do: "#{Float.round(bytes / 1_048_576, 1)} MB"
 
+  defp file_icon(nil), do: "hero-document"
+
   defp file_icon(content_type) do
+    ct = content_type || ""
+    file_icon_for_type(ct)
+  end
+
+  defp file_icon_for_type("image/" <> _), do: "hero-photo"
+
+  defp file_icon_for_type(ct) do
     cond do
-      String.starts_with?(content_type || "", "image/") ->
-        "hero-photo"
-
-      String.contains?(content_type || "", "pdf") ->
-        "hero-document-text"
-
-      String.contains?(content_type || "", "spreadsheet") or
-          String.contains?(content_type || "", "csv") ->
-        "hero-table-cells"
-
-      true ->
-        "hero-document"
+      String.contains?(ct, "pdf") -> "hero-document-text"
+      String.contains?(ct, "spreadsheet") or String.contains?(ct, "csv") -> "hero-table-cells"
+      true -> "hero-document"
     end
   end
 

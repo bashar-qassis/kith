@@ -9,23 +9,23 @@ defmodule Kith.Contacts do
   alias Kith.Repo
 
   alias Kith.Contacts.{
-    Contact,
+    ActivityTypeCategory,
     Address,
+    CallDirection,
+    Contact,
     ContactField,
     ContactFieldType,
+    Currency,
+    Document,
+    Emotion,
+    Gender,
     ImmichCandidate,
-    Tag,
+    LifeEventType,
+    Note,
+    Photo,
     Relationship,
     RelationshipType,
-    Note,
-    Document,
-    Photo,
-    Gender,
-    Currency,
-    Emotion,
-    ActivityTypeCategory,
-    LifeEventType,
-    CallDirection
+    Tag
   }
 
   alias Kith.Activities.{Activity, Call}
@@ -1091,29 +1091,30 @@ defmodule Kith.Contacts do
   require Logger
 
   defp maybe_geocode_address(%Address{} = address) do
-    if Kith.Geocoding.enabled?() do
-      address_string = format_address_for_geocoding(address)
+    address_string = format_address_for_geocoding(address)
 
-      if address_string != "" do
-        Task.Supervisor.start_child(Kith.TaskSupervisor, fn ->
-          case Kith.Geocoding.geocode(address_string) do
-            {:ok, %{lat: lat, lng: lng}} ->
-              address
-              |> Address.changeset(%{latitude: lat, longitude: lng})
-              |> Repo.update()
+    if Kith.Geocoding.enabled?() and address_string != "" do
+      Task.Supervisor.start_child(Kith.TaskSupervisor, fn ->
+        perform_geocode(address, address_string)
+      end)
+    end
+  end
 
-            {:error, reason} ->
-              Logger.warning("Geocoding failed for address #{address.id}: #{inspect(reason)}")
-          end
-        end)
-      end
+  defp perform_geocode(address, address_string) do
+    case Kith.Geocoding.geocode(address_string) do
+      {:ok, %{lat: lat, lng: lng}} ->
+        address
+        |> Address.changeset(%{latitude: lat, longitude: lng})
+        |> Repo.update()
+
+      {:error, reason} ->
+        Logger.warning("Geocoding failed for address #{address.id}: #{inspect(reason)}")
     end
   end
 
   defp format_address_for_geocoding(%Address{} = addr) do
     [addr.line1, addr.line2, addr.city, addr.province, addr.postal_code, addr.country]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.reject(&(&1 == ""))
+    |> Enum.reject(&(is_nil(&1) or &1 == ""))
     |> Enum.join(", ")
   end
 
@@ -1459,15 +1460,7 @@ defmodule Kith.Contacts do
       end)
       # (f) Update survivor's last_talked_to
       |> Ecto.Multi.run(:update_last_talked_to, fn repo, _changes ->
-        more_recent = most_recent_date(survivor.last_talked_to, non_survivor.last_talked_to)
-
-        if more_recent != survivor.last_talked_to do
-          survivor
-          |> Ecto.Changeset.change(%{last_talked_to: more_recent})
-          |> repo.update()
-        else
-          {:ok, survivor}
-        end
+        merge_last_talked_to(repo, survivor, non_survivor)
       end)
       # (e) Soft-delete non-survivor
       |> Ecto.Multi.run(:soft_delete_non_survivor, fn repo, _changes ->
@@ -1480,6 +1473,18 @@ defmodule Kith.Contacts do
         {:ok, %{update_survivor_fields: survivor}} -> {:ok, survivor}
         {:error, step, reason, _changes} -> {:error, {step, reason}}
       end
+    end
+  end
+
+  defp merge_last_talked_to(repo, survivor, non_survivor) do
+    more_recent = most_recent_date(survivor.last_talked_to, non_survivor.last_talked_to)
+
+    if more_recent != survivor.last_talked_to do
+      survivor
+      |> Ecto.Changeset.change(%{last_talked_to: more_recent})
+      |> repo.update()
+    else
+      {:ok, survivor}
     end
   end
 

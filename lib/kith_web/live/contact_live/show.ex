@@ -6,8 +6,8 @@ defmodule KithWeb.ContactLive.Show do
 
   use KithWeb, :live_view
 
-  alias Kith.Contacts
   alias Kith.AuditLogs
+  alias Kith.Contacts
   alias Kith.DuplicateDetection
 
   @tabs ~w(notes life_events activities calls tasks gifts conversations photos)a

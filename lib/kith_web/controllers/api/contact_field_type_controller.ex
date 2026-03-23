@@ -26,13 +26,15 @@ defmodule KithWeb.API.ContactFieldTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      case Contacts.create_contact_field_type(account_id, attrs) do
-        {:ok, cft} -> conn |> put_status(201) |> json(%{data: type_json(cft)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        case Contacts.create_contact_field_type(account_id, attrs) do
+          {:ok, cft} -> conn |> put_status(201) |> json(%{data: type_json(cft)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 
@@ -41,16 +43,18 @@ defmodule KithWeb.API.ContactFieldTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      cft = Contacts.get_contact_field_type!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        cft = Contacts.get_contact_field_type!(account_id, id)
 
-      case Contacts.update_contact_field_type(cft, attrs) do
-        {:ok, updated} -> json(conn, %{data: type_json(updated)})
-        {:error, :global_read_only} -> {:error, :forbidden}
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.update_contact_field_type(cft, attrs) do
+          {:ok, updated} -> json(conn, %{data: type_json(updated)})
+          {:error, :global_read_only} -> {:error, :forbidden}
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -61,21 +65,23 @@ defmodule KithWeb.API.ContactFieldTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      cft = Contacts.get_contact_field_type!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        cft = Contacts.get_contact_field_type!(account_id, id)
 
-      case Contacts.delete_contact_field_type(cft) do
-        {:ok, _} ->
-          send_resp(conn, 204, "")
+        case Contacts.delete_contact_field_type(cft) do
+          {:ok, _} ->
+            send_resp(conn, 204, "")
 
-        {:error, :in_use} ->
-          {:error, :bad_request, "Cannot delete contact field type that is in use."}
+          {:error, :in_use} ->
+            {:error, :bad_request, "Cannot delete contact field type that is in use."}
 
-        {:error, cs} ->
-          {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+          {:error, cs} ->
+            {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}

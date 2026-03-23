@@ -55,9 +55,9 @@ defmodule Kith.DAV.XMLBuilder do
     do: "<card:addressbook-description>#{escape(desc)}</card:addressbook-description>"
 
   def supported_address_data do
-    "<card:supported-address-data>" <>
-      "<card:address-data-type content-type=\"text/vcard\" version=\"3.0\"/>" <>
-      "</card:supported-address-data>"
+    ~s(<card:supported-address-data>) <>
+      ~s(<card:address-data-type content-type="text/vcard" version="3.0"/>) <>
+      ~s(</card:supported-address-data>)
   end
 
   def address_data(vcard), do: "<card:address-data>#{escape(vcard)}</card:address-data>"

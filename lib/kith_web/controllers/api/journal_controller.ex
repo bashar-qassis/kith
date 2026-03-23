@@ -8,8 +8,8 @@ defmodule KithWeb.API.JournalController do
 
   use KithWeb, :controller
 
-  alias Kith.{Policy, Repo}
   alias Kith.Journal.Entry
+  alias Kith.{Policy, Repo}
   alias Kith.Scope, as: TenantScope
   alias KithWeb.API.Pagination
 

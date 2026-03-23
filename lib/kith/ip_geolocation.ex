@@ -58,41 +58,47 @@ defmodule Kith.IpGeolocation do
   # -- Private --
 
   defp do_lookup(ip_string) do
-    unless configured?() do
-      {:error, :geoip_not_configured}
+    if configured?() do
+      parse_and_lookup(ip_string)
     else
-      case :inet.parse_address(String.to_charlist(ip_string)) do
-        {:ok, ip_tuple} ->
-          case Geolix.lookup(ip_tuple, where: :city) do
-            %{city: city_data, country: country_data, subdivisions: subdivisions} ->
-              {:ok,
-               %{
-                 city: get_in(city_data || %{}, [:name]) || get_geolix_name(city_data),
-                 country:
-                   get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
-                 region: get_geolix_name(List.first(subdivisions || []))
-               }}
-
-            %{country: country_data} ->
-              {:ok,
-               %{
-                 city: nil,
-                 country:
-                   get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
-                 region: nil
-               }}
-
-            nil ->
-              {:error, :not_found}
-
-            _ ->
-              {:error, :not_found}
-          end
-
-        {:error, _} ->
-          {:error, :invalid_ip}
-      end
+      {:error, :geoip_not_configured}
     end
+  end
+
+  defp parse_and_lookup(ip_string) do
+    case :inet.parse_address(String.to_charlist(ip_string)) do
+      {:ok, ip_tuple} -> geolix_lookup(ip_tuple)
+      {:error, _} -> {:error, :invalid_ip}
+    end
+  end
+
+  defp geolix_lookup(ip_tuple) do
+    case Geolix.lookup(ip_tuple, where: :city) do
+      %{city: city_data, country: country_data, subdivisions: subdivisions} ->
+        {:ok, build_full_location(city_data, country_data, subdivisions)}
+
+      %{country: country_data} ->
+        {:ok, build_country_only_location(country_data)}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  defp build_full_location(city_data, country_data, subdivisions) do
+    %{
+      city: get_in(city_data || %{}, [:name]) || get_geolix_name(city_data),
+      country: get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
+      region: get_geolix_name(List.first(subdivisions || []))
+    }
+  end
+
+  defp build_country_only_location(country_data) do
+    %{
+      city: nil,
+      country: get_in(country_data || %{}, [:iso_code]) || get_geolix_name(country_data),
+      region: nil
+    }
   end
 
   defp get_geolix_name(nil), do: nil

@@ -26,13 +26,15 @@ defmodule KithWeb.API.RelationshipTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      case Contacts.create_relationship_type(account_id, attrs) do
-        {:ok, rt} -> conn |> put_status(201) |> json(%{data: type_json(rt)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        case Contacts.create_relationship_type(account_id, attrs) do
+          {:ok, rt} -> conn |> put_status(201) |> json(%{data: type_json(rt)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 
@@ -41,16 +43,18 @@ defmodule KithWeb.API.RelationshipTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      rt = Contacts.get_relationship_type!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        rt = Contacts.get_relationship_type!(account_id, id)
 
-      case Contacts.update_relationship_type(rt, attrs) do
-        {:ok, updated} -> json(conn, %{data: type_json(updated)})
-        {:error, :global_read_only} -> {:error, :forbidden}
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.update_relationship_type(rt, attrs) do
+          {:ok, updated} -> json(conn, %{data: type_json(updated)})
+          {:error, :global_read_only} -> {:error, :forbidden}
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -61,21 +65,23 @@ defmodule KithWeb.API.RelationshipTypeController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      rt = Contacts.get_relationship_type!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        rt = Contacts.get_relationship_type!(account_id, id)
 
-      case Contacts.delete_relationship_type(rt) do
-        {:ok, _} ->
-          send_resp(conn, 204, "")
+        case Contacts.delete_relationship_type(rt) do
+          {:ok, _} ->
+            send_resp(conn, 204, "")
 
-        {:error, :in_use} ->
-          {:error, :bad_request, "Cannot delete relationship type that is in use."}
+          {:error, :in_use} ->
+            {:error, :bad_request, "Cannot delete relationship type that is in use."}
 
-        {:error, cs} ->
-          {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+          {:error, cs} ->
+            {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}

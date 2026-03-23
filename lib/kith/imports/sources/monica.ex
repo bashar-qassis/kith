@@ -11,9 +11,9 @@ defmodule Kith.Imports.Sources.Monica do
 
   import Ecto.Query, warn: false
 
-  alias Kith.Repo
   alias Kith.Contacts
   alias Kith.Imports
+  alias Kith.Repo
 
   require Logger
 
@@ -48,34 +48,37 @@ defmodule Kith.Imports.Sources.Monica do
   @impl true
   def parse_summary(data) do
     case Jason.decode(data) do
-      {:ok, parsed} ->
-        normalized = normalize(parsed)
-        contacts = get_in(normalized, ["contacts", "data"]) || []
-        relationships = get_in(normalized, ["relationships", "data"]) || []
-
-        {notes_count, photos_count, activities_count} =
-          Enum.reduce(contacts, {0, 0, MapSet.new()}, fn contact, {notes, photos, act_set} ->
-            n = length(get_in(contact, ["notes", "data"]) || [])
-            p = length(get_in(contact, ["photos", "data"]) || [])
-
-            acts = get_in(contact, ["activities", "data"]) || []
-            new_act_set = Enum.reduce(acts, act_set, fn a, set -> MapSet.put(set, a["uuid"]) end)
-
-            {notes + n, photos + p, new_act_set}
-          end)
-
-        {:ok,
-         %{
-           contacts: length(contacts),
-           relationships: length(relationships),
-           notes: notes_count,
-           photos: photos_count,
-           activities: MapSet.size(activities_count)
-         }}
-
-      {:error, _} ->
-        {:error, "File is not valid JSON"}
+      {:ok, parsed} -> build_summary(parsed)
+      {:error, _} -> {:error, "File is not valid JSON"}
     end
+  end
+
+  defp build_summary(parsed) do
+    normalized = normalize(parsed)
+    contacts = get_in(normalized, ["contacts", "data"]) || []
+    relationships = get_in(normalized, ["relationships", "data"]) || []
+
+    {notes_count, photos_count, activities_count} =
+      Enum.reduce(contacts, {0, 0, MapSet.new()}, &accumulate_contact_summary/2)
+
+    {:ok,
+     %{
+       contacts: length(contacts),
+       relationships: length(relationships),
+       notes: notes_count,
+       photos: photos_count,
+       activities: MapSet.size(activities_count)
+     }}
+  end
+
+  defp accumulate_contact_summary(contact, {notes, photos, act_set}) do
+    n = length(get_in(contact, ["notes", "data"]) || [])
+    p = length(get_in(contact, ["photos", "data"]) || [])
+
+    acts = get_in(contact, ["activities", "data"]) || []
+    new_act_set = Enum.reduce(acts, act_set, fn a, set -> MapSet.put(set, a["uuid"]) end)
+
+    {notes + n, photos + p, new_act_set}
   end
 
   @impl true
@@ -326,32 +329,19 @@ defmodule Kith.Imports.Sources.Monica do
       contacts_data
       |> Enum.with_index(1)
       |> Enum.reduce(initial_acc, fn {contact_data, idx}, acc ->
-        # Check for cancellation
-        if import_record && rem(idx, 10) == 0 do
-          refreshed = Imports.get_import!(import_record.id)
-          if refreshed.status == "cancelled", do: throw(:cancelled)
-        end
+        maybe_check_import_cancelled(import_record, idx)
 
         result =
-          try do
-            import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
-          rescue
-            e ->
-              name = contact_display_name(contact_data)
-              msg = "Contact #{name}: #{Exception.message(e)}"
-              Logger.error("[Monica Import] #{msg}")
-              add_error(acc, msg)
-          end
-
-        # Broadcast progress
-        if rem(idx, broadcast_interval) == 0 || idx == total do
-          Phoenix.PubSub.broadcast(
-            Kith.PubSub,
-            topic,
-            {:import_progress, %{current: idx, total: total}}
+          safe_import_single_contact(
+            account_id,
+            user_id,
+            contact_data,
+            ref_data,
+            import_record,
+            acc
           )
-        end
 
+        maybe_broadcast_import_progress(topic, idx, total, broadcast_interval)
         result
       end)
 
@@ -361,6 +351,33 @@ defmodule Kith.Imports.Sources.Monica do
     :cancelled ->
       {%{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: ["Import cancelled"]},
        MapSet.new()}
+  end
+
+  defp maybe_check_import_cancelled(import_record, idx) do
+    if import_record && rem(idx, 10) == 0 do
+      refreshed = Imports.get_import!(import_record.id)
+      if refreshed.status == "cancelled", do: throw(:cancelled)
+    end
+  end
+
+  defp safe_import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc) do
+    import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc)
+  rescue
+    e ->
+      name = contact_display_name(contact_data)
+      msg = "Contact #{name}: #{Exception.message(e)}"
+      Logger.error("[Monica Import] #{msg}")
+      add_error(acc, msg)
+  end
+
+  defp maybe_broadcast_import_progress(topic, idx, total, broadcast_interval) do
+    if rem(idx, broadcast_interval) == 0 || idx == total do
+      Phoenix.PubSub.broadcast(
+        Kith.PubSub,
+        topic,
+        {:import_progress, %{current: idx, total: total}}
+      )
+    end
   end
 
   defp import_single_contact(account_id, user_id, contact_data, ref_data, import_record, acc) do
@@ -534,15 +551,13 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Contacts.create_contact_field(contact, attrs) do
         {:ok, cf} ->
-          if import_record && field_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "contact_field",
-              field_data["uuid"],
-              "contact_field",
-              cf.id
-            )
-          end
+          maybe_record_entity(
+            import_record,
+            "contact_field",
+            field_data["uuid"],
+            "contact_field",
+            cf.id
+          )
 
         {:error, reason} ->
           Logger.warning(
@@ -569,15 +584,7 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Contacts.create_address(contact, attrs) do
         {:ok, addr} ->
-          if import_record && addr_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "address",
-              addr_data["uuid"],
-              "address",
-              addr.id
-            )
-          end
+          maybe_record_entity(import_record, "address", addr_data["uuid"], "address", addr.id)
 
         {:error, reason} ->
           Logger.warning("[Monica Import] Address for #{contact.first_name}: #{inspect(reason)}")
@@ -593,15 +600,7 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Contacts.create_note(contact, user_id, attrs) do
         {:ok, note} ->
-          if import_record && note_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "note",
-              note_data["uuid"],
-              "note",
-              note.id
-            )
-          end
+          maybe_record_entity(import_record, "note", note_data["uuid"], "note", note.id)
 
         {:error, reason} ->
           Logger.warning("[Monica Import] Note for #{contact.first_name}: #{inspect(reason)}")
@@ -626,15 +625,13 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Kith.Reminders.create_reminder(contact.account_id, user_id, attrs) do
         {:ok, reminder} ->
-          if import_record && rem_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "reminder",
-              rem_data["uuid"],
-              "reminder",
-              reminder.id
-            )
-          end
+          maybe_record_entity(
+            import_record,
+            "reminder",
+            rem_data["uuid"],
+            "reminder",
+            reminder.id
+          )
 
         {:error, reason} ->
           Logger.warning("[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}")
@@ -653,15 +650,7 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Kith.Pets.create_pet(contact.account_id, attrs) do
         {:ok, pet} ->
-          if import_record && pet_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "pet",
-              pet_data["uuid"],
-              "pet",
-              pet.id
-            )
-          end
+          maybe_record_entity(import_record, "pet", pet_data["uuid"], "pet", pet.id)
 
         {:error, reason} ->
           Logger.warning("[Monica Import] Pet for #{contact.first_name}: #{inspect(reason)}")
@@ -687,17 +676,7 @@ defmodule Kith.Imports.Sources.Monica do
 
     Enum.each(photos, fn photo_data ->
       file_name = photo_data["original_filename"] || "photo.jpg"
-
-      {storage_key, file_size} =
-        case decode_data_url(photo_data["dataUrl"]) do
-          {:ok, binary} ->
-            key = Kith.Storage.generate_key(contact.account_id, "photos", file_name)
-            {:ok, _} = Kith.Storage.upload_binary(binary, key)
-            {key, byte_size(binary)}
-
-          :error ->
-            {"pending_sync:#{photo_data["uuid"]}", photo_data["filesize"] || 0}
-        end
+      {storage_key, file_size} = resolve_photo_storage(contact, photo_data, file_name)
 
       attrs = %{
         "file_name" => file_name,
@@ -708,20 +687,24 @@ defmodule Kith.Imports.Sources.Monica do
 
       case Contacts.create_photo(contact, attrs) do
         {:ok, photo} ->
-          if import_record && photo_data["uuid"] do
-            Imports.record_imported_entity(
-              import_record,
-              "photo",
-              photo_data["uuid"],
-              "photo",
-              photo.id
-            )
-          end
+          maybe_record_entity(import_record, "photo", photo_data["uuid"], "photo", photo.id)
 
         {:error, reason} ->
           Logger.warning("[Monica Import] Photo for #{contact.first_name}: #{inspect(reason)}")
       end
     end)
+  end
+
+  defp resolve_photo_storage(contact, photo_data, file_name) do
+    case decode_data_url(photo_data["dataUrl"]) do
+      {:ok, binary} ->
+        key = Kith.Storage.generate_key(contact.account_id, "photos", file_name)
+        {:ok, _} = Kith.Storage.upload_binary(binary, key)
+        {key, byte_size(binary)}
+
+      :error ->
+        {"pending_sync:#{photo_data["uuid"]}", photo_data["filesize"] || 0}
+    end
   end
 
   defp decode_data_url("data:" <> rest) do
@@ -741,28 +724,32 @@ defmodule Kith.Imports.Sources.Monica do
     Enum.reduce(activities, activity_set, fn activity_data, set ->
       uuid = activity_data["uuid"]
 
-      if MapSet.member?(set, uuid) do
-        # Activity already created by another contact — just add the join entry
-        add_activity_contact_join(uuid, contact, import_record)
-        set
-      else
-        # Check import_records in case of resume (MapSet is empty on restart)
-        existing_record =
-          if import_record do
-            Imports.find_import_record(contact.account_id, "monica", "activity", uuid)
-          end
+      cond do
+        MapSet.member?(set, uuid) ->
+          add_activity_contact_join(uuid, contact, import_record)
+          set
 
-        if existing_record do
-          # Activity exists from a previous import run, just add join
-          add_existing_activity_contact_join(existing_record.local_entity_id, contact)
+        activity_already_imported?(import_record, contact, uuid) ->
           MapSet.put(set, uuid)
-        else
-          # First encounter: create activity with this contact
+
+        true ->
           create_activity_with_contact(contact, user_id, activity_data, ref_data, import_record)
           MapSet.put(set, uuid)
-        end
       end
     end)
+  end
+
+  defp activity_already_imported?(import_record, contact, uuid) do
+    existing_record =
+      if import_record,
+        do: Imports.find_import_record(contact.account_id, "monica", "activity", uuid)
+
+    if existing_record do
+      add_existing_activity_contact_join(existing_record.local_entity_id, contact)
+      true
+    else
+      false
+    end
   end
 
   defp add_activity_contact_join(activity_uuid, contact, _import_record) do
@@ -787,18 +774,7 @@ defmodule Kith.Imports.Sources.Monica do
   defp create_activity_with_contact(contact, user_id, activity_data, ref_data, import_record) do
     atc_name = get_in(activity_data, ["activity_type_category", "data", "name"])
     atc_id = if atc_name, do: Map.get(ref_data.activity_type_categories, atc_name)
-
-    occurred_at =
-      case activity_data["happened_at"] do
-        nil ->
-          DateTime.utc_now() |> DateTime.truncate(:second)
-
-        dt_str ->
-          case DateTime.from_iso8601(dt_str) do
-            {:ok, dt, _} -> DateTime.truncate(dt, :second)
-            _ -> DateTime.utc_now() |> DateTime.truncate(:second)
-          end
-      end
+    occurred_at = parse_activity_datetime(activity_data["happened_at"])
 
     attrs = %{
       title: activity_data["title"] || "Untitled Activity",
@@ -810,15 +786,13 @@ defmodule Kith.Imports.Sources.Monica do
 
     case Kith.Activities.create_activity(contact.account_id, attrs, [contact.id]) do
       {:ok, activity} ->
-        if import_record && activity_data["uuid"] do
-          Imports.record_imported_entity(
-            import_record,
-            "activity",
-            activity_data["uuid"],
-            "activity",
-            activity.id
-          )
-        end
+        maybe_record_entity(
+          import_record,
+          "activity",
+          activity_data["uuid"],
+          "activity",
+          activity.id
+        )
 
       {:error, reason} ->
         Logger.warning("[Monica Import] Activity for #{contact.first_name}: #{inspect(reason)}")
@@ -846,83 +820,108 @@ defmodule Kith.Imports.Sources.Monica do
 
   defp import_relationships(account_id, relationships_data, _ref_data, import_record) do
     Enum.reduce(relationships_data, [], fn rel_data, errors ->
-      uuid = rel_data["uuid"]
-      contact_is_uuid = rel_data["contact_is"]
-      of_contact_uuid = rel_data["of_contact"]
-      rt_name = get_in(rel_data, ["relationship_type", "data", "name"])
-      rt_reverse = get_in(rel_data, ["relationship_type", "data", "reverse_name"])
-
-      # Skip if already imported (re-import case)
-      existing =
-        if import_record && uuid,
-          do: Imports.find_import_record(account_id, "monica", "relationship", uuid)
-
-      if existing do
-        # Already imported, update the import_id
-        Imports.record_imported_entity(
-          import_record,
-          "relationship",
-          uuid,
-          "relationship",
-          existing.local_entity_id
-        )
-
-        errors
-      else
-        with contact_is_rec when not is_nil(contact_is_rec) <-
-               Imports.find_import_record(account_id, "monica", "contact", contact_is_uuid),
-             of_contact_rec when not is_nil(of_contact_rec) <-
-               Imports.find_import_record(account_id, "monica", "contact", of_contact_uuid),
-             rt when not is_nil(rt) <-
-               find_or_create_relationship_type(account_id, rt_name, rt_reverse) do
-          contact = %Contacts.Contact{
-            id: contact_is_rec.local_entity_id,
-            account_id: account_id
-          }
-
-          attrs = %{
-            "related_contact_id" => of_contact_rec.local_entity_id,
-            "relationship_type_id" => rt.id
-          }
-
-          try do
-            case Contacts.create_relationship(contact, attrs) do
-              {:ok, rel} ->
-                if import_record && uuid do
-                  Imports.record_imported_entity(
-                    import_record,
-                    "relationship",
-                    uuid,
-                    "relationship",
-                    rel.id
-                  )
-                end
-
-                errors
-
-              {:error, reason} ->
-                msg =
-                  "Relationship #{rt_name} between #{contact_is_uuid} and #{of_contact_uuid}: #{inspect_errors(reason)}"
-
-                Logger.warning("[Monica Import] #{msg}")
-                errors ++ [msg]
-            end
-          rescue
-            e in Ecto.ConstraintError ->
-              # Relationship already exists (constraint violation on re-import without tracking)
-              Logger.info("[Monica Import] Relationship already exists: #{Exception.message(e)}")
-              errors
-          end
-        else
-          nil ->
-            msg =
-              "Skipping relationship #{rt_name || "unknown"} between #{contact_is_uuid} and #{of_contact_uuid}: one or both contacts were not imported"
-
-            Logger.warning("[Monica Import] #{msg}")
-            errors ++ [msg]
-        end
-      end
+      import_single_relationship(account_id, rel_data, import_record, errors)
     end)
+  end
+
+  defp import_single_relationship(account_id, rel_data, import_record, errors) do
+    uuid = rel_data["uuid"]
+    contact_is_uuid = rel_data["contact_is"]
+    of_contact_uuid = rel_data["of_contact"]
+    rt_name = get_in(rel_data, ["relationship_type", "data", "name"])
+    rt_reverse = get_in(rel_data, ["relationship_type", "data", "reverse_name"])
+
+    existing =
+      if import_record && uuid,
+        do: Imports.find_import_record(account_id, "monica", "relationship", uuid)
+
+    if existing do
+      maybe_record_entity(
+        import_record,
+        "relationship",
+        uuid,
+        "relationship",
+        existing.local_entity_id
+      )
+
+      errors
+    else
+      create_new_relationship(
+        account_id,
+        import_record,
+        uuid,
+        contact_is_uuid,
+        of_contact_uuid,
+        rt_name,
+        rt_reverse,
+        errors
+      )
+    end
+  end
+
+  defp create_new_relationship(
+         account_id,
+         import_record,
+         uuid,
+         contact_is_uuid,
+         of_contact_uuid,
+         rt_name,
+         rt_reverse,
+         errors
+       ) do
+    with contact_is_rec when not is_nil(contact_is_rec) <-
+           Imports.find_import_record(account_id, "monica", "contact", contact_is_uuid),
+         of_contact_rec when not is_nil(of_contact_rec) <-
+           Imports.find_import_record(account_id, "monica", "contact", of_contact_uuid),
+         rt when not is_nil(rt) <-
+           find_or_create_relationship_type(account_id, rt_name, rt_reverse) do
+      rel_ctx = %{
+        contact_is_rec: contact_is_rec,
+        of_contact_rec: of_contact_rec,
+        rt: rt,
+        rt_name: rt_name,
+        contact_is_uuid: contact_is_uuid,
+        of_contact_uuid: of_contact_uuid
+      }
+
+      do_create_relationship(account_id, import_record, uuid, rel_ctx, errors)
+    else
+      nil ->
+        msg =
+          "Skipping relationship #{rt_name || "unknown"} between #{contact_is_uuid} and #{of_contact_uuid}: one or both contacts were not imported"
+
+        Logger.warning("[Monica Import] #{msg}")
+        errors ++ [msg]
+    end
+  end
+
+  defp do_create_relationship(account_id, import_record, uuid, rel_ctx, errors) do
+    contact = %Contacts.Contact{
+      id: rel_ctx.contact_is_rec.local_entity_id,
+      account_id: account_id
+    }
+
+    attrs = %{
+      "related_contact_id" => rel_ctx.of_contact_rec.local_entity_id,
+      "relationship_type_id" => rel_ctx.rt.id
+    }
+
+    case Contacts.create_relationship(contact, attrs) do
+      {:ok, rel} ->
+        maybe_record_entity(import_record, "relationship", uuid, "relationship", rel.id)
+        errors
+
+      {:error, reason} ->
+        msg =
+          "Relationship #{rel_ctx.rt_name} between #{rel_ctx.contact_is_uuid} and #{rel_ctx.of_contact_uuid}: #{inspect_errors(reason)}"
+
+        Logger.warning("[Monica Import] #{msg}")
+        errors ++ [msg]
+    end
+  rescue
+    e in Ecto.ConstraintError ->
+      Logger.info("[Monica Import] Relationship already exists: #{Exception.message(e)}")
+      errors
   end
 
   defp find_or_create_relationship_type(_account_id, nil, _reverse), do: nil
@@ -947,31 +946,34 @@ defmodule Kith.Imports.Sources.Monica do
     contacts_data
     |> Enum.filter(& &1["first_met_through"])
     |> Enum.reduce([], fn contact_data, errors ->
-      uuid = contact_data["uuid"]
-      through_uuid = contact_data["first_met_through"]
-
-      with contact_rec when not is_nil(contact_rec) <-
-             Imports.find_import_record(account_id, "monica", "contact", uuid),
-           through_rec when not is_nil(through_rec) <-
-             Imports.find_import_record(account_id, "monica", "contact", through_uuid),
-           contact when not is_nil(contact) <-
-             Repo.get(Contacts.Contact, contact_rec.local_entity_id) do
-        case Contacts.update_contact(contact, %{first_met_through_id: through_rec.local_entity_id}) do
-          {:ok, _} ->
-            errors
-
-          {:error, reason} ->
-            msg = "first_met_through for #{uuid}: #{inspect(reason)}"
-            Logger.warning("[Monica Import] #{msg}")
-            errors ++ [msg]
-        end
-      else
-        nil ->
-          msg = "Could not resolve first_met_through for #{uuid} -> #{through_uuid}"
-          Logger.warning("[Monica Import] #{msg}")
-          errors ++ [msg]
-      end
+      resolve_single_first_met_through(account_id, contact_data, errors)
     end)
+  end
+
+  defp resolve_single_first_met_through(account_id, contact_data, errors) do
+    uuid = contact_data["uuid"]
+    through_uuid = contact_data["first_met_through"]
+
+    with contact_rec when not is_nil(contact_rec) <-
+           Imports.find_import_record(account_id, "monica", "contact", uuid),
+         through_rec when not is_nil(through_rec) <-
+           Imports.find_import_record(account_id, "monica", "contact", through_uuid),
+         contact when not is_nil(contact) <-
+           Repo.get(Contacts.Contact, contact_rec.local_entity_id),
+         {:ok, _} <-
+           Contacts.update_contact(contact, %{first_met_through_id: through_rec.local_entity_id}) do
+      errors
+    else
+      nil ->
+        msg = "Could not resolve first_met_through for #{uuid} -> #{through_uuid}"
+        Logger.warning("[Monica Import] #{msg}")
+        errors ++ [msg]
+
+      {:error, reason} ->
+        msg = "first_met_through for #{uuid}: #{inspect(reason)}"
+        Logger.warning("[Monica Import] #{msg}")
+        errors ++ [msg]
+    end
   end
 
   # ── v4 format normalization ────────────────────────────────────────────
@@ -1230,8 +1232,7 @@ defmodule Kith.Imports.Sources.Monica do
 
   defp contact_display_name(contact_data) do
     [contact_data["first_name"], contact_data["last_name"]]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.reject(&(&1 == ""))
+    |> Enum.reject(&(is_nil(&1) or &1 == ""))
     |> Enum.join(" ")
   end
 
@@ -1250,4 +1251,20 @@ defmodule Kith.Imports.Sources.Monica do
   end
 
   defp inspect_errors(other), do: inspect(other)
+
+  defp maybe_record_entity(nil, _type, _uuid, _local_type, _local_id), do: :ok
+  defp maybe_record_entity(_import_record, _type, nil, _local_type, _local_id), do: :ok
+
+  defp maybe_record_entity(import_record, type, uuid, local_type, local_id) do
+    Imports.record_imported_entity(import_record, type, uuid, local_type, local_id)
+  end
+
+  defp parse_activity_datetime(nil), do: DateTime.utc_now() |> DateTime.truncate(:second)
+
+  defp parse_activity_datetime(dt_str) do
+    case DateTime.from_iso8601(dt_str) do
+      {:ok, dt, _} -> DateTime.truncate(dt, :second)
+      _ -> DateTime.utc_now() |> DateTime.truncate(:second)
+    end
+  end
 end

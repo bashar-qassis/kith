@@ -24,19 +24,17 @@ defmodule Kith.VCard.Parser do
   - :addresses (list of %{label, line1, line2, city, province, postal_code, country})
   """
   def parse(data) when is_binary(data) do
-    try do
-      contacts =
-        data
-        |> normalize_line_endings()
-        |> unfold_lines()
-        |> split_vcards()
-        |> Enum.map(&parse_vcard/1)
-        |> Enum.reject(&is_nil/1)
+    contacts =
+      data
+      |> normalize_line_endings()
+      |> unfold_lines()
+      |> split_vcards()
+      |> Enum.map(&parse_vcard/1)
+      |> Enum.reject(&is_nil/1)
 
-      {:ok, contacts}
-    rescue
-      e -> {:error, "Failed to parse vCard file: #{Exception.message(e)}"}
-    end
+    {:ok, contacts}
+  rescue
+    e -> {:error, "Failed to parse vCard file: #{Exception.message(e)}"}
   end
 
   # ── Preprocessing ──────────────────────────────────────────────────────
@@ -84,61 +82,71 @@ defmodule Kith.VCard.Parser do
 
   defp parse_line(line, acc) do
     case parse_property(line) do
-      {"FN", _params, value} ->
-        %{acc | display_name: unescape(value)}
-
-      {"N", _params, value} ->
-        parts = String.split(value, ";", parts: 5)
-        last = Enum.at(parts, 0) |> unescape_or_nil()
-        first = Enum.at(parts, 1) |> unescape_or_nil()
-        %{acc | last_name: last, first_name: first}
-
-      {"NICKNAME", _params, value} ->
-        %{acc | nickname: unescape(value)}
-
-      {"BDAY", _params, value} ->
-        %{acc | birthdate: parse_date(value)}
-
-      {"ORG", _params, value} ->
-        # ORG can have sub-components separated by ;
-        company = value |> String.split(";") |> List.first() |> unescape()
-        %{acc | company: company}
-
-      {"TITLE", _params, value} ->
-        %{acc | occupation: unescape(value)}
-
-      {"NOTE", _params, value} ->
-        %{acc | description: unescape(value)}
-
-      {"TEL", params, value} ->
-        label = extract_type(params)
-        %{acc | phones: acc.phones ++ [%{value: unescape(value), label: label}]}
-
-      {"EMAIL", params, value} ->
-        label = extract_type(params)
-        %{acc | emails: acc.emails ++ [%{value: unescape(value), label: label}]}
-
-      {"ADR", params, value} ->
-        label = extract_type(params)
-        addr = parse_address(value, label)
-        %{acc | addresses: acc.addresses ++ [addr]}
-
-      {"URL", params, value} ->
-        label = extract_type(params)
-        %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
-
-      {"IMPP", params, value} ->
-        label = extract_type(params)
-        %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
-
-      {name, params, value} when name in ["X-SOCIALPROFILE", "X-TWITTER", "X-INSTAGRAM"] ->
-        label = extract_type(params) || social_label(name)
-        %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
-
-      _ ->
-        acc
+      {name, params, value} -> apply_property(acc, name, params, value)
+      _ -> acc
     end
   end
+
+  defp apply_property(acc, "FN", _params, value),
+    do: %{acc | display_name: unescape(value)}
+
+  defp apply_property(acc, "N", _params, value) do
+    parts = String.split(value, ";", parts: 5)
+    last = Enum.at(parts, 0) |> unescape_or_nil()
+    first = Enum.at(parts, 1) |> unescape_or_nil()
+    %{acc | last_name: last, first_name: first}
+  end
+
+  defp apply_property(acc, "NICKNAME", _params, value),
+    do: %{acc | nickname: unescape(value)}
+
+  defp apply_property(acc, "BDAY", _params, value),
+    do: %{acc | birthdate: parse_date(value)}
+
+  defp apply_property(acc, "ORG", _params, value) do
+    company = value |> String.split(";") |> List.first() |> unescape()
+    %{acc | company: company}
+  end
+
+  defp apply_property(acc, "TITLE", _params, value),
+    do: %{acc | occupation: unescape(value)}
+
+  defp apply_property(acc, "NOTE", _params, value),
+    do: %{acc | description: unescape(value)}
+
+  defp apply_property(acc, "TEL", params, value) do
+    label = extract_type(params)
+    %{acc | phones: acc.phones ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, "EMAIL", params, value) do
+    label = extract_type(params)
+    %{acc | emails: acc.emails ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, "ADR", params, value) do
+    label = extract_type(params)
+    addr = parse_address(value, label)
+    %{acc | addresses: acc.addresses ++ [addr]}
+  end
+
+  defp apply_property(acc, "URL", params, value) do
+    label = extract_type(params)
+    %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, "IMPP", params, value) do
+    label = extract_type(params)
+    %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, name, params, value)
+       when name in ["X-SOCIALPROFILE", "X-TWITTER", "X-INSTAGRAM"] do
+    label = extract_type(params) || social_label(name)
+    %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, _name, _params, _value), do: acc
 
   # ── Property Parsing ───────────────────────────────────────────────────
 

@@ -7,6 +7,8 @@ defmodule Kith.TimeHelper do
   UTC offsets — always recomputes from IANA name at scheduling time.
   """
 
+  alias Kith.Reminders.Reminder
+
   @doc """
   Converts a date + hour + IANA timezone to a UTC DateTime for Oban scheduling.
 
@@ -77,7 +79,7 @@ defmodule Kith.TimeHelper do
   """
   @spec advance_by_frequency(Date.t(), String.t()) :: Date.t()
   def advance_by_frequency(%Date{} = date, frequency) do
-    days = Kith.Reminders.Reminder.frequency_days(frequency)
+    days = Reminder.frequency_days(frequency)
     Date.add(date, days)
   end
 end

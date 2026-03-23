@@ -28,43 +28,13 @@ defmodule Kith.Immich.Client do
 
     case result do
       {:ok, %{status: 200, body: %{"people" => people}}} ->
-        parsed =
-          people
-          |> Enum.filter(&(is_binary(&1["name"]) && &1["name"] != ""))
-          |> Enum.map(fn person ->
-            %{
-              id: person["id"],
-              name: person["name"],
-              thumbnail_url:
-                "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
-            }
-          end)
-
-        {:ok, parsed}
+        {:ok, parse_people(people, base_url)}
 
       {:ok, %{status: 200, body: people}} when is_list(people) ->
-        parsed =
-          people
-          |> Enum.filter(&(is_binary(&1["name"]) && &1["name"] != ""))
-          |> Enum.map(fn person ->
-            %{
-              id: person["id"],
-              name: person["name"],
-              thumbnail_url:
-                "#{String.trim_trailing(base_url, "/")}/api/people/#{person["id"]}/thumbnail"
-            }
-          end)
-
-        {:ok, parsed}
-
-      {:ok, %{status: 401}} ->
-        {:error, :unauthorized}
-
-      {:ok, %{status: 404}} ->
-        {:error, :not_found}
+        {:ok, parse_people(people, base_url)}
 
       {:ok, %{status: status}} ->
-        {:error, {:unexpected_status, status}}
+        error_for_status(status)
 
       {:error, %{reason: :timeout}} ->
         {:error, :timeout}
@@ -73,6 +43,24 @@ defmodule Kith.Immich.Client do
         {:error, :network_error}
     end
   end
+
+  defp parse_people(people, base_url) do
+    base = String.trim_trailing(base_url, "/")
+
+    people
+    |> Enum.filter(&(is_binary(&1["name"]) && &1["name"] != ""))
+    |> Enum.map(fn person ->
+      %{
+        id: person["id"],
+        name: person["name"],
+        thumbnail_url: "#{base}/api/people/#{person["id"]}/thumbnail"
+      }
+    end)
+  end
+
+  defp error_for_status(401), do: {:error, :unauthorized}
+  defp error_for_status(404), do: {:error, :not_found}
+  defp error_for_status(status), do: {:error, {:unexpected_status, status}}
 
   @doc """
   Downloads a photo/thumbnail from Immich by asset URL.

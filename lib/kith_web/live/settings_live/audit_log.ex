@@ -9,6 +9,7 @@ defmodule KithWeb.SettingsLive.AuditLog do
   use KithWeb, :live_view
 
   alias Kith.AuditLogs
+  alias Kith.AuditLogs.AuditLog
 
   import KithWeb.SettingsLive.SettingsLayout
 
@@ -38,12 +39,7 @@ defmodule KithWeb.SettingsLive.AuditLog do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :manage, :account) do
-      {:ok,
-       socket
-       |> put_flash(:error, "You do not have permission to view the audit log.")
-       |> redirect(to: ~p"/dashboard")}
-    else
+    if Kith.Policy.can?(user, :manage, :account) do
       {:ok,
        socket
        |> assign(:page_title, "Audit Log")
@@ -53,6 +49,11 @@ defmodule KithWeb.SettingsLive.AuditLog do
        |> assign(:next_cursor, nil)
        |> assign(:event_options, event_options())
        |> load_entries()}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You do not have permission to view the audit log.")
+       |> redirect(to: ~p"/dashboard")}
     end
   end
 
@@ -105,7 +106,7 @@ defmodule KithWeb.SettingsLive.AuditLog do
   defp blank_to_nil(val), do: val
 
   defp event_options do
-    Kith.AuditLogs.AuditLog.valid_events()
+    AuditLog.valid_events()
     |> Enum.map(fn event -> {Map.get(@event_labels, event, event), event} end)
   end
 
@@ -128,8 +129,7 @@ defmodule KithWeb.SettingsLive.AuditLog do
   defp metadata_summary(meta) when is_map(meta) do
     meta
     |> Enum.take(3)
-    |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
     |> String.slice(0, 120)
   end
 

@@ -25,13 +25,15 @@ defmodule KithWeb.API.GenderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      case Contacts.create_gender(account_id, attrs) do
-        {:ok, gender} -> conn |> put_status(201) |> json(%{data: gender_json(gender)})
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        case Contacts.create_gender(account_id, attrs) do
+          {:ok, gender} -> conn |> put_status(201) |> json(%{data: gender_json(gender)})
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 
@@ -40,16 +42,18 @@ defmodule KithWeb.API.GenderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      gender = Contacts.get_gender!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        gender = Contacts.get_gender!(account_id, id)
 
-      case Contacts.update_gender(gender, attrs) do
-        {:ok, updated} -> json(conn, %{data: gender_json(updated)})
-        {:error, :global_read_only} -> {:error, :forbidden}
-        {:error, cs} -> {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+        case Contacts.update_gender(gender, attrs) do
+          {:ok, updated} -> json(conn, %{data: gender_json(updated)})
+          {:error, :global_read_only} -> {:error, :forbidden}
+          {:error, cs} -> {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -60,24 +64,26 @@ defmodule KithWeb.API.GenderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      gender = Contacts.get_gender!(account_id, id)
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        gender = Contacts.get_gender!(account_id, id)
 
-      case Contacts.delete_gender(gender) do
-        {:ok, _} ->
-          send_resp(conn, 204, "")
+        case Contacts.delete_gender(gender) do
+          {:ok, _} ->
+            send_resp(conn, 204, "")
 
-        {:error, :global_read_only} ->
-          {:error, :forbidden}
+          {:error, :global_read_only} ->
+            {:error, :forbidden}
 
-        {:error, :in_use} ->
-          {:error, :bad_request, "Cannot delete gender that is assigned to contacts."}
+          {:error, :in_use} ->
+            {:error, :bad_request, "Cannot delete gender that is assigned to contacts."}
 
-        {:error, cs} ->
-          {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+          {:error, cs} ->
+            {:error, cs}
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}

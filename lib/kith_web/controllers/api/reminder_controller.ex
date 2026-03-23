@@ -105,22 +105,14 @@ defmodule KithWeb.API.ReminderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :update, :reminder) do
-      case Reminder |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
-        nil ->
-          {:error, :not_found}
-
-        reminder ->
-          case Reminders.update_reminder(reminder, attrs) do
-            {:ok, updated} ->
-              json(conn, %{data: reminder_json(updated)})
-
-            {:error, %Ecto.Changeset{} = cs} ->
-              {:error, cs}
-          end
-      end
+    with true <- Policy.can?(user, :update, :reminder),
+         reminder when not is_nil(reminder) <- fetch_reminder(account_id, id),
+         {:ok, updated} <- Reminders.update_reminder(reminder, attrs) do
+      json(conn, %{data: reminder_json(updated)})
     else
       false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
+      {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
     end
   end
 
@@ -130,19 +122,15 @@ defmodule KithWeb.API.ReminderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :delete, :reminder) do
-      case Reminder |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
-        nil ->
-          {:error, :not_found}
-
-        reminder ->
-          case Reminders.delete_reminder(reminder) do
-            {:ok, _} -> send_resp(conn, 204, "")
-            {:error, reason} -> {:error, :bad_request, inspect(reason)}
-          end
+    with true <- Policy.can?(user, :delete, :reminder),
+         reminder when not is_nil(reminder) <- fetch_reminder(account_id, id) do
+      case Reminders.delete_reminder(reminder) do
+        {:ok, _} -> send_resp(conn, 204, "")
+        {:error, reason} -> {:error, :bad_request, inspect(reason)}
       end
     else
       false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
     end
   end
 
@@ -152,19 +140,15 @@ defmodule KithWeb.API.ReminderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :update, :reminder) do
-      case get_instance(account_id, id) do
-        nil ->
-          {:error, :not_found}
-
-        instance ->
-          case Reminders.resolve_instance(instance) do
-            {:ok, _} -> json(conn, %{data: %{status: "resolved"}})
-            {:error, reason} -> {:error, :bad_request, inspect(reason)}
-          end
+    with true <- Policy.can?(user, :update, :reminder),
+         instance when not is_nil(instance) <- get_instance(account_id, id) do
+      case Reminders.resolve_instance(instance) do
+        {:ok, _} -> json(conn, %{data: %{status: "resolved"}})
+        {:error, reason} -> {:error, :bad_request, inspect(reason)}
       end
     else
       false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
     end
   end
 
@@ -194,20 +178,20 @@ defmodule KithWeb.API.ReminderController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :update, :reminder) do
-      case get_instance(account_id, id) do
-        nil ->
-          {:error, :not_found}
-
-        instance ->
-          case Reminders.dismiss_instance(instance) do
-            {:ok, _} -> json(conn, %{data: %{status: "dismissed"}})
-            {:error, reason} -> {:error, :bad_request, inspect(reason)}
-          end
+    with true <- Policy.can?(user, :update, :reminder),
+         instance when not is_nil(instance) <- get_instance(account_id, id) do
+      case Reminders.dismiss_instance(instance) do
+        {:ok, _} -> json(conn, %{data: %{status: "dismissed"}})
+        {:error, reason} -> {:error, :bad_request, inspect(reason)}
       end
     else
       false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
     end
+  end
+
+  defp fetch_reminder(account_id, id) do
+    Reminder |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id)
   end
 
   defp get_instance(account_id, id) do

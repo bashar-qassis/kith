@@ -6,8 +6,8 @@ defmodule KithWeb.API.TaskController do
   use KithWeb, :controller
 
   alias Kith.{Contacts, Policy, Repo}
-  alias Kith.Tasks.Task
   alias Kith.Scope, as: TenantScope
+  alias Kith.Tasks.Task
   alias KithWeb.API.Pagination
 
   import Ecto.Query

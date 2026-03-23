@@ -15,9 +15,10 @@ defmodule Kith.Workers.ImmichSyncWorker do
   import Ecto.Query
   require Logger
 
-  alias Kith.Repo
   alias Kith.Accounts.Account
   alias Kith.Contacts.{Contact, ImmichCandidate}
+  alias Kith.Immich.Client
+  alias Kith.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"account_id" => account_id}}) do
@@ -42,7 +43,7 @@ defmodule Kith.Workers.ImmichSyncWorker do
   end
 
   defp do_sync(account) do
-    case Kith.Immich.Client.list_people(account.immich_base_url, account.immich_api_key) do
+    case Client.list_people(account.immich_base_url, account.immich_api_key) do
       {:ok, people} ->
         process_matches(account, people)
         record_success(account)
@@ -81,8 +82,7 @@ defmodule Kith.Workers.ImmichSyncWorker do
       else
         full_name =
           [contact.first_name, contact.last_name]
-          |> Enum.reject(&is_nil/1)
-          |> Enum.reject(&(&1 == ""))
+          |> Enum.reject(&(is_nil(&1) or &1 == ""))
           |> Enum.join(" ")
           |> String.downcase()
 

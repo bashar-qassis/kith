@@ -96,13 +96,11 @@ defmodule KithWeb.ContactLive.PetsComponent do
         years
       end
 
-    cond do
-      age <= 0 ->
-        months = (today.year - date_of_birth.year) * 12 + today.month - date_of_birth.month
-        if months > 0, do: "#{months}mo", else: "<1mo"
-
-      true ->
-        "#{age}y"
+    if age <= 0 do
+      months = (today.year - date_of_birth.year) * 12 + today.month - date_of_birth.month
+      if months > 0, do: "#{months}mo", else: "<1mo"
+    else
+      "#{age}y"
     end
   end
 

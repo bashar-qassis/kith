@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:15-alpine
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -55,6 +55,7 @@ services:
       - "4000:4000"
     environment:
       DB_HOST: postgres
+      DB_PORT: "5432"
       SMTP_HOST: mailpit
       PHX_IP: "0.0.0.0"
     volumes:

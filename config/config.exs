@@ -108,7 +108,18 @@ config :wax_,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :user_id, :account_id]
+  metadata: [
+    :request_id,
+    :user_id,
+    :account_id,
+    :worker,
+    :queue,
+    :duration_ms,
+    :attempt,
+    :max_attempts,
+    :state,
+    :source
+  ]
 
 # Cloak encryption vault — key set per-environment
 config :kith, Kith.Vault,

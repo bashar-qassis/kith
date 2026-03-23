@@ -11,6 +11,8 @@ defmodule KithWeb.KithUI do
   use Phoenix.Component
   import KithWeb.UI
 
+  alias Kith.Cldr.DateTime.Relative
+
   # ==========================================================================
   # Helpers
   # ==========================================================================
@@ -613,7 +615,7 @@ defmodule KithWeb.KithUI do
 
   def relative_time(assigns) do
     formatted =
-      case Kith.Cldr.DateTime.Relative.to_string(assigns.datetime, locale: assigns.locale) do
+      case Relative.to_string(assigns.datetime, locale: assigns.locale) do
         {:ok, str} -> str
         _ -> to_string(assigns.datetime)
       end

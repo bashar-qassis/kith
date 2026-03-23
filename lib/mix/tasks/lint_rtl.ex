@@ -30,14 +30,7 @@ defmodule Mix.Tasks.Lint.Rtl do
         |> File.read!()
         |> String.split("\n")
         |> Enum.with_index(1)
-        |> Enum.flat_map(fn {line, line_num} ->
-          Enum.flat_map(patterns, fn pattern ->
-            case Regex.run(pattern, line) do
-              [match | _] -> [{file, line_num, match, String.trim(line)}]
-              nil -> []
-            end
-          end)
-        end)
+        |> Enum.flat_map(&check_line_for_violations(&1, file, patterns))
       end)
 
     if violations == [] do
@@ -61,6 +54,15 @@ defmodule Mix.Tasks.Lint.Rtl do
 
       System.at_exit(fn _ -> exit({:shutdown, 1}) end)
     end
+  end
+
+  defp check_line_for_violations({line, line_num}, file, patterns) do
+    Enum.flat_map(patterns, fn pattern ->
+      case Regex.run(pattern, line) do
+        [match | _] -> [{file, line_num, match, String.trim(line)}]
+        nil -> []
+      end
+    end)
   end
 
   defp banned_patterns do

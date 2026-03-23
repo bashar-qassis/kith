@@ -29,12 +29,7 @@ defmodule KithWeb.ContactLive.Merge do
     user = scope.user
     account_id = scope.account.id
 
-    unless Policy.can?(user, :update, :contact) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You don't have permission to merge contacts")
-       |> push_navigate(to: ~p"/contacts")}
-    else
+    if Policy.can?(user, :update, :contact) do
       contact_a = Contacts.get_contact(account_id, id, preload: [:tags, :gender])
 
       if is_nil(contact_a) do
@@ -60,6 +55,11 @@ defmodule KithWeb.ContactLive.Merge do
 
         {:noreply, socket}
       end
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You don't have permission to merge contacts")
+       |> push_navigate(to: ~p"/contacts")}
     end
   end
 

@@ -1,9 +1,13 @@
 defmodule KithWeb.ContactLive.Index do
   use KithWeb, :live_view
 
-  alias Kith.Contacts
-  alias Kith.DuplicateDetection
   alias Kith.AuditLogs
+  alias Kith.Contacts
+  alias Kith.Contacts.Photo
+  alias Kith.DuplicateDetection
+  alias Kith.Policy
+  alias Kith.Storage
+  alias Kith.Workers.DuplicateDetectionWorker
 
   @sort_options %{
     "name_asc" => %{order_by: [:display_name], order_directions: [:asc]},
@@ -255,10 +259,8 @@ defmodule KithWeb.ContactLive.Index do
   def handle_event("scan", _params, socket) do
     user = socket.assigns.current_scope.user
 
-    if Kith.Policy.can?(user, :manage, :account) do
-      Oban.insert(
-        Kith.Workers.DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id})
-      )
+    if Policy.can?(user, :manage, :account) do
+      Oban.insert(DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id}))
 
       {:noreply, put_flash(socket, :info, "Duplicate scan started. Results will appear shortly.")}
     else
@@ -271,7 +273,7 @@ defmodule KithWeb.ContactLive.Index do
   def handle_event("restore", %{"id" => id}, socket) do
     account_id = socket.assigns.account_id
     user = socket.assigns.current_scope.user
-    Kith.Policy.authorize!(user, :manage, :contact)
+    Policy.authorize!(user, :manage, :contact)
 
     contact = Contacts.get_contact!(account_id, String.to_integer(id))
     {:ok, _} = Contacts.restore_contact(contact)
@@ -293,7 +295,7 @@ defmodule KithWeb.ContactLive.Index do
   def handle_event("permanent-delete", %{"id" => id}, socket) do
     account_id = socket.assigns.account_id
     user = socket.assigns.current_scope.user
-    Kith.Policy.authorize!(user, :manage, :contact)
+    Policy.authorize!(user, :manage, :contact)
 
     contact = Contacts.get_contact!(account_id, String.to_integer(id))
     display_name = contact.display_name
@@ -319,7 +321,7 @@ defmodule KithWeb.ContactLive.Index do
     Enum.each(contacts, fn contact ->
       {:ok, _} = action_fn.(contact)
 
-      Kith.AuditLogs.log_event(account_id, user, event,
+      AuditLogs.log_event(account_id, user, event,
         contact_id: contact.id,
         contact_name: contact.display_name
       )
@@ -380,7 +382,7 @@ defmodule KithWeb.ContactLive.Index do
   end
 
   defp can?(%{current_scope: scope}, action, resource) do
-    Kith.Policy.can?(scope.user, action, resource)
+    Policy.can?(scope.user, action, resource)
   end
 
   defp toggle_tag_id(selected, id) do
@@ -389,10 +391,10 @@ defmodule KithWeb.ContactLive.Index do
 
   defp contact_photo_url(%{photos: photos}) when is_list(photos) do
     photo =
-      Enum.find(photos, &(&1.is_cover && !Kith.Contacts.Photo.pending_sync?(&1))) ||
-        Enum.find(photos, &(!Kith.Contacts.Photo.pending_sync?(&1)))
+      Enum.find(photos, &(&1.is_cover && !Photo.pending_sync?(&1))) ||
+        Enum.find(photos, &(!Photo.pending_sync?(&1)))
 
-    if photo, do: Kith.Storage.url(photo.storage_key)
+    if photo, do: Storage.url(photo.storage_key)
   end
 
   defp contact_photo_url(_), do: nil

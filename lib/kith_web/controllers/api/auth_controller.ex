@@ -14,52 +14,10 @@ defmodule KithWeb.API.AuthController do
   def create(conn, %{"email" => email, "password" => password} = params) do
     case Accounts.get_user_by_email_and_password(email, password) do
       nil ->
-        conn
-        |> put_status(401)
-        |> put_resp_content_type("application/problem+json")
-        |> json(%{
-          type: "about:blank",
-          title: "Unauthorized",
-          status: 401,
-          detail: "Invalid email or password."
-        })
+        unauthorized_response(conn, "Invalid email or password.")
 
       user ->
-        if user.totp_enabled do
-          totp_code = params["totp_code"]
-
-          cond do
-            is_nil(totp_code) or totp_code == "" ->
-              conn
-              |> put_status(401)
-              |> put_resp_content_type("application/problem+json")
-              |> json(%{
-                type: "about:blank",
-                title: "Unauthorized",
-                status: 401,
-                detail: "TOTP code required."
-              })
-
-            Accounts.valid_totp_code?(user.totp_secret, totp_code) ->
-              issue_token(conn, user)
-
-            Accounts.use_recovery_code(user, totp_code) ->
-              issue_token(conn, user)
-
-            true ->
-              conn
-              |> put_status(401)
-              |> put_resp_content_type("application/problem+json")
-              |> json(%{
-                type: "about:blank",
-                title: "Unauthorized",
-                status: 401,
-                detail: "Invalid TOTP code."
-              })
-          end
-        else
-          issue_token(conn, user)
-        end
+        authenticate_with_optional_totp(conn, user, params["totp_code"])
     end
   end
 
@@ -73,6 +31,35 @@ defmodule KithWeb.API.AuthController do
       status: 400,
       detail: "Missing email and password."
     })
+  end
+
+  defp authenticate_with_optional_totp(conn, %{totp_enabled: false} = user, _totp_code) do
+    issue_token(conn, user)
+  end
+
+  defp authenticate_with_optional_totp(conn, _user, totp_code)
+       when is_nil(totp_code) or totp_code == "" do
+    unauthorized_response(conn, "TOTP code required.")
+  end
+
+  defp authenticate_with_optional_totp(conn, user, totp_code) do
+    cond do
+      Accounts.valid_totp_code?(user.totp_secret, totp_code) ->
+        issue_token(conn, user)
+
+      Accounts.use_recovery_code(user, totp_code) ->
+        issue_token(conn, user)
+
+      true ->
+        unauthorized_response(conn, "Invalid TOTP code.")
+    end
+  end
+
+  defp unauthorized_response(conn, detail) do
+    conn
+    |> put_status(401)
+    |> put_resp_content_type("application/problem+json")
+    |> json(%{type: "about:blank", title: "Unauthorized", status: 401, detail: detail})
   end
 
   def delete(conn, %{"id" => id}) do

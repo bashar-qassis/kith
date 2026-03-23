@@ -9,9 +9,11 @@ defmodule Kith.Immich do
   Inserts an ImmichSyncWorker job with priority 0 and 60-second uniqueness.
   Returns `{:ok, %Oban.Job{}}` or `{:error, changeset}`.
   """
+  alias Kith.Workers.ImmichSyncWorker
+
   def trigger_sync(account) do
     %{account_id: account.id}
-    |> Kith.Workers.ImmichSyncWorker.new(
+    |> ImmichSyncWorker.new(
       priority: 0,
       unique: [period: 60, fields: [:args, :queue]]
     )

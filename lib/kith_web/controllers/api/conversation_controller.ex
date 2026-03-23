@@ -5,7 +5,7 @@ defmodule KithWeb.API.ConversationController do
 
   use KithWeb, :controller
 
-  alias Kith.{Conversations, Contacts, Policy, Repo}
+  alias Kith.{Contacts, Conversations, Policy, Repo}
   alias Kith.Conversations.Conversation
   alias Kith.Scope, as: TenantScope
   alias KithWeb.API.Pagination

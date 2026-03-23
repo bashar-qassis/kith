@@ -3,8 +3,8 @@ defmodule KithWeb.API.ContactJSON do
   JSON serialization for contacts in the REST API.
   """
 
-  alias Kith.Contacts.{Contact, Tag, Address, ContactField, Note, Document, Photo}
-  alias Kith.Activities.{Activity, LifeEvent, Call}
+  alias Kith.Activities.{Activity, Call, LifeEvent}
+  alias Kith.Contacts.{Address, Contact, ContactField, Document, Note, Photo, Tag}
   alias Kith.Reminders.Reminder
 
   @doc """

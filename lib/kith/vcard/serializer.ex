@@ -44,9 +44,7 @@ defmodule Kith.VCard.Serializer do
   Serializes multiple contacts into a single vCard file (concatenated blocks).
   """
   def serialize_many(contacts) do
-    contacts
-    |> Enum.map(&serialize/1)
-    |> Enum.join("")
+    Enum.map_join(contacts, "", &serialize/1)
   end
 
   # ── Identity Fields ──────────────────────────────────────────────────────
