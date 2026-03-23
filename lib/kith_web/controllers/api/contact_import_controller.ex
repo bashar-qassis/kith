@@ -89,17 +89,6 @@ defmodule KithWeb.API.ContactImportController do
             status: 422,
             detail: reason
           })
-
-        {:error, _} ->
-          conn
-          |> put_status(422)
-          |> put_resp_content_type("application/problem+json")
-          |> json(%{
-            type: "about:blank",
-            title: "Unprocessable Entity",
-            status: 422,
-            detail: "Could not parse vCard file. Please ensure the file is a valid .vcf file."
-          })
       end
     end
   end

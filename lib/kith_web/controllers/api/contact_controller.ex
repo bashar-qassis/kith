@@ -260,14 +260,8 @@ defmodule KithWeb.API.ContactController do
             {:ok, merged} ->
               json(conn, %{data: ContactJSON.data(merged)})
 
-            {:error, reason} when is_binary(reason) ->
-              {:error, :bad_request, reason}
-
-            {:error, _step, %Ecto.Changeset{} = cs, _changes} ->
-              {:error, cs}
-
             {:error, reason} ->
-              {:error, :bad_request, inspect(reason)}
+              {:error, :bad_request, "Merge failed: #{inspect(reason)}"}
           end
       end
     else

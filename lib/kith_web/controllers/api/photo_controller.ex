@@ -39,8 +39,10 @@ defmodule KithWeb.API.PhotoController do
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id) do
       case params["file"] do
         %Plug.Upload{content_type: ct} = upload when ct in @allowed_image_types ->
-          case Storage.upload(upload, account_id) do
-            {:ok, storage_key, _metadata} ->
+          dest = Storage.generate_key(account_id, "photos", upload.filename)
+
+          case Storage.upload(upload.path, dest) do
+            {:ok, storage_key} ->
               attrs = %{
                 "file_name" => upload.filename,
                 "file_size" => upload.path && File.stat!(upload.path).size,

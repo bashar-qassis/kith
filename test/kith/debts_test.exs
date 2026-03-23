@@ -50,7 +50,9 @@ defmodule Kith.DebtsTest do
 
     test "preloads currency" do
       {account, user} = setup_account()
+
       currency = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+
       contact = insert(:contact, account: account)
       insert(:debt, account: account, contact: contact, creator: user, currency: currency)
 
@@ -92,7 +94,9 @@ defmodule Kith.DebtsTest do
 
     test "preloads currency" do
       {account, user} = setup_account()
+
       currency = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+
       contact = insert(:contact, account: account)
       debt = insert(:debt, account: account, contact: contact, creator: user, currency: currency)
 
@@ -191,7 +195,9 @@ defmodule Kith.DebtsTest do
 
     test "inherits currency from contact when not specified" do
       {account, user} = setup_account()
+
       currency = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+
       contact = insert(:contact, account: account, currency: currency)
 
       attrs = %{
@@ -207,8 +213,11 @@ defmodule Kith.DebtsTest do
 
     test "uses explicit currency_id when provided, ignoring contact default" do
       {account, user} = setup_account()
+
       eur = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+
       gbp = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+
       contact = insert(:contact, account: account, currency: eur)
 
       attrs = %{
@@ -240,8 +249,11 @@ defmodule Kith.DebtsTest do
 
     test "changing contact currency does not retroactively update existing debts" do
       {account, user} = setup_account()
+
       eur = Repo.get_by!(Kith.Contacts.Currency, code: "EUR")
+
       gbp = Repo.get_by!(Kith.Contacts.Currency, code: "GBP")
+
       contact = insert(:contact, account: account, currency: eur)
 
       attrs = %{

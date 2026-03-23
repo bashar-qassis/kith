@@ -108,16 +108,7 @@ defmodule KithWeb.SettingsLive.Account do
     account = socket.assigns.account
 
     if socket.assigns.delete_confirmation == account.name do
-      case {:error, :not_implemented} do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Account deleted.")
-           |> redirect(to: ~p"/")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to delete account.")}
-      end
+      {:noreply, put_flash(socket, :error, "Account deletion is not yet available.")}
     else
       {:noreply, put_flash(socket, :error, "Account name does not match.")}
     end

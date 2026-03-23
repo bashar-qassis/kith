@@ -50,7 +50,7 @@ defmodule Kith.Policy do
   @doc """
   Returns true if the user is authorized to perform the given action on the resource.
   """
-  @spec can?(User.t(), action(), resource()) :: boolean()
+  @spec can?(%User{}, action(), resource()) :: boolean()
   def can?(%User{role: role}, action, resource) do
     authorized?(role, action, resource)
   end
@@ -76,7 +76,7 @@ defmodule Kith.Policy do
   @doc """
   Raises if the user is not authorized. Useful in controller/LiveView pipelines.
   """
-  @spec authorize!(User.t(), action(), resource()) :: :ok
+  @spec authorize!(%User{}, action(), resource()) :: :ok
   def authorize!(%User{} = user, action, resource) do
     if can?(user, action, resource) do
       :ok

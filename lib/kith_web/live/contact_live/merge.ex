@@ -199,12 +199,6 @@ defmodule KithWeb.ContactLive.Merge do
          |> put_flash(:info, "Contacts merged successfully")
          |> redirect(to: ~p"/contacts/#{contact_a.id}")}
 
-      {:error, step, changeset, _changes} ->
-        {:noreply,
-         socket
-         |> assign(:merging, false)
-         |> put_flash(:error, "Merge failed at step #{inspect(step)}: #{inspect(changeset)}")}
-
       {:error, reason} ->
         {:noreply,
          socket

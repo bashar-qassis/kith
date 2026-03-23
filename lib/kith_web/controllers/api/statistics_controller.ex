@@ -30,10 +30,8 @@ defmodule KithWeb.API.StatisticsController do
   end
 
   defp storage_used(account_id) do
-    case Kith.Storage.usage(account_id) do
-      {:ok, bytes} -> bytes
-      _ -> 0
-    end
+    {:ok, bytes} = Kith.Storage.usage(account_id)
+    bytes
   rescue
     _ -> 0
   end

@@ -17,6 +17,8 @@ defmodule Mix.Tasks.Lint.Rtl do
 
   @shortdoc "Checks .heex templates for banned directional Tailwind utilities"
 
+  @dialyzer {:nowarn_function, run: 1}
+
   @impl Mix.Task
   def run(_args) do
     files = Path.wildcard("lib/**/*.heex")

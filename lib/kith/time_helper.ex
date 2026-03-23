@@ -18,7 +18,7 @@ defmodule Kith.TimeHelper do
       iex> to_utc_scheduled_at(~D[2026-07-15], 14, "America/New_York")
       ~U[2026-07-15 18:00:00Z]  # EDT = UTC-4
   """
-  @spec to_utc_scheduled_at(Date.t(), non_neg_integer(), String.t()) :: DateTime.t()
+  @spec to_utc_scheduled_at(Date.t(), 0..23, String.t()) :: DateTime.t()
   def to_utc_scheduled_at(%Date{} = date, hour, timezone) when hour in 0..23 do
     naive = NaiveDateTime.new!(date, Time.new!(hour, 0, 0))
 
@@ -61,7 +61,7 @@ defmodule Kith.TimeHelper do
   @doc """
   Builds a date, handling Feb 29 → Feb 28 for non-leap years.
   """
-  @spec safe_date(integer(), integer(), integer()) :: Date.t()
+  @spec safe_date(integer(), pos_integer(), pos_integer()) :: Date.t()
   def safe_date(year, 2, 29) do
     if Calendar.ISO.leap_year?(year) do
       Date.new!(year, 2, 29)

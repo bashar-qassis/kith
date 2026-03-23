@@ -37,12 +37,14 @@ defmodule KithWeb.API.DocumentController do
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id) do
       case params["file"] do
         %Plug.Upload{} = upload ->
-          case Storage.upload(upload, account_id) do
-            {:ok, storage_key, metadata} ->
+          dest = Storage.generate_key(account_id, "documents", upload.filename)
+
+          case Storage.upload(upload.path, dest) do
+            {:ok, storage_key} ->
               attrs = %{
                 "file_name" => upload.filename,
                 "content_type" => upload.content_type,
-                "file_size" => metadata[:size_bytes] || 0,
+                "file_size" => File.stat!(upload.path).size,
                 "storage_key" => storage_key
               }
 

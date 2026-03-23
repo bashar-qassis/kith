@@ -21,13 +21,13 @@ defmodule KithWeb.UserLive.InvitationAcceptance do
   @impl true
   def handle_params(%{"token" => token}, _uri, socket) do
     case Accounts.get_invitation_by_token(token) do
-      nil ->
+      {:error, _} ->
         {:noreply,
          socket
          |> assign(:error, "This invitation has expired or has already been used.")
          |> assign(:token, token)}
 
-      invitation ->
+      {:ok, invitation} ->
         changeset = Accounts.change_user_registration(%Kith.Accounts.User{})
 
         {:noreply,
