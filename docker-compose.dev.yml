@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:15-alpine
     ports:
-      - "${DB_PORT:-5433}:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
