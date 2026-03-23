@@ -90,14 +90,14 @@ defmodule KithWeb do
       import KithWeb.KithUI
 
       # Aliases for module-qualified syntax in templates
-      alias KithWeb.UI
       alias KithWeb.KithUI
+      alias KithWeb.UI
 
       import KithWeb.PolicyHelper
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias KithWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

@@ -14,6 +14,8 @@ defmodule Kith.Workers.ImportSourceWorker do
   alias Kith.Workers.ApiSupplementWorker
   alias Kith.Workers.PhotoSyncWorker
 
+  @dialyzer {:nowarn_function, maybe_enqueue_first_met_jobs: 2}
+
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"import_id" => import_id}}) do
     import = Imports.get_import!(import_id)

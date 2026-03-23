@@ -8,6 +8,8 @@ defmodule Kith.Accounts.User do
 
   alias Kith.Cldr.Currency
 
+  @type t :: %__MODULE__{}
+
   schema "users" do
     field :email, :string
     field :password, :string, virtual: true, redact: true
