@@ -1,3 +1,7 @@
+
+> [!WARNING]
+> This repo is in development and is NOT considered prodution ready.
+
 # Kith
 
 A personal CRM for maintaining meaningful relationships. Built with Elixir, Phoenix LiveView, and PostgreSQL.
