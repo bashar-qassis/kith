@@ -1,9 +1,11 @@
 defmodule KithWeb.API.DuplicateController do
   use KithWeb, :controller
 
-  alias Kith.{DuplicateDetection, Policy}
   alias Kith.Contacts.DuplicateCandidate
+  alias Kith.{DuplicateDetection, Policy}
+  alias Kith.Repo
   alias Kith.Scope, as: TenantScope
+  alias Kith.Workers.DuplicateDetectionWorker
   alias KithWeb.API.Pagination
 
   import Ecto.Query
@@ -32,10 +34,10 @@ defmodule KithWeb.API.DuplicateController do
 
     with true <- Policy.can?(user, :update, :duplicate_candidate),
          candidate when not is_nil(candidate) <-
-           DuplicateCandidate |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id),
+           DuplicateCandidate |> TenantScope.scope_to_account(account_id) |> Repo.get(id),
          {:ok, updated} <- DuplicateDetection.dismiss_candidate(candidate) do
       json(conn, %{
-        data: candidate_json(updated |> Kith.Repo.preload([:contact, :duplicate_contact]))
+        data: candidate_json(updated |> Repo.preload([:contact, :duplicate_contact]))
       })
     else
       false -> {:error, :forbidden}
@@ -49,11 +51,13 @@ defmodule KithWeb.API.DuplicateController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :account) do
-      Oban.insert(Kith.Workers.DuplicateDetectionWorker.new(%{account_id: account_id}))
-      json(conn, %{status: "scanning"})
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :manage, :account) do
+      true ->
+        Oban.insert(DuplicateDetectionWorker.new(%{account_id: account_id}))
+        json(conn, %{status: "scanning"})
+
+      false ->
+        {:error, :forbidden}
     end
   end
 

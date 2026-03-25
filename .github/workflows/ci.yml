@@ -8,8 +8,9 @@ on:
 
 env:
   MIX_ENV: test
-  ELIXIR_VERSION: "1.18"
+  ELIXIR_VERSION: "1.18.4"
   OTP_VERSION: "27"
+  DB_PORT: "5432"
 
 jobs:
   test:

@@ -13,6 +13,8 @@ defmodule KithWeb.ImportWizardLive do
 
   alias Kith.Imports
   alias Kith.Policy
+  alias Kith.Storage
+  alias Kith.Workers.ImportSourceWorker
 
   import KithWeb.SettingsLive.SettingsLayout
 
@@ -44,17 +46,17 @@ defmodule KithWeb.ImportWizardLive do
     scope = socket.assigns.current_scope
     user = scope.user
 
-    unless Policy.can?(user, :create, :import) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You do not have permission to import contacts.")
-       |> push_navigate(to: ~p"/")}
-    else
+    if Policy.can?(user, :create, :import) do
       if connected?(socket) do
         Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{scope.account.id}")
       end
 
       {:noreply, socket}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to import contacts.")
+       |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -188,7 +190,6 @@ defmodule KithWeb.ImportWizardLive do
     user_id = scope.user.id
     source = socket.assigns.source
 
-    # Consume uploaded file and store it
     results =
       consume_uploaded_entries(socket, :import_file, fn %{path: path}, entry ->
         data = File.read!(path)
@@ -196,7 +197,7 @@ defmodule KithWeb.ImportWizardLive do
         storage_key =
           "imports/#{account_id}/#{Ecto.UUID.generate()}#{Path.extname(entry.client_name)}"
 
-        case Kith.Storage.upload_binary(data, storage_key) do
+        case Storage.upload_binary(data, storage_key) do
           {:ok, _} -> {:ok, {storage_key, entry.client_name, byte_size(data)}}
           {:error, reason} -> {:ok, {:error, "Failed to store file: #{inspect(reason)}"}}
         end
@@ -210,48 +211,65 @@ defmodule KithWeb.ImportWizardLive do
         {:error, "No file uploaded.", socket}
 
       {storage_key, file_name, file_size} ->
-        api_options = build_api_options(socket)
-
-        import_attrs = %{
-          source: source,
-          file_name: file_name,
-          file_size: file_size,
-          file_storage_key: storage_key,
-          api_options: api_options
-        }
-
-        import_attrs =
-          if source == "monica" do
-            import_attrs
-            |> Map.put(:api_url, String.trim(socket.assigns.api_url))
-            |> Map.put(:api_key_encrypted, String.trim(socket.assigns.api_key))
-          else
-            import_attrs
-          end
-
-        case Imports.create_import(account_id, user_id, import_attrs) do
-          {:ok, import_job} ->
-            %{import_id: import_job.id}
-            |> Kith.Workers.ImportSourceWorker.new()
-            |> Oban.insert()
-
-            socket =
-              socket
-              |> assign(:current_import, import_job)
-              |> assign(:step, :progress)
-              |> assign(:progress, %{current: 0, total: 0})
-              |> assign(:error, nil)
-
-            {:ok, socket}
-
-          {:error, :import_in_progress} ->
-            {:error, "An import is already in progress. Please wait for it to finish.", socket}
-
-          {:error, _changeset} ->
-            {:error, "Failed to create import job. Please try again.", socket}
-        end
+        create_and_enqueue_import(
+          socket,
+          account_id,
+          user_id,
+          source,
+          storage_key,
+          file_name,
+          file_size
+        )
     end
   end
+
+  defp create_and_enqueue_import(
+         socket,
+         account_id,
+         user_id,
+         source,
+         storage_key,
+         file_name,
+         file_size
+       ) do
+    import_attrs =
+      %{
+        source: source,
+        file_name: file_name,
+        file_size: file_size,
+        file_storage_key: storage_key,
+        api_options: build_api_options(socket)
+      }
+      |> maybe_add_api_credentials(source, socket)
+
+    case Imports.create_import(account_id, user_id, import_attrs) do
+      {:ok, import_job} ->
+        %{import_id: import_job.id} |> ImportSourceWorker.new() |> Oban.insert()
+
+        socket =
+          socket
+          |> assign(:current_import, import_job)
+          |> assign(:step, :progress)
+          |> assign(:progress, %{current: 0, total: 0})
+          |> assign(:error, nil)
+
+        {:ok, socket}
+
+      {:error, :import_in_progress} ->
+        {:error, "An import is already in progress. Please wait for it to finish.", socket}
+
+      {:error, _changeset} ->
+        {:error, "Failed to create import job. Please try again.", socket}
+    end
+  end
+
+  defp maybe_add_api_credentials(attrs, "monica", socket) do
+    attrs
+    |> Map.put(:api_url, String.trim(socket.assigns.api_url))
+    |> Map.put(:api_key_encrypted, String.trim(socket.assigns.api_key))
+  end
+
+  defp maybe_add_api_credentials(attrs, _source, _socket), do: attrs
 
   defp build_api_options(socket) do
     socket.assigns.api_options

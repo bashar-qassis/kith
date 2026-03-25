@@ -37,42 +37,39 @@ defmodule KithWeb.API.PhotoController do
 
     with true <- Policy.can?(user, :create, :photo),
          contact when not is_nil(contact) <- Contacts.get_contact(account_id, contact_id) do
-      case params["file"] do
-        %Plug.Upload{content_type: ct} = upload when ct in @allowed_image_types ->
-          dest = Storage.generate_key(account_id, "photos", upload.filename)
-
-          case Storage.upload(upload.path, dest) do
-            {:ok, storage_key} ->
-              attrs = %{
-                "file_name" => upload.filename,
-                "file_size" => upload.path && File.stat!(upload.path).size,
-                "storage_key" => storage_key,
-                "content_type" => ct
-              }
-
-              case Contacts.create_photo(contact, attrs) do
-                {:ok, photo} ->
-                  conn |> put_status(201) |> json(%{data: photo_json(photo)})
-
-                {:error, cs} ->
-                  {:error, cs}
-              end
-
-            {:error, reason} ->
-              {:error, :bad_request, "Upload failed: #{inspect(reason)}"}
-          end
-
-        %Plug.Upload{} ->
-          {:error, :bad_request,
-           "Invalid image type. Accepted: #{Enum.join(@allowed_image_types, ", ")}"}
-
-        nil ->
-          {:error, :bad_request, "Missing file upload."}
-      end
+      upload_photo(conn, contact, account_id, params["file"])
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
     end
+  end
+
+  defp upload_photo(_conn, _contact, _account_id, nil) do
+    {:error, :bad_request, "Missing file upload."}
+  end
+
+  defp upload_photo(conn, contact, account_id, %Plug.Upload{content_type: ct} = upload)
+       when ct in @allowed_image_types do
+    dest = Storage.generate_key(account_id, "photos", upload.filename)
+
+    with {:ok, storage_key} <- Storage.upload(upload.path, dest),
+         attrs = %{
+           "file_name" => upload.filename,
+           "file_size" => upload.path && File.stat!(upload.path).size,
+           "storage_key" => storage_key,
+           "content_type" => ct
+         },
+         {:ok, photo} <- Contacts.create_photo(contact, attrs) do
+      conn |> put_status(201) |> json(%{data: photo_json(photo)})
+    else
+      {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
+      {:error, reason} -> {:error, :bad_request, "Upload failed: #{inspect(reason)}"}
+    end
+  end
+
+  defp upload_photo(_conn, _contact, _account_id, %Plug.Upload{}) do
+    {:error, :bad_request,
+     "Invalid image type. Accepted: #{Enum.join(@allowed_image_types, ", ")}"}
   end
 
   def delete(conn, %{"id" => id}) do
@@ -80,17 +77,19 @@ defmodule KithWeb.API.PhotoController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :delete, :photo) do
-      case Photo |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
-        nil ->
-          {:error, :not_found}
+    case Policy.can?(user, :delete, :photo) do
+      true ->
+        case Photo |> TenantScope.scope_to_account(account_id) |> Kith.Repo.get(id) do
+          nil ->
+            {:error, :not_found}
 
-        photo ->
-          Kith.Repo.delete(photo)
-          send_resp(conn, 204, "")
-      end
-    else
-      false -> {:error, :forbidden}
+          photo ->
+            Kith.Repo.delete(photo)
+            send_resp(conn, 204, "")
+        end
+
+      false ->
+        {:error, :forbidden}
     end
   end
 

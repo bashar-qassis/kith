@@ -9,8 +9,8 @@ defmodule Kith.Journal do
   import Ecto.Query, warn: false
   import Kith.Scope
 
-  alias Kith.Repo
   alias Kith.Journal.Entry
+  alias Kith.Repo
 
   @doc """
   Lists journal entries for the given account.

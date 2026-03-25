@@ -101,19 +101,20 @@ defmodule KithWeb.ContactLive.LifeEventsListComponent do
     |> Enum.map_join(", ", fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
   end
 
+  @life_event_icon_map %{
+    "briefcase" => "hero-briefcase",
+    "graduation-cap" => "hero-academic-cap",
+    "heart" => "hero-heart",
+    "home" => "hero-home",
+    "globe" => "hero-globe-alt",
+    "baby" => "hero-face-smile",
+    "star" => "hero-star",
+    "key" => "hero-key",
+    "map-pin" => "hero-map-pin"
+  }
+
   defp life_event_icon(life_event) do
-    case life_event.life_event_type.icon do
-      "briefcase" -> "hero-briefcase"
-      "graduation-cap" -> "hero-academic-cap"
-      "heart" -> "hero-heart"
-      "home" -> "hero-home"
-      "globe" -> "hero-globe-alt"
-      "baby" -> "hero-face-smile"
-      "star" -> "hero-star"
-      "key" -> "hero-key"
-      "map-pin" -> "hero-map-pin"
-      _ -> "hero-calendar"
-    end
+    Map.get(@life_event_icon_map, life_event.life_event_type.icon, "hero-calendar")
   end
 
   @impl true

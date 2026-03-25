@@ -4,8 +4,8 @@ defmodule Kith.Workers.ImportFileCleanupWorker do
   require Logger
 
   import Ecto.Query
-  alias Kith.Repo
   alias Kith.Imports.Import
+  alias Kith.Repo
 
   @retention_days 30
 

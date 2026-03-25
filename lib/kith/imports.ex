@@ -4,8 +4,8 @@ defmodule Kith.Imports do
   """
 
   import Ecto.Query, warn: false
-  alias Kith.Repo
   alias Kith.Imports.{Import, ImportRecord}
+  alias Kith.Repo
 
   @sources %{
     "monica" => Kith.Imports.Sources.Monica,

@@ -20,9 +20,9 @@ defmodule Kith.Workers.ReminderSchedulerWorker do
 
   require Logger
 
-  alias Kith.Repo
   alias Kith.Reminders
   alias Kith.Reminders.Reminder
+  alias Kith.Repo
 
   import Ecto.Query
 

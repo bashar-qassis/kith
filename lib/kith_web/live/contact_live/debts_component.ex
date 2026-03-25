@@ -1,7 +1,7 @@
 defmodule KithWeb.ContactLive.DebtsComponent do
   use KithWeb, :live_component
 
-  alias Kith.{Debts, Contacts}
+  alias Kith.{Contacts, Debts}
 
   @impl true
   def mount(socket) do

@@ -7,16 +7,20 @@ defmodule KithWeb.API.ContactImportController do
 
   use KithWeb, :controller
 
+  alias Kith.AuditLogs
+  alias Kith.Contacts
   alias Kith.Policy
   alias Kith.VCard.Parser
-  alias Kith.Contacts
+  alias Kith.Workers.ImportWorker
 
   @max_file_size 10 * 1024 * 1024
 
   def create(conn, %{"file" => upload}) do
     user = conn.assigns.current_api_user
 
-    unless Policy.can?(user, :create, :import) do
+    if Policy.can?(user, :create, :import) do
+      do_create_import(conn, user, upload)
+    else
       conn
       |> put_status(403)
       |> put_resp_content_type("application/problem+json")
@@ -26,70 +30,6 @@ defmodule KithWeb.API.ContactImportController do
         status: 403,
         detail: "You do not have permission to import contacts."
       })
-    else
-      with :ok <- validate_file_size(upload),
-           {:ok, data} <- read_upload(upload),
-           {:ok, parsed_contacts} <- Parser.parse(data) do
-        if length(parsed_contacts) > 100 do
-          # Enqueue async import
-          %{
-            account_id: user.account_id,
-            user_id: user.id,
-            file_data: data
-          }
-          |> Kith.Workers.ImportWorker.new()
-          |> Oban.insert()
-
-          Kith.AuditLogs.log_event(user.account_id, user, :data_imported,
-            metadata: %{format: "vcf", count: length(parsed_contacts), async: true}
-          )
-
-          conn
-          |> put_status(202)
-          |> json(%{
-            message:
-              "Import is being processed. This may take a few minutes for #{length(parsed_contacts)} contacts.",
-            total: length(parsed_contacts)
-          })
-        else
-          results = import_contacts_sync(user.account_id, parsed_contacts)
-
-          Kith.AuditLogs.log_event(user.account_id, user, :data_imported,
-            metadata: %{
-              format: "vcf",
-              imported: results.imported,
-              skipped: results.skipped,
-              async: false
-            }
-          )
-
-          conn
-          |> put_status(200)
-          |> json(results)
-        end
-      else
-        {:error, :file_too_large} ->
-          conn
-          |> put_status(413)
-          |> put_resp_content_type("application/problem+json")
-          |> json(%{
-            type: "about:blank",
-            title: "Payload Too Large",
-            status: 413,
-            detail: "File size exceeds the 10MB limit."
-          })
-
-        {:error, reason} when is_binary(reason) ->
-          conn
-          |> put_status(422)
-          |> put_resp_content_type("application/problem+json")
-          |> json(%{
-            type: "about:blank",
-            title: "Unprocessable Entity",
-            status: 422,
-            detail: reason
-          })
-      end
     end
   end
 
@@ -103,6 +43,60 @@ defmodule KithWeb.API.ContactImportController do
       status: 400,
       detail: "Missing file upload. Send a .vcf file as multipart form data with key 'file'."
     })
+  end
+
+  defp do_create_import(conn, user, upload) do
+    with :ok <- validate_file_size(upload),
+         {:ok, data} <- read_upload(upload),
+         {:ok, parsed_contacts} <- Parser.parse(data) do
+      dispatch_import(conn, user, data, parsed_contacts)
+    else
+      {:error, :file_too_large} ->
+        problem_json(conn, 413, "Payload Too Large", "File size exceeds the 10MB limit.")
+
+      {:error, reason} when is_binary(reason) ->
+        problem_json(conn, 422, "Unprocessable Entity", reason)
+    end
+  end
+
+  defp dispatch_import(conn, user, data, parsed_contacts) when length(parsed_contacts) > 100 do
+    %{account_id: user.account_id, user_id: user.id, file_data: data}
+    |> ImportWorker.new()
+    |> Oban.insert()
+
+    AuditLogs.log_event(user.account_id, user, :data_imported,
+      metadata: %{format: "vcf", count: length(parsed_contacts), async: true}
+    )
+
+    conn
+    |> put_status(202)
+    |> json(%{
+      message:
+        "Import is being processed. This may take a few minutes for #{length(parsed_contacts)} contacts.",
+      total: length(parsed_contacts)
+    })
+  end
+
+  defp dispatch_import(conn, user, _data, parsed_contacts) do
+    results = import_contacts_sync(user.account_id, parsed_contacts)
+
+    AuditLogs.log_event(user.account_id, user, :data_imported,
+      metadata: %{
+        format: "vcf",
+        imported: results.imported,
+        skipped: results.skipped,
+        async: false
+      }
+    )
+
+    conn |> put_status(200) |> json(results)
+  end
+
+  defp problem_json(conn, status, title, detail) do
+    conn
+    |> put_status(status)
+    |> put_resp_content_type("application/problem+json")
+    |> json(%{type: "about:blank", title: title, status: status, detail: detail})
   end
 
   defp validate_file_size(%Plug.Upload{path: path}) do

@@ -21,9 +21,9 @@ defmodule Kith.DAV.CardDAVPlug do
 
   import Plug.Conn
 
-  alias Kith.DAV.{Auth, XMLBuilder, XMLParser, VCardAdapter}
   alias Kith.Contacts
   alias Kith.Contacts.Contact
+  alias Kith.DAV.{Auth, VCardAdapter, XMLBuilder, XMLParser}
 
   @behaviour Plug
 
@@ -40,42 +40,32 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp route(conn) do
     path = conn.request_path |> String.trim_trailing("/")
-
-    case {conn.method, path_segments(path)} do
-      {"OPTIONS", _} ->
-        handle_options(conn)
-
-      {"PROPFIND", ["dav"]} ->
-        handle_root_propfind(conn)
-
-      {"PROPFIND", ["dav", "principals"]} ->
-        handle_principal_propfind(conn)
-
-      {"PROPFIND", ["dav", "addressbooks"]} ->
-        handle_home_propfind(conn)
-
-      {"PROPFIND", ["dav", "addressbooks", "default"]} ->
-        handle_addressbook_propfind(conn)
-
-      {"PROPFIND", ["dav", "addressbooks", "default", _uid]} ->
-        handle_contact_propfind(conn)
-
-      {"REPORT", ["dav", "addressbooks", "default"]} ->
-        handle_report(conn)
-
-      {"GET", ["dav", "addressbooks", "default", uid]} ->
-        handle_get_contact(conn, uid)
-
-      {"PUT", ["dav", "addressbooks", "default", uid]} ->
-        handle_put_contact(conn, uid)
-
-      {"DELETE", ["dav", "addressbooks", "default", uid]} ->
-        handle_delete_contact(conn, uid)
-
-      _ ->
-        send_resp(conn, 404, "Not Found")
-    end
+    dispatch(conn, conn.method, path_segments(path))
   end
+
+  defp dispatch(conn, "OPTIONS", _), do: handle_options(conn)
+  defp dispatch(conn, "PROPFIND", ["dav"]), do: handle_root_propfind(conn)
+  defp dispatch(conn, "PROPFIND", ["dav", "principals"]), do: handle_principal_propfind(conn)
+  defp dispatch(conn, "PROPFIND", ["dav", "addressbooks"]), do: handle_home_propfind(conn)
+
+  defp dispatch(conn, "PROPFIND", ["dav", "addressbooks", "default"]),
+    do: handle_addressbook_propfind(conn)
+
+  defp dispatch(conn, "PROPFIND", ["dav", "addressbooks", "default", _uid]),
+    do: handle_contact_propfind(conn)
+
+  defp dispatch(conn, "REPORT", ["dav", "addressbooks", "default"]), do: handle_report(conn)
+
+  defp dispatch(conn, "GET", ["dav", "addressbooks", "default", uid]),
+    do: handle_get_contact(conn, uid)
+
+  defp dispatch(conn, "PUT", ["dav", "addressbooks", "default", uid]),
+    do: handle_put_contact(conn, uid)
+
+  defp dispatch(conn, "DELETE", ["dav", "addressbooks", "default", uid]),
+    do: handle_delete_contact(conn, uid)
+
+  defp dispatch(conn, _, _), do: send_resp(conn, 404, "Not Found")
 
   defp path_segments(path) do
     path |> String.split("/") |> Enum.reject(&(&1 == ""))

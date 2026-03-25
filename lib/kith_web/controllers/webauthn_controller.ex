@@ -73,41 +73,49 @@ defmodule KithWeb.WebauthnController do
     if is_nil(challenge) do
       conn |> put_status(400) |> json(%{error: "No pending challenge"})
     else
-      attestation_object = Base.url_decode64!(params["attestationObject"], padding: false)
-      client_data_json = Base.url_decode64!(params["clientDataJSON"], padding: false)
-      name = params["name"] || "Security Key"
+      do_register_complete(conn, user, challenge, params)
+    end
+  end
 
-      case Wax.register(attestation_object, client_data_json, challenge) do
-        {:ok, {auth_data, _attestation_result}} ->
-          case Accounts.register_webauthn_credential(user, auth_data, name) do
-            {:ok, credential} ->
-              conn
-              |> delete_session(:webauthn_challenge)
-              |> json(%{
-                status: "ok",
-                credential: %{
-                  id: credential.id,
-                  name: credential.name,
-                  created_at: credential.inserted_at
-                }
-              })
+  defp do_register_complete(conn, user, challenge, params) do
+    attestation_object = Base.url_decode64!(params["attestationObject"], padding: false)
+    client_data_json = Base.url_decode64!(params["clientDataJSON"], padding: false)
+    name = params["name"] || "Security Key"
 
-            {:error, changeset} ->
-              conn
-              |> delete_session(:webauthn_challenge)
-              |> put_status(422)
-              |> json(%{
-                error: "Failed to store credential",
-                details: changeset_errors(changeset)
-              })
-          end
+    case Wax.register(attestation_object, client_data_json, challenge) do
+      {:ok, {auth_data, _attestation_result}} ->
+        handle_registration_result(conn, user, auth_data, name)
 
-        {:error, error} ->
-          conn
-          |> delete_session(:webauthn_challenge)
-          |> put_status(400)
-          |> json(%{error: "Registration failed: #{Exception.message(error)}"})
-      end
+      {:error, error} ->
+        conn
+        |> delete_session(:webauthn_challenge)
+        |> put_status(400)
+        |> json(%{error: "Registration failed: #{Exception.message(error)}"})
+    end
+  end
+
+  defp handle_registration_result(conn, user, auth_data, name) do
+    case Accounts.register_webauthn_credential(user, auth_data, name) do
+      {:ok, credential} ->
+        conn
+        |> delete_session(:webauthn_challenge)
+        |> json(%{
+          status: "ok",
+          credential: %{
+            id: credential.id,
+            name: credential.name,
+            created_at: credential.inserted_at
+          }
+        })
+
+      {:error, changeset} ->
+        conn
+        |> delete_session(:webauthn_challenge)
+        |> put_status(422)
+        |> json(%{
+          error: "Failed to store credential",
+          details: changeset_errors(changeset)
+        })
     end
   end
 
@@ -173,49 +181,70 @@ defmodule KithWeb.WebauthnController do
     if is_nil(challenge) do
       conn |> put_status(400) |> json(%{error: "No pending challenge"})
     else
-      credential_id = Base.url_decode64!(params["credentialId"], padding: false)
-      auth_data_bin = Base.url_decode64!(params["authenticatorData"], padding: false)
-      signature = Base.url_decode64!(params["signature"], padding: false)
-      client_data_json = Base.url_decode64!(params["clientDataJSON"], padding: false)
+      do_authenticate_complete(conn, challenge, params)
+    end
+  end
 
-      # Look up the credential in DB
-      case Accounts.get_webauthn_credential_by_credential_id(credential_id) do
-        nil ->
-          conn
-          |> delete_session(:webauthn_auth_challenge)
-          |> put_status(401)
-          |> json(%{error: "Unknown credential"})
+  defp do_authenticate_complete(conn, challenge, params) do
+    credential_id = Base.url_decode64!(params["credentialId"], padding: false)
+    auth_data_bin = Base.url_decode64!(params["authenticatorData"], padding: false)
+    signature = Base.url_decode64!(params["signature"], padding: false)
+    client_data_json = Base.url_decode64!(params["clientDataJSON"], padding: false)
 
-        db_credential ->
-          cose_key = :erlang.binary_to_term(db_credential.public_key)
-          allow_creds = [{credential_id, cose_key}]
+    case Accounts.get_webauthn_credential_by_credential_id(credential_id) do
+      nil ->
+        conn
+        |> delete_session(:webauthn_auth_challenge)
+        |> put_status(401)
+        |> json(%{error: "Unknown credential"})
 
-          case Wax.authenticate(
-                 credential_id,
-                 auth_data_bin,
-                 signature,
-                 client_data_json,
-                 challenge,
-                 allow_creds
-               ) do
-            {:ok, auth_data} ->
-              # Update sign_count and last_used_at
-              Accounts.touch_webauthn_credential(db_credential, auth_data.sign_count)
+      db_credential ->
+        verify_credential(
+          conn,
+          db_credential,
+          credential_id,
+          auth_data_bin,
+          signature,
+          client_data_json,
+          challenge
+        )
+    end
+  end
 
-              user = Accounts.get_user!(db_credential.user_id)
+  defp verify_credential(
+         conn,
+         db_credential,
+         credential_id,
+         auth_data_bin,
+         signature,
+         client_data_json,
+         challenge
+       ) do
+    cose_key = :erlang.binary_to_term(db_credential.public_key)
+    allow_creds = [{credential_id, cose_key}]
 
-              conn
-              |> delete_session(:webauthn_auth_challenge)
-              |> delete_session(:webauthn_auth_user_id)
-              |> UserAuth.log_in_user(user, %{"remember_me" => "false"})
+    case Wax.authenticate(
+           credential_id,
+           auth_data_bin,
+           signature,
+           client_data_json,
+           challenge,
+           allow_creds
+         ) do
+      {:ok, auth_data} ->
+        Accounts.touch_webauthn_credential(db_credential, auth_data.sign_count)
+        user = Accounts.get_user!(db_credential.user_id)
 
-            {:error, error} ->
-              conn
-              |> delete_session(:webauthn_auth_challenge)
-              |> put_status(401)
-              |> json(%{error: "Authentication failed: #{Exception.message(error)}"})
-          end
-      end
+        conn
+        |> delete_session(:webauthn_auth_challenge)
+        |> delete_session(:webauthn_auth_user_id)
+        |> UserAuth.log_in_user(user, %{"remember_me" => "false"})
+
+      {:error, error} ->
+        conn
+        |> delete_session(:webauthn_auth_challenge)
+        |> put_status(401)
+        |> json(%{error: "Authentication failed: #{Exception.message(error)}"})
     end
   end
 

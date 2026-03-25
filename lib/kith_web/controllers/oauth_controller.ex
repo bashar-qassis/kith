@@ -104,50 +104,81 @@ defmodule KithWeb.OAuthController do
     current_user = conn.assigns[:current_scope] && conn.assigns.current_scope.user
     existing_user = is_binary(email) && Accounts.get_user_by_email(email)
 
-    cond do
-      # 1. Existing identity — log in and update tokens
-      identity != nil ->
-        Accounts.upsert_identity(identity.user, provider, uid, token_attrs)
+    oauth_context = %{
+      identity: identity,
+      current_user: current_user,
+      existing_user: existing_user,
+      email: email
+    }
 
+    dispatch_oauth_result(conn, provider, uid, token_attrs, user_info, oauth_context)
+  end
+
+  defp dispatch_oauth_result(conn, provider, uid, token_attrs, _user_info, %{identity: identity})
+       when not is_nil(identity) do
+    Accounts.upsert_identity(identity.user, provider, uid, token_attrs)
+
+    conn
+    |> put_flash(:info, "Welcome back!")
+    |> UserAuth.log_in_user(identity.user, %{"remember_me" => "false"})
+  end
+
+  defp dispatch_oauth_result(conn, provider, uid, token_attrs, _user_info, %{
+         current_user: current_user
+       })
+       when not is_nil(current_user) do
+    link_identity_to_current_user(conn, provider, uid, token_attrs, current_user)
+  end
+
+  defp dispatch_oauth_result(conn, provider, uid, token_attrs, _user_info, %{
+         existing_user: existing_user
+       })
+       when not is_nil(existing_user) and existing_user != false do
+    link_identity_to_existing_user(conn, provider, uid, token_attrs, existing_user)
+  end
+
+  defp dispatch_oauth_result(conn, provider, uid, _token_attrs, user_info, %{email: email}) do
+    register_new_oauth_user(conn, provider, uid, user_info, email)
+  end
+
+  defp link_identity_to_current_user(conn, provider, uid, token_attrs, current_user) do
+    case Accounts.upsert_identity(current_user, provider, uid, token_attrs) do
+      {:ok, _identity} ->
         conn
-        |> put_flash(:info, "Welcome back!")
-        |> UserAuth.log_in_user(identity.user, %{"remember_me" => "false"})
+        |> put_flash(:info, "#{String.capitalize(provider)} account linked.")
+        |> redirect(to: ~p"/users/settings")
 
-      # 2. Logged-in user — link identity to current user
-      current_user != nil ->
-        case Accounts.upsert_identity(current_user, provider, uid, token_attrs) do
-          {:ok, _identity} ->
-            conn
-            |> put_flash(:info, "#{String.capitalize(provider)} account linked.")
-            |> redirect(to: ~p"/users/settings")
+      {:error, _changeset} ->
+        conn
+        |> put_flash(:error, "Failed to link #{provider} account.")
+        |> redirect(to: ~p"/users/settings")
+    end
+  end
 
-          {:error, _changeset} ->
-            conn
-            |> put_flash(:error, "Failed to link #{provider} account.")
-            |> redirect(to: ~p"/users/settings")
-        end
+  defp link_identity_to_existing_user(conn, provider, uid, token_attrs, existing_user) do
+    case Accounts.upsert_identity(existing_user, provider, uid, token_attrs) do
+      {:ok, _identity} ->
+        conn
+        |> put_flash(:info, "Welcome back! #{String.capitalize(provider)} account linked.")
+        |> UserAuth.log_in_user(existing_user, %{"remember_me" => "false"})
 
-      # 3. Existing user by email — link identity and log in
-      existing_user != nil and existing_user != false ->
-        case Accounts.upsert_identity(existing_user, provider, uid, token_attrs) do
-          {:ok, _identity} ->
-            conn
-            |> put_flash(:info, "Welcome back! #{String.capitalize(provider)} account linked.")
-            |> UserAuth.log_in_user(existing_user, %{"remember_me" => "false"})
+      {:error, _changeset} ->
+        conn
+        |> put_flash(:error, "Failed to link account.")
+        |> redirect(to: ~p"/users/log-in")
+    end
+  end
 
-          {:error, _changeset} ->
-            conn
-            |> put_flash(:error, "Failed to link account.")
-            |> redirect(to: ~p"/users/log-in")
-        end
-
-      # 4. New user — register if signup is enabled
+  defp register_new_oauth_user(conn, provider, uid, user_info, email) do
+    cond do
       Application.get_env(:kith, :disable_signup, false) ->
         conn
         |> put_flash(:error, "Registration is currently disabled.")
         |> redirect(to: ~p"/users/log-in")
 
       is_binary(email) ->
+        token_attrs = Accounts.extract_token_attrs(%{})
+
         case Accounts.register_oauth_user(provider, uid, user_info, token_attrs) do
           {:ok, user} ->
             conn

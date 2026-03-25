@@ -24,37 +24,36 @@ defmodule Kith.Geocoding do
   Returns `{:ok, %{lat: float, lng: float}}` or `{:error, reason}`.
   """
   def geocode(address) when is_binary(address) do
-    unless enabled?() do
-      {:error, :not_enabled}
-    else
+    if enabled?() do
       normalized = normalize_address(address)
       cache_key = {:geocode, normalized}
-
-      case Cachex.get(:kith_cache, cache_key) do
-        {:ok, nil} ->
-          case check_circuit() do
-            :ok ->
-              result = do_geocode(normalized)
-              handle_circuit_result(result)
-
-              case result do
-                {:ok, coords} ->
-                  Cachex.put(:kith_cache, cache_key, coords, ttl: @cache_ttl)
-                  {:ok, coords}
-
-                error ->
-                  error
-              end
-
-            {:error, :circuit_open} ->
-              {:error, :circuit_open}
-          end
-
-        {:ok, cached} ->
-          {:ok, cached}
-      end
+      geocode_with_cache(cache_key, normalized)
+    else
+      {:error, :not_enabled}
     end
   end
+
+  defp geocode_with_cache(cache_key, normalized) do
+    case Cachex.get(:kith_cache, cache_key) do
+      {:ok, nil} -> geocode_with_circuit(cache_key, normalized)
+      {:ok, cached} -> {:ok, cached}
+    end
+  end
+
+  defp geocode_with_circuit(cache_key, normalized) do
+    with :ok <- check_circuit() do
+      result = do_geocode(normalized)
+      handle_circuit_result(result)
+      maybe_cache_result(cache_key, result)
+    end
+  end
+
+  defp maybe_cache_result(cache_key, {:ok, coords}) do
+    Cachex.put(:kith_cache, cache_key, coords, ttl: @cache_ttl)
+    {:ok, coords}
+  end
+
+  defp maybe_cache_result(_cache_key, error), do: error
 
   @doc "Installs the fuse circuit breaker. Call from Application.start/2."
   def install_fuse do
@@ -64,41 +63,34 @@ defmodule Kith.Geocoding do
   # -- Private --
 
   defp do_geocode(address) do
-    result =
-      Req.get(@api_base,
-        params: [key: api_key(), q: address, format: "json", limit: 1],
-        receive_timeout: 10_000
-      )
+    Req.get(@api_base,
+      params: [key: api_key(), q: address, format: "json", limit: 1],
+      receive_timeout: 10_000
+    )
+    |> handle_geocode_response()
+  end
 
-    case result do
-      {:ok, %{status: 200, body: [first | _]}} ->
-        lat = parse_float(first["lat"])
-        lng = parse_float(first["lon"])
+  defp handle_geocode_response({:ok, %{status: 200, body: [first | _]}}) do
+    parse_coordinates(first)
+  end
 
-        if lat && lng do
-          {:ok, %{lat: lat, lng: lng}}
-        else
-          {:error, :parse_error}
-        end
+  defp handle_geocode_response({:ok, %{status: 200, body: []}}), do: {:error, :not_found}
+  defp handle_geocode_response({:ok, %{status: 401}}), do: {:error, :unauthorized}
+  defp handle_geocode_response({:ok, %{status: 429}}), do: {:error, :rate_limited}
 
-      {:ok, %{status: 200, body: []}} ->
-        {:error, :not_found}
+  defp handle_geocode_response({:ok, %{status: status}}),
+    do: {:error, {:unexpected_status, status}}
 
-      {:ok, %{status: 401}} ->
-        {:error, :unauthorized}
+  defp handle_geocode_response({:error, %{reason: :timeout}}), do: {:error, :timeout}
+  defp handle_geocode_response({:error, _reason}), do: {:error, :network_error}
 
-      {:ok, %{status: 429}} ->
-        {:error, :rate_limited}
+  defp parse_coordinates(first) do
+    lat = parse_float(first["lat"])
+    lng = parse_float(first["lon"])
 
-      {:ok, %{status: status}} ->
-        {:error, {:unexpected_status, status}}
-
-      {:error, %{reason: :timeout}} ->
-        {:error, :timeout}
-
-      {:error, _reason} ->
-        {:error, :network_error}
-    end
+    if lat && lng,
+      do: {:ok, %{lat: lat, lng: lng}},
+      else: {:error, :parse_error}
   end
 
   defp check_circuit do

@@ -19,12 +19,7 @@ defmodule KithWeb.ContactLive.Edit do
   def handle_params(%{"id" => id}, _uri, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :update, :contact) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You don't have permission to edit contacts")
-       |> push_navigate(to: ~p"/contacts")}
-    else
+    if Kith.Policy.can?(user, :update, :contact) do
       account_id = socket.assigns.current_scope.account.id
 
       contact =
@@ -41,6 +36,11 @@ defmodule KithWeb.ContactLive.Edit do
        |> assign(:changeset, changeset)
        |> assign(:genders, Contacts.list_genders(account_id))
        |> assign(:show_deceased_at, contact.deceased || false)}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You don't have permission to edit contacts")
+       |> push_navigate(to: ~p"/contacts")}
     end
   end
 

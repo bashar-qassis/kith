@@ -9,8 +9,8 @@ defmodule Kith.DAV.VCardAdapter do
   """
 
   alias Kith.Contacts.Contact
-  alias Kith.VCard.{Serializer, Parser}
   alias Kith.Repo
+  alias Kith.VCard.{Parser, Serializer}
 
   @vcard_preloads [:addresses, :gender, contact_fields: :contact_field_type]
 

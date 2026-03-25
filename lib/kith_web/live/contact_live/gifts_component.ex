@@ -1,8 +1,8 @@
 defmodule KithWeb.ContactLive.GiftsComponent do
   use KithWeb, :live_component
 
-  alias Kith.Gifts
   alias Kith.Contacts.Gift
+  alias Kith.Gifts
 
   @impl true
   def mount(socket) do

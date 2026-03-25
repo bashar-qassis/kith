@@ -9,31 +9,23 @@ defmodule KithWeb.API.ExportController do
   use KithWeb, :controller
 
   alias Kith.Contacts
+  alias Kith.Exports
   alias Kith.Policy
+  alias Kith.Workers.ExportWorker
 
   @large_export_threshold 500
 
   def create(conn, _params) do
     user = conn.assigns.current_api_user
 
-    unless Policy.can?(user, :read, :export) do
-      conn
-      |> put_status(403)
-      |> put_resp_content_type("application/problem+json")
-      |> json(%{
-        type: "about:blank",
-        title: "Forbidden",
-        status: 403,
-        detail: "You do not have permission to export data."
-      })
-    else
+    if Policy.can?(user, :read, :export) do
       account_id = user.account_id
       count = Contacts.count_contacts(account_id)
 
       if count >= @large_export_threshold do
         # Enqueue async export
         %{account_id: account_id, user_id: user.id}
-        |> Kith.Workers.ExportWorker.new()
+        |> ExportWorker.new()
         |> Oban.insert()
 
         conn
@@ -44,7 +36,7 @@ defmodule KithWeb.API.ExportController do
         })
       else
         # Generate inline
-        export = Kith.Exports.build_json_export(account_id)
+        export = Exports.build_json_export(account_id)
 
         conn
         |> put_resp_content_type("application/json")
@@ -54,6 +46,16 @@ defmodule KithWeb.API.ExportController do
         )
         |> json(export)
       end
+    else
+      conn
+      |> put_status(403)
+      |> put_resp_content_type("application/problem+json")
+      |> json(%{
+        type: "about:blank",
+        title: "Forbidden",
+        status: 403,
+        detail: "You do not have permission to export data."
+      })
     end
   end
 end

@@ -3,6 +3,8 @@ defmodule KithWeb.SettingsLive.Import do
 
   alias Kith.Policy
   alias Kith.VCard.Parser
+  alias Kith.Workers.ImportWorker
+  alias KithWeb.API.ContactImportController
 
   import KithWeb.SettingsLive.SettingsLayout
 
@@ -29,18 +31,18 @@ defmodule KithWeb.SettingsLive.Import do
     scope = socket.assigns.current_scope
     user = scope.user
 
-    unless Policy.can?(user, :create, :import) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You do not have permission to import contacts.")
-       |> push_navigate(to: ~p"/")}
-    else
+    if Policy.can?(user, :create, :import) do
       # Subscribe to import progress for async imports
       if connected?(socket) do
         Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{scope.account.id}")
       end
 
       {:noreply, socket}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to import contacts.")
+       |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -57,61 +59,63 @@ defmodule KithWeb.SettingsLive.Import do
 
     results =
       consume_uploaded_entries(socket, :vcf_file, fn %{path: path}, _entry ->
-        case File.read(path) do
-          {:ok, data} ->
-            case Parser.parse(data) do
-              {:ok, parsed_contacts} ->
-                if length(parsed_contacts) > 100 do
-                  # Async via Oban
-                  %{account_id: account_id, user_id: scope.user.id, file_data: data}
-                  |> Kith.Workers.ImportWorker.new()
-                  |> Oban.insert()
-
-                  {:ok, {:async, length(parsed_contacts)}}
-                else
-                  result =
-                    KithWeb.API.ContactImportController.import_contacts_sync(
-                      account_id,
-                      parsed_contacts
-                    )
-
-                  {:ok, {:sync, result}}
-                end
-
-              {:error, reason} ->
-                {:ok, {:error, reason}}
-            end
-
-          {:error, _} ->
-            {:ok, {:error, "Could not read uploaded file."}}
-        end
+        {:ok, process_uploaded_vcf(path, account_id, scope.user.id)}
       end)
 
-    case List.first(results) do
-      {:sync, result} ->
-        {:noreply,
-         socket
-         |> assign(:importing, false)
-         |> assign(:results, result)}
+    handle_import_result(socket, List.first(results))
+  end
 
-      {:async, total} ->
-        {:noreply,
-         socket
-         |> assign(:progress, %{current: 0, total: total})
-         |> put_flash(:info, "Processing #{total} contacts... This may take a few minutes.")}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:importing, false)
-         |> put_flash(:error, reason)}
-
-      nil ->
-        {:noreply,
-         socket
-         |> assign(:importing, false)
-         |> put_flash(:error, "No file uploaded.")}
+  defp process_uploaded_vcf(path, account_id, user_id) do
+    with {:ok, data} <- File.read(path),
+         {:ok, parsed_contacts} <- Parser.parse(data) do
+      import_parsed_contacts(account_id, user_id, data, parsed_contacts)
+    else
+      {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, _} -> {:error, "Could not read uploaded file."}
     end
+  end
+
+  defp import_parsed_contacts(account_id, user_id, data, parsed_contacts) do
+    if length(parsed_contacts) > 100 do
+      %{account_id: account_id, user_id: user_id, file_data: data}
+      |> ImportWorker.new()
+      |> Oban.insert()
+
+      {:async, length(parsed_contacts)}
+    else
+      result =
+        ContactImportController.import_contacts_sync(account_id, parsed_contacts)
+
+      {:sync, result}
+    end
+  end
+
+  defp handle_import_result(socket, {:sync, result}) do
+    {:noreply,
+     socket
+     |> assign(:importing, false)
+     |> assign(:results, result)}
+  end
+
+  defp handle_import_result(socket, {:async, total}) do
+    {:noreply,
+     socket
+     |> assign(:progress, %{current: 0, total: total})
+     |> put_flash(:info, "Processing #{total} contacts... This may take a few minutes.")}
+  end
+
+  defp handle_import_result(socket, {:error, reason}) do
+    {:noreply,
+     socket
+     |> assign(:importing, false)
+     |> put_flash(:error, reason)}
+  end
+
+  defp handle_import_result(socket, _) do
+    {:noreply,
+     socket
+     |> assign(:importing, false)
+     |> put_flash(:error, "No file uploaded.")}
   end
 
   @impl true

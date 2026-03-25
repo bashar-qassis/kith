@@ -133,20 +133,23 @@ defmodule Kith.Storage do
 
   @doc "Detects MIME type from file extension."
   def content_type(filename) do
-    case Path.extname(filename) |> String.downcase() do
-      ".jpg" -> "image/jpeg"
-      ".jpeg" -> "image/jpeg"
-      ".png" -> "image/png"
-      ".gif" -> "image/gif"
-      ".webp" -> "image/webp"
-      ".pdf" -> "application/pdf"
-      ".doc" -> "application/msword"
-      ".docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      ".txt" -> "text/plain"
-      ".csv" -> "text/csv"
-      _ -> "application/octet-stream"
-    end
+    filename |> Path.extname() |> String.downcase() |> mime_for_ext()
   end
+
+  @mime_types %{
+    ".jpg" => "image/jpeg",
+    ".jpeg" => "image/jpeg",
+    ".png" => "image/png",
+    ".gif" => "image/gif",
+    ".webp" => "image/webp",
+    ".pdf" => "application/pdf",
+    ".doc" => "application/msword",
+    ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".txt" => "text/plain",
+    ".csv" => "text/csv"
+  }
+
+  defp mime_for_ext(ext), do: Map.get(@mime_types, ext, "application/octet-stream")
 
   # -- Private --
 

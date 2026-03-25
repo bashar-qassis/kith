@@ -10,23 +10,26 @@ defmodule Mix.Tasks.Assets.Vendor do
   @impl true
   def run(_args) do
     File.mkdir_p!(@vendor_dir)
+    Enum.each(@files, &download_vendor_file/1)
+    ensure_heroicons_plugin()
+  end
 
-    for {filename, url} <- @files do
-      dest = Path.join(@vendor_dir, filename)
+  defp download_vendor_file({filename, url}) do
+    dest = Path.join(@vendor_dir, filename)
 
-      if File.exists?(dest) do
-        Mix.shell().info("#{filename} already exists, skipping")
-      else
-        Mix.shell().info("Downloading #{filename}...")
+    if File.exists?(dest) do
+      Mix.shell().info("#{filename} already exists, skipping")
+    else
+      Mix.shell().info("Downloading #{filename}...")
 
-        case System.cmd("curl", ["-sL", "-o", dest, url]) do
-          {_, 0} -> Mix.shell().info("  -> #{dest}")
-          {err, _} -> Mix.raise("Failed to download #{filename}: #{err}")
-        end
+      case System.cmd("curl", ["-sL", "-o", dest, url]) do
+        {_, 0} -> Mix.shell().info("  -> #{dest}")
+        {err, _} -> Mix.raise("Failed to download #{filename}: #{err}")
       end
     end
+  end
 
-    # heroicons.js is generated locally, not downloaded
+  defp ensure_heroicons_plugin do
     heroicons = Path.join(@vendor_dir, "heroicons.js")
 
     unless File.exists?(heroicons) do

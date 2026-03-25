@@ -22,18 +22,12 @@ defmodule KithWeb.API.TagController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :create, :tag) do
-      case Contacts.create_tag(account_id, attrs) do
-        {:ok, tag} ->
-          conn |> put_status(201) |> json(%{data: tag_json(tag)})
-
-        {:error, %Ecto.Changeset{} = cs} ->
-          if unique_constraint_error?(cs),
-            do: {:error, :conflict, "A tag with this name already exists."},
-            else: {:error, cs}
-      end
+    with true <- Policy.can?(user, :create, :tag),
+         {:ok, tag} <- Contacts.create_tag(account_id, attrs) do
+      conn |> put_status(201) |> json(%{data: tag_json(tag)})
     else
       false -> {:error, :forbidden}
+      {:error, %Ecto.Changeset{} = cs} -> handle_tag_changeset_error(cs)
     end
   end
 
@@ -43,20 +37,17 @@ defmodule KithWeb.API.TagController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :update, :tag) do
-      tag = Contacts.get_tag!(account_id, id)
+    case Policy.can?(user, :update, :tag) do
+      true ->
+        tag = Contacts.get_tag!(account_id, id)
 
-      case Contacts.update_tag(tag, attrs) do
-        {:ok, updated} ->
-          json(conn, %{data: tag_json(updated)})
+        case Contacts.update_tag(tag, attrs) do
+          {:ok, updated} -> json(conn, %{data: tag_json(updated)})
+          {:error, %Ecto.Changeset{} = cs} -> handle_tag_changeset_error(cs)
+        end
 
-        {:error, %Ecto.Changeset{} = cs} ->
-          if unique_constraint_error?(cs),
-            do: {:error, :conflict, "A tag with this name already exists."},
-            else: {:error, cs}
-      end
-    else
-      false -> {:error, :forbidden}
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -68,12 +59,14 @@ defmodule KithWeb.API.TagController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :delete, :tag) do
-      tag = Contacts.get_tag!(account_id, id)
-      Contacts.delete_tag(tag)
-      send_resp(conn, 204, "")
-    else
-      false -> {:error, :forbidden}
+    case Policy.can?(user, :delete, :tag) do
+      true ->
+        tag = Contacts.get_tag!(account_id, id)
+        Contacts.delete_tag(tag)
+        send_resp(conn, 204, "")
+
+      false ->
+        {:error, :forbidden}
     end
   rescue
     Ecto.NoResultsError -> {:error, :not_found}
@@ -123,11 +116,7 @@ defmodule KithWeb.API.TagController do
     with true <- Policy.can?(user, :update, :tag),
          tag when not is_nil(tag) <- safe_get_tag(account_id, tag_id),
          :ok <- validate_contact_ids(account_id, contact_ids) do
-      Enum.each(contact_ids, fn cid ->
-        contact = Contacts.get_contact(account_id, cid)
-        if contact, do: Contacts.tag_contact(contact, tag)
-      end)
-
+      bulk_tag_contacts(account_id, contact_ids, tag)
       json(conn, %{data: %{status: "assigned", count: length(contact_ids)}})
     else
       false -> {:error, :forbidden}
@@ -146,17 +135,33 @@ defmodule KithWeb.API.TagController do
     with true <- Policy.can?(user, :update, :tag),
          tag when not is_nil(tag) <- safe_get_tag(account_id, tag_id),
          :ok <- validate_contact_ids(account_id, contact_ids) do
-      Enum.each(contact_ids, fn cid ->
-        contact = Contacts.get_contact(account_id, cid)
-        if contact, do: Contacts.untag_contact(contact, tag)
-      end)
-
+      bulk_untag_contacts(account_id, contact_ids, tag)
       json(conn, %{data: %{status: "removed", count: length(contact_ids)}})
     else
       false -> {:error, :forbidden}
       nil -> {:error, :not_found}
       {:error, detail} -> {:error, :bad_request, detail}
     end
+  end
+
+  defp handle_tag_changeset_error(cs) do
+    if unique_constraint_error?(cs),
+      do: {:error, :conflict, "A tag with this name already exists."},
+      else: {:error, cs}
+  end
+
+  defp bulk_tag_contacts(account_id, contact_ids, tag) do
+    Enum.each(contact_ids, fn cid ->
+      contact = Contacts.get_contact(account_id, cid)
+      if contact, do: Contacts.tag_contact(contact, tag)
+    end)
+  end
+
+  defp bulk_untag_contacts(account_id, contact_ids, tag) do
+    Enum.each(contact_ids, fn cid ->
+      contact = Contacts.get_contact(account_id, cid)
+      if contact, do: Contacts.untag_contact(contact, tag)
+    end)
   end
 
   defp safe_get_tag(account_id, id) do

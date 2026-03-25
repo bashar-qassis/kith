@@ -17,14 +17,14 @@ defmodule KithWeb.AdminLive.ObanDashboard do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :manage, :account) do
+    if Kith.Policy.can?(user, :manage, :account) do
+      if connected?(socket), do: Process.send_after(self(), :refresh, @refresh_interval)
+      {:ok, socket |> assign(:page_title, "Oban Dashboard") |> load_data()}
+    else
       {:ok,
        socket
        |> put_flash(:error, "Admin access required.")
        |> redirect(to: ~p"/dashboard")}
-    else
-      if connected?(socket), do: Process.send_after(self(), :refresh, @refresh_interval)
-      {:ok, socket |> assign(:page_title, "Oban Dashboard") |> load_data()}
     end
   end
 

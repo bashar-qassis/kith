@@ -6,9 +6,11 @@ defmodule Kith.Conversations do
   import Ecto.Query, warn: false
   import Kith.Scope
   alias Ecto.Multi
-  alias Kith.Repo
-  alias Kith.Conversations.{Conversation, Message}
   alias Kith.Contacts.Contact
+  alias Kith.Conversations.{Conversation, Message}
+  alias Kith.Repo
+
+  @dialyzer {:nowarn_function, add_message: 2}
 
   def list_conversations(account_id, contact_id) do
     Conversation

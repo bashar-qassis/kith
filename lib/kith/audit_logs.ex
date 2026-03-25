@@ -10,8 +10,8 @@ defmodule Kith.AuditLogs do
   import Ecto.Query, warn: false
   import Kith.Scope
 
-  alias Kith.Repo
   alias Kith.AuditLogs.AuditLog
+  alias Kith.Repo
   alias Kith.Workers.AuditLogWorker
 
   @valid_events AuditLog.valid_events()

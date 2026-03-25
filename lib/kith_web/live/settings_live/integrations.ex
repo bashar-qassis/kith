@@ -1,8 +1,12 @@
 defmodule KithWeb.SettingsLive.Integrations do
   use KithWeb, :live_view
 
-  alias Kith.Immich.Settings, as: ImmichSettings
+  alias Kith.Accounts.Account
   alias Kith.Contacts
+  alias Kith.Immich
+  alias Kith.Immich.Settings, as: ImmichSettings
+  alias Kith.Policy
+  alias Kith.Repo
 
   import KithWeb.SettingsLive.SettingsLayout
 
@@ -30,12 +34,7 @@ defmodule KithWeb.SettingsLive.Integrations do
   def handle_params(_params, _uri, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :manage, :account) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You do not have permission to manage integrations.")
-       |> push_navigate(to: ~p"/")}
-    else
+    if Policy.can?(user, :manage, :account) do
       account = socket.assigns.current_scope.account
       settings = ImmichSettings.get_settings(account)
       pending_count = Contacts.count_needs_review(account.id)
@@ -52,6 +51,11 @@ defmodule KithWeb.SettingsLive.Integrations do
        |> assign(:immich_pending_count, pending_count)
        |> assign(:immich_contacts_scanned, Contacts.count_immich_scanned(account.id))
        |> assign(:immich_matches_found, Contacts.count_immich_matched(account.id))}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to manage integrations.")
+       |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -105,7 +109,7 @@ defmodule KithWeb.SettingsLive.Integrations do
   def handle_event("sync-now", _params, socket) do
     account = socket.assigns.account
 
-    case Kith.Immich.trigger_sync(account) do
+    case Immich.trigger_sync(account) do
       {:ok, _job} ->
         {:noreply, put_flash(socket, :info, "Sync triggered — results will appear shortly")}
 
@@ -119,13 +123,13 @@ defmodule KithWeb.SettingsLive.Integrations do
 
     {:ok, updated} =
       account
-      |> Kith.Accounts.Account.immich_sync_changeset(%{
+      |> Account.immich_sync_changeset(%{
         immich_status: "ok",
         immich_consecutive_failures: 0
       })
-      |> Kith.Repo.update()
+      |> Repo.update()
 
-    Kith.Immich.trigger_sync(updated)
+    Immich.trigger_sync(updated)
 
     {:noreply,
      socket

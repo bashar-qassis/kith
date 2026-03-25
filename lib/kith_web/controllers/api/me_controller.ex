@@ -30,7 +30,6 @@ defmodule KithWeb.API.MeController do
           safe_attrs
       end
 
-    # TODO: implement Accounts.update_user_settings/2 -- currently proxying to update_user_profile/2
     case Accounts.update_user_profile(user, safe_attrs) do
       {:ok, updated} -> json(conn, %{data: user_json(updated)})
       {:error, cs} -> {:error, cs}

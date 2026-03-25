@@ -1,8 +1,8 @@
 defmodule Kith.DuplicateDetection do
   import Ecto.Query, warn: false
   import Kith.Scope
-  alias Kith.Repo
   alias Kith.Contacts.DuplicateCandidate
+  alias Kith.Repo
 
   def list_candidates(account_id, opts \\ []) do
     status = Keyword.get(opts, :status, "pending")

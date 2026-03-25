@@ -8,6 +8,8 @@ defmodule KithWeb.UserAuth do
 
   alias Kith.Accounts
   alias Kith.Accounts.Scope
+  alias Kith.DuplicateDetection
+  alias KithWeb.Plugs.AssignLocale
 
   # Make the remember me cookie valid for 60 days. This should match
   # the session validity setting in UserToken.
@@ -229,7 +231,7 @@ defmodule KithWeb.UserAuth do
        Phoenix.Component.assign(
          socket,
          :pending_duplicates_count,
-         Kith.DuplicateDetection.pending_count(account_id)
+         DuplicateDetection.pending_count(account_id)
        )}
     else
       socket =
@@ -286,35 +288,39 @@ defmodule KithWeb.UserAuth do
     # When called from tests with a bare %LiveView.Socket{}, skip the hook.
     if socket.private[:lifecycle] do
       socket
-      |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, fn _params,
-                                                                            uri,
-                                                                            socket ->
-        path = URI.parse(uri).path || "/"
-        {:cont, Phoenix.Component.assign(socket, :current_path, path)}
-      end)
-      |> Phoenix.LiveView.attach_hook(:command_palette, :handle_event, fn
-        "command_palette_search", %{"query" => query}, socket ->
-          account_id = socket.assigns[:current_scope] && socket.assigns.current_scope.account.id
-
-          contacts =
-            if account_id && String.length(query) >= 2 do
-              Kith.Contacts.search_contacts_for_palette(account_id, query)
-            else
-              []
-            end
-
-          {:halt,
-           Phoenix.LiveView.push_event(socket, "command_palette_results", %{contacts: contacts})}
-
-        "command_palette_navigate", %{"path" => path}, socket ->
-          {:halt, Phoenix.LiveView.push_navigate(socket, to: path)}
-
-        _event, _params, socket ->
-          {:cont, socket}
-      end)
+      |> Phoenix.LiveView.attach_hook(:set_current_path, :handle_params, &handle_path_params/3)
+      |> Phoenix.LiveView.attach_hook(
+        :command_palette,
+        :handle_event,
+        &handle_command_palette_event/3
+      )
     else
       socket
     end
+  end
+
+  defp handle_path_params(_params, uri, socket) do
+    path = URI.parse(uri).path || "/"
+    {:cont, Phoenix.Component.assign(socket, :current_path, path)}
+  end
+
+  defp handle_command_palette_event("command_palette_search", %{"query" => query}, socket) do
+    account_id = socket.assigns[:current_scope] && socket.assigns.current_scope.account.id
+
+    contacts =
+      if account_id && String.length(query) >= 2,
+        do: Kith.Contacts.search_contacts_for_palette(account_id, query),
+        else: []
+
+    {:halt, Phoenix.LiveView.push_event(socket, "command_palette_results", %{contacts: contacts})}
+  end
+
+  defp handle_command_palette_event("command_palette_navigate", %{"path" => path}, socket) do
+    {:halt, Phoenix.LiveView.push_navigate(socket, to: path)}
+  end
+
+  defp handle_command_palette_event(_event, _params, socket) do
+    {:cont, socket}
   end
 
   defp assign_locale(socket) do
@@ -335,7 +341,7 @@ defmodule KithWeb.UserAuth do
 
     socket
     |> Phoenix.Component.assign(:locale, locale)
-    |> Phoenix.Component.assign(:html_dir, KithWeb.Plugs.AssignLocale.html_dir(locale))
+    |> Phoenix.Component.assign(:html_dir, AssignLocale.html_dir(locale))
   end
 
   @doc "Returns the path to redirect to after log in."

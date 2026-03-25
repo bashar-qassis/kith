@@ -5,7 +5,7 @@ defmodule KithWeb.API.DebtController do
 
   use KithWeb, :controller
 
-  alias Kith.{Debts, Contacts, Policy, Repo}
+  alias Kith.{Contacts, Debts, Policy, Repo}
   alias Kith.Contacts.{Debt, DebtPayment}
   alias Kith.Scope, as: TenantScope
   alias KithWeb.API.Pagination

@@ -2,8 +2,8 @@ defmodule Kith.Pets do
   import Ecto.Query, warn: false
   import Kith.Scope
 
-  alias Kith.Repo
   alias Kith.Contacts.Pet
+  alias Kith.Repo
 
   def list_pets(account_id, contact_id) do
     Pet

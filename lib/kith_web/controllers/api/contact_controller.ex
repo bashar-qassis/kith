@@ -19,45 +19,30 @@ defmodule KithWeb.API.ContactController do
 
   # ── List contacts ─────────────────────────────────────────────────────
 
-  def index(conn, params) do
+  def index(conn, %{"trashed" => "true"} = params) do
     scope = conn.assigns.current_scope
     account_id = scope.account.id
     user = scope.user
 
-    # Trashed filter — admin only
-    if params["trashed"] == "true" do
-      unless Policy.can?(user, :manage, :contact) do
-        return_forbidden(conn)
-      else
-        query = TenantScope.scope_trashed(Contact, account_id)
-        {contacts, meta} = Pagination.paginate(query, params)
-        json(conn, Pagination.paginated_response(Enum.map(contacts, &ContactJSON.data/1), meta))
-      end
+    if Policy.can?(user, :manage, :contact) do
+      query = TenantScope.scope_trashed(Contact, account_id)
+      {contacts, meta} = Pagination.paginate(query, params)
+      json(conn, Pagination.paginated_response(Enum.map(contacts, &ContactJSON.data/1), meta))
     else
-      with {:ok, includes} <- Includes.parse_includes(params, :contact_list) do
-        preloads = Includes.to_preloads(includes)
+      return_forbidden(conn)
+    end
+  end
 
-        query =
-          Contact
-          |> TenantScope.scope_active(account_id)
-          |> apply_filters(params)
-          |> maybe_search(params, account_id)
+  def index(conn, params) do
+    scope = conn.assigns.current_scope
+    account_id = scope.account.id
 
-        query = if preloads != [], do: from(q in query, preload: ^preloads), else: query
+    case Includes.parse_includes(params, :contact_list) do
+      {:ok, includes} ->
+        list_active_contacts(conn, params, account_id, includes)
 
-        {contacts, meta} = Pagination.paginate(query, params)
-
-        data =
-          Enum.map(contacts, fn c ->
-            if includes == [],
-              do: ContactJSON.data(c),
-              else: ContactJSON.data_with_includes(c, includes)
-          end)
-
-        json(conn, Pagination.paginated_response(data, meta))
-      else
-        {:error, detail} -> {:error, :bad_request, detail}
-      end
+      {:error, detail} ->
+        {:error, :bad_request, detail}
     end
   end
 
@@ -67,22 +52,14 @@ defmodule KithWeb.API.ContactController do
     scope = conn.assigns.current_scope
     account_id = scope.account.id
 
-    with {:ok, includes} <- Includes.parse_includes(params, :contact_show) do
-      preloads = Includes.to_preloads(includes)
-
-      case Contacts.get_contact(account_id, id, preload: preloads) do
-        nil ->
-          {:error, :not_found}
-
-        contact ->
-          data =
-            if includes == [],
-              do: ContactJSON.data(contact),
-              else: ContactJSON.data_with_includes(contact, includes)
-
-          json(conn, %{data: data})
-      end
+    with {:ok, includes} <- Includes.parse_includes(params, :contact_show),
+         preloads = Includes.to_preloads(includes),
+         contact when not is_nil(contact) <-
+           Contacts.get_contact(account_id, id, preload: preloads) do
+      data = format_contact_data(contact, includes)
+      json(conn, %{data: data})
     else
+      nil -> {:error, :not_found}
       {:error, detail} -> {:error, :bad_request, detail}
     end
   end
@@ -243,29 +220,18 @@ defmodule KithWeb.API.ContactController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :update, :contact) do
-      # Validate both contacts belong to this account
-      survivor = Contacts.get_contact(account_id, survivor_id)
-      non_survivor = Contacts.get_contact(account_id, non_survivor_id)
-
-      cond do
-        is_nil(survivor) or is_nil(non_survivor) ->
-          {:error, :not_found}
-
-        survivor_id == non_survivor_id ->
-          {:error, :bad_request, "Cannot merge a contact with itself."}
-
-        true ->
-          case Contacts.merge_contacts(survivor.id, non_survivor.id) do
-            {:ok, merged} ->
-              json(conn, %{data: ContactJSON.data(merged)})
-
-            {:error, reason} ->
-              {:error, :bad_request, "Merge failed: #{inspect(reason)}"}
-          end
-      end
+    with true <- Policy.can?(user, :update, :contact),
+         :ok <- validate_merge_ids(survivor_id, non_survivor_id),
+         survivor when not is_nil(survivor) <- Contacts.get_contact(account_id, survivor_id),
+         non_survivor when not is_nil(non_survivor) <-
+           Contacts.get_contact(account_id, non_survivor_id),
+         {:ok, merged} <- Contacts.merge_contacts(survivor.id, non_survivor.id) do
+      json(conn, %{data: ContactJSON.data(merged)})
     else
       false -> {:error, :forbidden}
+      nil -> {:error, :not_found}
+      {:error, :same_ids} -> {:error, :bad_request, "Cannot merge a contact with itself."}
+      {:error, reason} -> {:error, :bad_request, "Merge failed: #{inspect(reason)}"}
     end
   end
 
@@ -280,41 +246,63 @@ defmodule KithWeb.API.ContactController do
     user = scope.user
     account_id = scope.account.id
 
-    with true <- Policy.can?(user, :manage, :contact) do
-      # Look in trashed contacts specifically
-      contact =
-        Contact
-        |> TenantScope.scope_trashed(account_id)
-        |> Kith.Repo.get(id)
+    with true <- Policy.can?(user, :manage, :contact),
+         {:ok, contact} <- find_trashed_contact(account_id, id),
+         {:ok, restored} <- Contacts.restore_contact(contact) do
+      Kith.AuditLogs.log_event(account_id, user, :contact_restored,
+        contact_id: contact.id,
+        contact_name: contact.display_name
+      )
 
-      cond do
-        is_nil(contact) ->
-          # Check if it exists at all (active) — if so, 422
-          case Contacts.get_contact(account_id, id) do
-            nil -> {:error, :not_found}
-            _active -> {:error, :bad_request, "Contact is not in trash."}
-          end
-
-        true ->
-          case Contacts.restore_contact(contact) do
-            {:ok, restored} ->
-              Kith.AuditLogs.log_event(account_id, user, :contact_restored,
-                contact_id: contact.id,
-                contact_name: contact.display_name
-              )
-
-              json(conn, %{data: ContactJSON.data(restored)})
-
-            {:error, %Ecto.Changeset{} = cs} ->
-              {:error, cs}
-          end
-      end
+      json(conn, %{data: ContactJSON.data(restored)})
     else
       false -> {:error, :forbidden}
+      {:error, :not_found} -> {:error, :not_found}
+      {:error, :not_in_trash} -> {:error, :bad_request, "Contact is not in trash."}
+      {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
     end
   end
 
   # ── Private helpers ───────────────────────────────────────────────────
+
+  defp list_active_contacts(conn, params, account_id, includes) do
+    preloads = Includes.to_preloads(includes)
+
+    query =
+      Contact
+      |> TenantScope.scope_active(account_id)
+      |> apply_filters(params)
+      |> maybe_search(params, account_id)
+
+    query = if preloads != [], do: from(q in query, preload: ^preloads), else: query
+
+    {contacts, meta} = Pagination.paginate(query, params)
+
+    data = Enum.map(contacts, &format_contact_data(&1, includes))
+
+    json(conn, Pagination.paginated_response(data, meta))
+  end
+
+  defp format_contact_data(contact, []), do: ContactJSON.data(contact)
+
+  defp format_contact_data(contact, includes),
+    do: ContactJSON.data_with_includes(contact, includes)
+
+  defp validate_merge_ids(id, id), do: {:error, :same_ids}
+  defp validate_merge_ids(_s, _n), do: :ok
+
+  defp find_trashed_contact(account_id, id) do
+    contact =
+      Contact
+      |> TenantScope.scope_trashed(account_id)
+      |> Kith.Repo.get(id)
+
+    cond do
+      not is_nil(contact) -> {:ok, contact}
+      is_nil(Contacts.get_contact(account_id, id)) -> {:error, :not_found}
+      true -> {:error, :not_in_trash}
+    end
+  end
 
   defp apply_filters(query, params) do
     query

@@ -11,16 +11,19 @@ defmodule KithWeb.UploadsController do
 
   use KithWeb, :controller
 
+  alias Kith.Storage
+  alias Kith.Storage.Local
+
   def show(conn, %{"path" => path_parts}) do
     storage_key = Enum.join(path_parts, "/")
 
     with :ok <- validate_path(storage_key),
          {account_id_str, _type, _filename} <- parse_storage_key(storage_key),
          :ok <- authorize(conn, account_id_str) do
-      file_path = Kith.Storage.Local.full_path(storage_key)
+      file_path = Local.full_path(storage_key)
 
       if File.exists?(file_path) do
-        content_type = Kith.Storage.content_type(storage_key)
+        content_type = Storage.content_type(storage_key)
 
         conn
         |> put_resp_content_type(content_type)

@@ -6,6 +6,10 @@ defmodule Kith.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Kith.Cldr.Currency
+
+  @type t :: %__MODULE__{}
+
   schema "users" do
     field :email, :string
     field :password, :string, virtual: true, redact: true
@@ -140,14 +144,16 @@ defmodule Kith.Accounts.User do
     if Application.get_env(:kith, :require_tos_acceptance, false) do
       changeset
       |> validate_acceptance(:tos_accepted, message: "you must accept the Terms of Service")
-      |> then(fn cs ->
-        if get_change(cs, :tos_accepted) == true,
-          do: put_change(cs, :tos_accepted_at, DateTime.utc_now(:second)),
-          else: cs
-      end)
+      |> stamp_tos_accepted_at()
     else
       changeset
     end
+  end
+
+  defp stamp_tos_accepted_at(changeset) do
+    if get_change(changeset, :tos_accepted) == true,
+      do: put_change(changeset, :tos_accepted_at, DateTime.utc_now(:second)),
+      else: changeset
   end
 
   @valid_display_name_formats ~w(first_last last_first first_only last_first_comma)
@@ -217,7 +223,7 @@ defmodule Kith.Accounts.User do
         changeset
 
       code ->
-        case Kith.Cldr.Currency.currency_for_code(code) do
+        case Currency.currency_for_code(code) do
           {:ok, _} -> changeset
           {:error, _} -> add_error(changeset, :currency, "is not a valid ISO 4217 currency code")
         end

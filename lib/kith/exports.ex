@@ -52,41 +52,62 @@ defmodule Kith.Exports do
   end
 
   defp serialize_contact(contact) do
+    serialize_contact_fields(contact)
+    |> Map.merge(serialize_contact_associations(contact))
+  end
+
+  defp serialize_contact_fields(contact) do
     %{
       id: contact.id,
       first_name: contact.first_name,
       last_name: contact.last_name,
       display_name: contact.display_name,
       nickname: contact.nickname,
-      birthdate: contact.birthdate && Date.to_iso8601(contact.birthdate),
+      birthdate: maybe_date(contact.birthdate),
       description: contact.description,
       occupation: contact.occupation,
       company: contact.company,
       favorite: contact.favorite,
       deceased: contact.deceased,
-      deceased_at: contact.deceased_at && Date.to_iso8601(contact.deceased_at),
-      last_talked_to: contact.last_talked_to && DateTime.to_iso8601(contact.last_talked_to),
-      gender_id: contact.gender_id,
-      notes: Enum.map(contact.notes || [], &serialize_note/1),
-      life_events: Enum.map(contact.life_events || [], &serialize_life_event/1),
-      calls: Enum.map(contact.calls || [], &serialize_call/1),
-      addresses: Enum.map(contact.addresses || [], &serialize_address/1),
-      contact_fields: Enum.map(contact.contact_fields || [], &serialize_contact_field/1),
-      tags: Enum.map(contact.tags || [], fn t -> %{id: t.id, name: t.name} end),
-      reminders: Enum.map(contact.reminders || [], &serialize_reminder/1),
-      documents:
-        Enum.map(contact.documents || [], fn d ->
-          %{filename: d.file_name, file_size: d.file_size, content_type: d.content_type}
-        end),
-      photos:
-        Enum.map(contact.photos || [], fn p ->
-          %{
-            filename: p.file_name,
-            file_size: p.file_size,
-            content_type: p.content_type,
-            is_cover: p.is_cover
-          }
-        end)
+      deceased_at: maybe_date(contact.deceased_at),
+      last_talked_to: maybe_datetime(contact.last_talked_to),
+      gender_id: contact.gender_id
+    }
+  end
+
+  defp serialize_contact_associations(contact) do
+    %{
+      notes: map_assoc(contact.notes, &serialize_note/1),
+      life_events: map_assoc(contact.life_events, &serialize_life_event/1),
+      calls: map_assoc(contact.calls, &serialize_call/1),
+      addresses: map_assoc(contact.addresses, &serialize_address/1),
+      contact_fields: map_assoc(contact.contact_fields, &serialize_contact_field/1),
+      tags: map_assoc(contact.tags, fn t -> %{id: t.id, name: t.name} end),
+      reminders: map_assoc(contact.reminders, &serialize_reminder/1),
+      documents: map_assoc(contact.documents, &serialize_document/1),
+      photos: map_assoc(contact.photos, &serialize_photo/1)
+    }
+  end
+
+  defp map_assoc(nil, _fun), do: []
+  defp map_assoc(list, fun), do: Enum.map(list, fun)
+
+  defp maybe_date(nil), do: nil
+  defp maybe_date(date), do: Date.to_iso8601(date)
+
+  defp maybe_datetime(nil), do: nil
+  defp maybe_datetime(dt), do: DateTime.to_iso8601(dt)
+
+  defp serialize_document(d) do
+    %{filename: d.file_name, file_size: d.file_size, content_type: d.content_type}
+  end
+
+  defp serialize_photo(p) do
+    %{
+      filename: p.file_name,
+      file_size: p.file_size,
+      content_type: p.content_type,
+      is_cover: p.is_cover
     }
   end
 

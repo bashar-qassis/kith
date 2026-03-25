@@ -18,18 +18,18 @@ defmodule KithWeb.ContactLive.New do
   def handle_params(_params, _uri, socket) do
     user = socket.assigns.current_scope.user
 
-    unless Kith.Policy.can?(user, :create, :contact) do
-      {:noreply,
-       socket
-       |> put_flash(:error, "You don't have permission to create contacts")
-       |> push_navigate(to: ~p"/contacts")}
-    else
+    if Kith.Policy.can?(user, :create, :contact) do
       account_id = socket.assigns.current_scope.account.id
 
       {:noreply,
        socket
        |> assign(:account_id, account_id)
        |> assign(:genders, Contacts.list_genders(account_id))}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You don't have permission to create contacts")
+       |> push_navigate(to: ~p"/contacts")}
     end
   end
 

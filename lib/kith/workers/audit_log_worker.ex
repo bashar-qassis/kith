@@ -9,8 +9,8 @@ defmodule Kith.Workers.AuditLogWorker do
 
   use Oban.Worker, queue: :default, max_attempts: 3
 
-  alias Kith.Repo
   alias Kith.AuditLogs.AuditLog
+  alias Kith.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do

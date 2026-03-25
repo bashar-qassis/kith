@@ -16,11 +16,25 @@ defmodule Kith.Reminders do
   alias Kith.Repo
   alias Kith.TimeHelper
 
+  alias Kith.Accounts
+  alias Kith.Workers.ReminderNotificationWorker
+
   alias Kith.Reminders.{
     Reminder,
-    ReminderRule,
-    ReminderInstance
+    ReminderInstance,
+    ReminderRule
   }
+
+  # Suppress Ecto.Multi opaque type warnings (Dialyzer false positives)
+  @dialyzer [
+    {:nowarn_function, create_reminder: 3},
+    {:nowarn_function, update_reminder: 2},
+    {:nowarn_function, delete_reminder: 1},
+    {:nowarn_function, resolve_stay_in_touch_instance: 1},
+    {:nowarn_function, resolve_instance: 1},
+    {:nowarn_function, dismiss_instance: 1},
+    {:nowarn_function, cancel_enqueued_jobs_step: 2}
+  ]
 
   # ── Reminders CRUD ──────────────────────────────────────────────────────
 
@@ -48,7 +62,7 @@ defmodule Kith.Reminders do
   Creates a reminder with transactional Oban job enqueue.
   """
   def create_reminder(account_id, creator_id, attrs) do
-    account = Kith.Accounts.get_account!(account_id)
+    account = Accounts.get_account!(account_id)
 
     Multi.new()
     |> Multi.insert(:reminder, fn _changes ->
@@ -74,7 +88,7 @@ defmodule Kith.Reminders do
   Updates a reminder: cancels old Oban jobs, updates record, enqueues new jobs.
   """
   def update_reminder(%Reminder{} = reminder, attrs) do
-    account = Kith.Accounts.get_account!(reminder.account_id)
+    account = Accounts.get_account!(reminder.account_id)
 
     Multi.new()
     |> cancel_enqueued_jobs_step(reminder)
@@ -529,7 +543,7 @@ defmodule Kith.Reminders do
       Enum.map(all_jobs, fn {args, scheduled_at} ->
         {:ok, job} =
           args
-          |> Kith.Workers.ReminderNotificationWorker.new(scheduled_at: scheduled_at)
+          |> ReminderNotificationWorker.new(scheduled_at: scheduled_at)
           |> Oban.insert()
 
         job.id

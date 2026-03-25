@@ -36,9 +36,6 @@ defmodule Kith.Workers.ExportWorker do
         "#{byte_size(IO.iodata_to_binary(json_data))} bytes generated. Token: #{String.slice(token, 0, 20)}..."
     )
 
-    # TODO: Send email via Swoosh with download URL when mailer templates are ready
-    # Kith.Mailer.deliver_export_ready(user_id, download_url)
-
     :ok
   end
 

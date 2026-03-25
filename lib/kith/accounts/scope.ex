@@ -6,7 +6,7 @@ defmodule Kith.Accounts.Scope do
   authorization context and tenant isolation for all operations.
   """
 
-  alias Kith.Accounts.{User, Account}
+  alias Kith.Accounts.{Account, User}
 
   defstruct user: nil, account: nil
 

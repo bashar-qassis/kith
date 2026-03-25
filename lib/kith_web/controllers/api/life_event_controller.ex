@@ -5,8 +5,8 @@ defmodule KithWeb.API.LifeEventController do
 
   use KithWeb, :controller
 
-  alias Kith.{Contacts, Policy, Repo}
   alias Kith.Activities.LifeEvent
+  alias Kith.{Contacts, Policy, Repo}
   alias Kith.Scope, as: TenantScope
   alias KithWeb.API.Pagination
 

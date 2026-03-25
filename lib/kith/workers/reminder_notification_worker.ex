@@ -14,8 +14,8 @@ defmodule Kith.Workers.ReminderNotificationWorker do
     queue: :reminders,
     max_attempts: 3
 
-  alias Kith.Repo
   alias Kith.Reminders.{Reminder, ReminderInstance}
+  alias Kith.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do

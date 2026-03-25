@@ -5,6 +5,7 @@ defmodule KithWeb.ContactLive.Duplicates do
 
   alias Kith.DuplicateDetection
   alias Kith.Policy
+  alias Kith.Workers.DuplicateDetectionWorker
 
   @impl true
   def mount(_params, _session, socket) do
@@ -47,9 +48,7 @@ defmodule KithWeb.ContactLive.Duplicates do
     user = socket.assigns.current_scope.user
 
     if Policy.can?(user, :manage, :account) do
-      Oban.insert(
-        Kith.Workers.DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id})
-      )
+      Oban.insert(DuplicateDetectionWorker.new(%{account_id: socket.assigns.account_id}))
 
       {:noreply, put_flash(socket, :info, "Duplicate scan started. Results will appear shortly.")}
     else

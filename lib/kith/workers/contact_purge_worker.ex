@@ -14,9 +14,9 @@ defmodule Kith.Workers.ContactPurgeWorker do
 
   require Logger
 
-  alias Kith.Repo
   alias Kith.Contacts.Contact
   alias Kith.Reminders
+  alias Kith.Repo
 
   import Ecto.Query
 

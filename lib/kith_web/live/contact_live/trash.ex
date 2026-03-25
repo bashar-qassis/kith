@@ -1,8 +1,8 @@
 defmodule KithWeb.ContactLive.Trash do
   use KithWeb, :live_view
 
-  alias Kith.Contacts
   alias Kith.AuditLogs
+  alias Kith.Contacts
 
   @impl true
   def mount(_params, _session, socket) do

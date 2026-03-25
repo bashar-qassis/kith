@@ -10,9 +10,16 @@ defmodule Kith.Activities do
   import Kith.Scope
 
   alias Ecto.Multi
-  alias Kith.Repo
+  alias Kith.Activities.{Activity, Call, LifeEvent}
   alias Kith.Contacts.Contact
-  alias Kith.Activities.{Activity, LifeEvent, Call}
+  alias Kith.Repo
+
+  # Suppress Ecto.Multi opaque type warnings (Dialyzer false positives)
+  @dialyzer [
+    {:nowarn_function, create_activity: 4},
+    {:nowarn_function, update_activity: 4},
+    {:nowarn_function, create_call: 2}
+  ]
 
   ## Activities
 
@@ -58,41 +65,27 @@ defmodule Kith.Activities do
       |> Activity.changeset(attrs)
     end)
     |> Multi.run(:contacts, fn repo, %{activity: activity} ->
-      if contact_ids != [] do
-        entries =
-          Enum.map(contact_ids, fn cid ->
-            %{activity_id: activity.id, contact_id: cid}
-          end)
-
-        {count, _} = repo.insert_all("activity_contacts", entries)
-        {:ok, count}
-      else
-        {:ok, 0}
-      end
+      insert_join_entries(
+        repo,
+        "activity_contacts",
+        :activity_id,
+        activity.id,
+        :contact_id,
+        contact_ids
+      )
     end)
     |> Multi.run(:emotions, fn repo, %{activity: activity} ->
-      if emotion_ids != [] do
-        entries =
-          Enum.map(emotion_ids, fn eid ->
-            %{activity_id: activity.id, emotion_id: eid}
-          end)
-
-        {count, _} = repo.insert_all("activity_emotions", entries)
-        {:ok, count}
-      else
-        {:ok, 0}
-      end
+      insert_join_entries(
+        repo,
+        "activity_emotions",
+        :activity_id,
+        activity.id,
+        :emotion_id,
+        emotion_ids
+      )
     end)
     |> Multi.run(:update_last_talked_to, fn repo, %{activity: activity} ->
-      if contact_ids != [] do
-        from(c in Contact,
-          where: c.id in ^contact_ids,
-          where: is_nil(c.last_talked_to) or c.last_talked_to < ^activity.occurred_at
-        )
-        |> repo.update_all(set: [last_talked_to: activity.occurred_at])
-      end
-
-      {:ok, :updated}
+      update_contacts_last_talked_to(repo, contact_ids, activity.occurred_at)
     end)
     |> Repo.transaction()
     |> case do
@@ -106,42 +99,10 @@ defmodule Kith.Activities do
     Multi.new()
     |> Multi.update(:activity, Activity.changeset(activity, attrs))
     |> Multi.run(:update_contacts, fn repo, %{activity: updated} ->
-      if contact_ids do
-        # Remove old join records, insert new ones
-        from(ac in "activity_contacts", where: ac.activity_id == ^updated.id)
-        |> repo.delete_all()
-
-        if contact_ids != [] do
-          entries =
-            Enum.map(contact_ids, fn cid -> %{activity_id: updated.id, contact_id: cid} end)
-
-          repo.insert_all("activity_contacts", entries)
-        end
-
-        # Update last_talked_to for new set of contacts
-        from(c in Contact,
-          where: c.id in ^contact_ids,
-          where: is_nil(c.last_talked_to) or c.last_talked_to < ^updated.occurred_at
-        )
-        |> repo.update_all(set: [last_talked_to: updated.occurred_at])
-      end
-
-      {:ok, :done}
+      replace_activity_contacts(repo, updated, contact_ids)
     end)
     |> Multi.run(:update_emotions, fn repo, %{activity: updated} ->
-      if emotion_ids do
-        from(ae in "activity_emotions", where: ae.activity_id == ^updated.id)
-        |> repo.delete_all()
-
-        if emotion_ids != [] do
-          entries =
-            Enum.map(emotion_ids, fn eid -> %{activity_id: updated.id, emotion_id: eid} end)
-
-          repo.insert_all("activity_emotions", entries)
-        end
-      end
-
-      {:ok, :done}
+      replace_activity_emotions(repo, updated, emotion_ids)
     end)
     |> Repo.transaction()
     |> case do
@@ -251,5 +212,65 @@ defmodule Kith.Activities do
 
   def delete_call(%Call{} = call) do
     Repo.delete(call)
+  end
+
+  # ── Private helpers ──────────────────────────────────────────────────
+
+  defp insert_join_entries(_repo, _table, _fk_key, _fk_val, _assoc_key, []), do: {:ok, 0}
+
+  defp insert_join_entries(repo, table, fk_key, fk_val, assoc_key, ids) do
+    entries = Enum.map(ids, fn id -> %{fk_key => fk_val, assoc_key => id} end)
+    {count, _} = repo.insert_all(table, entries)
+    {:ok, count}
+  end
+
+  defp update_contacts_last_talked_to(_repo, [], _occurred_at), do: {:ok, :updated}
+
+  defp update_contacts_last_talked_to(repo, contact_ids, occurred_at) do
+    from(c in Contact,
+      where: c.id in ^contact_ids,
+      where: is_nil(c.last_talked_to) or c.last_talked_to < ^occurred_at
+    )
+    |> repo.update_all(set: [last_talked_to: occurred_at])
+
+    {:ok, :updated}
+  end
+
+  defp replace_activity_contacts(_repo, _activity, nil), do: {:ok, :done}
+
+  defp replace_activity_contacts(repo, activity, contact_ids) do
+    from(ac in "activity_contacts", where: ac.activity_id == ^activity.id)
+    |> repo.delete_all()
+
+    if contact_ids != [] do
+      entries =
+        Enum.map(contact_ids, fn cid -> %{activity_id: activity.id, contact_id: cid} end)
+
+      repo.insert_all("activity_contacts", entries)
+    end
+
+    from(c in Contact,
+      where: c.id in ^contact_ids,
+      where: is_nil(c.last_talked_to) or c.last_talked_to < ^activity.occurred_at
+    )
+    |> repo.update_all(set: [last_talked_to: activity.occurred_at])
+
+    {:ok, :done}
+  end
+
+  defp replace_activity_emotions(_repo, _activity, nil), do: {:ok, :done}
+
+  defp replace_activity_emotions(repo, activity, emotion_ids) do
+    from(ae in "activity_emotions", where: ae.activity_id == ^activity.id)
+    |> repo.delete_all()
+
+    if emotion_ids != [] do
+      entries =
+        Enum.map(emotion_ids, fn eid -> %{activity_id: activity.id, emotion_id: eid} end)
+
+      repo.insert_all("activity_emotions", entries)
+    end
+
+    {:ok, :done}
   end
 end
