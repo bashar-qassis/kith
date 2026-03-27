@@ -1025,12 +1025,36 @@ defmodule Kith.Imports.Sources.Monica do
   defp deduplicate_by_uuid(entries) do
     entries
     |> Enum.group_by(& &1["uuid"])
-    |> Enum.map(fn {_uuid, group} ->
-      # Prefer the entry with the most sub-data, then latest updated_at
-      Enum.max_by(group, fn e ->
-        sub_count = (e["data"] || []) |> Enum.map(&(&1["count"] || 0)) |> Enum.sum()
-        {sub_count, e["updated_at"] || ""}
-      end)
+    |> Enum.map(fn {_uuid, group} -> merge_contact_entries(group) end)
+  end
+
+  defp merge_contact_entries([single]), do: single
+
+  defp merge_contact_entries(group) do
+    primary = Enum.max_by(group, fn e -> e["updated_at"] || "" end)
+    merged_data = merge_sub_data(group)
+    Map.put(primary, "data", merged_data)
+  end
+
+  defp merge_sub_data(group) do
+    group
+    |> Enum.flat_map(fn entry -> entry["data"] || [] end)
+    |> Enum.group_by(fn section -> section["type"] end)
+    |> Enum.map(fn {type, sections} ->
+      all_values =
+        sections
+        |> Enum.flat_map(fn section -> section["values"] || [] end)
+        |> deduplicate_values()
+
+      %{"type" => type, "count" => length(all_values), "values" => all_values}
+    end)
+  end
+
+  defp deduplicate_values(values) do
+    Enum.uniq_by(values, fn
+      v when is_binary(v) -> v
+      %{"uuid" => uuid} -> uuid
+      other -> other
     end)
   end
 
