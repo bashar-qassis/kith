@@ -13,9 +13,9 @@ defmodule Kith.Repo.Migrations.RemoveIsCoverFromPhotos do
     """)
 
     drop_if_exists unique_index(:photos, [:contact_id],
-      where: "is_cover = true",
-      name: :photos_contact_id_index
-    )
+                     where: "is_cover = true",
+                     name: :photos_contact_id_index
+                   )
 
     alter table(:photos) do
       remove :is_cover
@@ -28,8 +28,8 @@ defmodule Kith.Repo.Migrations.RemoveIsCoverFromPhotos do
     end
 
     create unique_index(:photos, [:contact_id],
-      where: "is_cover = true",
-      name: :photos_contact_id_index
-    )
+             where: "is_cover = true",
+             name: :photos_contact_id_index
+           )
   end
 end

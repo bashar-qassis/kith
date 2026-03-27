@@ -27,76 +27,82 @@ defmodule KithWeb.ImportHistoryLive.Index do
     >
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <div class="space-y-6">
-        <div class="flex items-center justify-between">
-          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Import History</h1>
-          <.link
-            navigate={~p"/settings/import"}
-            class="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] transition-colors"
-          >
-            <.icon name="hero-plus" class="size-4" /> New Import
-          </.link>
-        </div>
+          <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Import History</h1>
+            <.link
+              navigate={~p"/settings/import"}
+              class="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] transition-colors"
+            >
+              <.icon name="hero-plus" class="size-4" /> New Import
+            </.link>
+          </div>
 
-        <%= if @imports == [] do %>
-          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-8 text-center">
-            <.icon name="hero-arrow-up-tray" class="mx-auto size-12 text-[var(--color-text-tertiary)]" />
-            <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
-              No imports yet. Start by importing your contacts.
-            </p>
-          </div>
-        <% else %>
-          <div class="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]">
-            <table class="min-w-full divide-y divide-[var(--color-border)]">
-              <thead class="bg-[var(--color-surface-elevated)]">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Source
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    File
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Status
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Photo Sync
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-                    Date
-                  </th>
-                  <th class="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-[var(--color-border)]">
-                <tr :for={import_record <- @imports} class="hover:bg-[var(--color-surface-elevated)] transition-colors">
-                  <td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-[var(--color-text-primary)]">
-                    {source_label(import_record.source)}
-                  </td>
-                  <td class="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                    {import_record.file_name || "—"}
-                  </td>
-                  <td class="whitespace-nowrap px-4 py-3 text-sm">
-                    <.status_badge status={import_record.status} />
-                  </td>
-                  <td class="whitespace-nowrap px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                    {sync_status_label(import_record)}
-                  </td>
-                  <td class="whitespace-nowrap px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                    {format_date(import_record.inserted_at)}
-                  </td>
-                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm">
-                    <.link
-                      navigate={~p"/settings/imports/#{import_record.id}"}
-                      class="text-[var(--color-accent)] hover:underline"
-                    >
-                      Details
-                    </.link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        <% end %>
+          <%= if @imports == [] do %>
+            <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-8 text-center">
+              <.icon
+                name="hero-arrow-up-tray"
+                class="mx-auto size-12 text-[var(--color-text-tertiary)]"
+              />
+              <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
+                No imports yet. Start by importing your contacts.
+              </p>
+            </div>
+          <% else %>
+            <div class="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+              <table class="min-w-full divide-y divide-[var(--color-border)]">
+                <thead class="bg-[var(--color-surface-elevated)]">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Source
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      File
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Status
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Photo Sync
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Date
+                    </th>
+                    <th class="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[var(--color-border)]">
+                  <tr
+                    :for={import_record <- @imports}
+                    class="hover:bg-[var(--color-surface-elevated)] transition-colors"
+                  >
+                    <td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-[var(--color-text-primary)]">
+                      {source_label(import_record.source)}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {import_record.file_name || "—"}
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm">
+                      <.status_badge status={import_record.status} />
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {sync_status_label(import_record)}
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {format_date(import_record.inserted_at)}
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-right text-sm">
+                      <.link
+                        navigate={~p"/settings/imports/#{import_record.id}"}
+                        class="text-[var(--color-accent)] hover:underline"
+                      >
+                        Details
+                      </.link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
         </div>
       </.settings_shell>
     </Layouts.app>

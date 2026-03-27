@@ -677,10 +677,15 @@ defmodule Kith.Imports.Sources.Monica do
 
     Enum.reduce(photos, contact, fn photo_data, current_contact ->
       file_name = photo_data["original_filename"] || "photo.jpg"
-      {storage_key, file_size, content_hash} = resolve_photo_storage(current_contact, photo_data, file_name)
+
+      {storage_key, file_size, content_hash} =
+        resolve_photo_storage(current_contact, photo_data, file_name)
 
       if content_hash && Contacts.photo_exists_by_hash?(current_contact.id, content_hash) do
-        Logger.debug("[Monica Import] Skipping duplicate photo for #{current_contact.first_name}: #{content_hash}")
+        Logger.debug(
+          "[Monica Import] Skipping duplicate photo for #{current_contact.first_name}: #{content_hash}"
+        )
+
         current_contact
       else
         attrs = %{
@@ -697,7 +702,10 @@ defmodule Kith.Imports.Sources.Monica do
             maybe_set_avatar(current_contact, photo, storage_key)
 
           {:error, reason} ->
-            Logger.warning("[Monica Import] Photo for #{current_contact.first_name}: #{inspect(reason)}")
+            Logger.warning(
+              "[Monica Import] Photo for #{current_contact.first_name}: #{inspect(reason)}"
+            )
+
             current_contact
         end
       end
