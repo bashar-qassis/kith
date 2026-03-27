@@ -36,7 +36,7 @@ defmodule Kith.VCard.Serializer do
     ]
     |> List.flatten()
     |> Enum.reject(&is_nil/1)
-    |> Enum.join(@crlf)
+    |> Enum.map_join(@crlf, &fold_line/1)
     |> Kernel.<>(@crlf)
   end
 
@@ -172,6 +172,26 @@ defmodule Kith.VCard.Serializer do
     ]
 
     "ADR#{type_param}:" <> Enum.join(components, ";")
+  end
+
+  # ── Line Folding (RFC 2426 §2.6) ──────────────────────────────────────
+
+  # Lines longer than 75 octets MUST be folded with CRLF + space.
+  defp fold_line(line) when byte_size(line) <= 75, do: line
+
+  defp fold_line(line) do
+    fold_line(line, 75, [])
+    |> Enum.reverse()
+    |> Enum.join("\r\n ")
+  end
+
+  defp fold_line(<<>>, _max, acc), do: acc
+
+  defp fold_line(rest, max, acc) do
+    size = min(max, byte_size(rest))
+    <<chunk::binary-size(size), remaining::binary>> = rest
+    # Continue lines use 74 octets (75 minus the leading space)
+    fold_line(remaining, 74, [chunk | acc])
   end
 
   # ── Escaping ───────────────────────────────────────────────────────────

@@ -126,6 +126,110 @@ defmodule KithWeb.DAV.ReportTest do
     end
   end
 
+  # ── RFC 6578 §3 — incremental sync-collection ──────────────────────────
+
+  describe "RFC 6578 §3 — incremental sync-collection" do
+    test "sync with valid token returns only modified contacts",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Existing"})
+
+      # Get initial sync token
+      conn1 =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      [token] =
+        Regex.run(~r/<d:sync-token>([^<]+)<\/d:sync-token>/, conn1.resp_body,
+          capture: :all_but_first
+        )
+
+      # Wait and create a new contact
+      Process.sleep(1100)
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "NewAfterSync"})
+
+      # Incremental sync with the token
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>#{token}</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn2.status == 207
+      assert conn2.resp_body =~ "NewAfterSync"
+      refute conn2.resp_body =~ "Existing"
+    end
+
+    test "sync reports deleted contacts with 404 status",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id, %{first_name: "ToDelete"})
+
+      # Get initial sync token
+      conn1 =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      [token] =
+        Regex.run(~r/<d:sync-token>([^<]+)<\/d:sync-token>/, conn1.resp_body,
+          capture: :all_but_first
+        )
+
+      # Wait and delete the contact
+      Process.sleep(1100)
+      {:ok, _} = Contacts.soft_delete_contact(contact)
+
+      # Incremental sync
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>#{token}</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn2.status == 207
+      assert conn2.resp_body =~ "kith-contact-#{contact.id}.vcf"
+      assert conn2.resp_body =~ "404 Not Found"
+    end
+  end
+
+  # ── RFC 6352 §8.6 — addressbook-query ──────────────────────────────────
+
+  describe "RFC 6352 §8.6 — addressbook-query REPORT" do
+    test "returns contacts matching FN filter",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Alice", last_name: "Smith"})
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Bob", last_name: "Jones"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <card:addressbook-query xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+        <card:filter>
+          <card:prop-filter name="FN">
+            <card:text-match match-type="contains">Alice</card:text-match>
+          </card:prop-filter>
+        </card:filter>
+      </card:addressbook-query>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "Alice"
+      refute conn.resp_body =~ "Bob"
+    end
+  end
+
   # ── Unsupported REPORT types ────────────────────────────────────────────
 
   describe "RFC 6352 — unsupported REPORT types" do

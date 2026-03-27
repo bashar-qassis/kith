@@ -33,8 +33,9 @@ defmodule KithWeb.Router do
   end
 
   # Well-known URLs for DAV client auto-discovery (RFC 6764)
-  scope "/.well-known", KithWeb do
-    get "/carddav", WellKnownController, :carddav
+  # Uses forward (not get) so PROPFIND and other methods are handled too
+  scope "/.well-known" do
+    forward "/carddav", Kith.DAV.WellKnownCardDAVPlug
   end
 
   # CardDAV server — handles PROPFIND, REPORT, GET, PUT, DELETE via plug

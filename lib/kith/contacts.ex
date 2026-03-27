@@ -1310,10 +1310,14 @@ defmodule Kith.Contacts do
   end
 
   defp create_imported_contact_fields(contact, account_id, fields, protocol) do
-    # Find or use the first contact field type matching the protocol
+    # Find the first contact field type matching the protocol.
+    # Seeds store protocols with scheme separator (e.g., "mailto:", "tel:", "https://")
+    # while code passes bare scheme names ("mailto", "tel", "https"), so use LIKE.
+    protocol_pattern = protocol <> "%"
+
     field_type =
       ContactFieldType
-      |> where([t], t.protocol == ^protocol)
+      |> where([t], like(t.protocol, ^protocol_pattern))
       |> where([t], is_nil(t.account_id) or t.account_id == ^account_id)
       |> order_by([t], asc: t.position)
       |> limit(1)
@@ -1332,6 +1336,55 @@ defmodule Kith.Contacts do
         |> Repo.insert!()
       end)
     end
+  end
+
+  @doc """
+  Replaces all contact fields and addresses for a contact with data from
+  a parsed vCard. Used by the CardDAV server where PUT replaces the entire
+  resource representation.
+
+  `nested_data` should contain `:emails`, `:phones`, `:urls`, `:addresses` lists,
+  each with `%{value: ..., label: ...}` entries (addresses have full address maps).
+  """
+  def replace_contact_children(contact, account_id, nested_data) do
+    Repo.transaction(fn ->
+      from(cf in ContactField, where: cf.contact_id == ^contact.id) |> Repo.delete_all()
+      from(a in Address, where: a.contact_id == ^contact.id) |> Repo.delete_all()
+
+      create_imported_contact_fields(contact, account_id, nested_data.emails, "mailto")
+      create_imported_contact_fields(contact, account_id, nested_data.phones, "tel")
+      create_imported_contact_fields(contact, account_id, nested_data.urls, "https")
+
+      Enum.each(nested_data.addresses, fn addr ->
+        %Address{}
+        |> Address.changeset(Map.merge(addr, %{contact_id: contact.id, account_id: account_id}))
+        |> Repo.insert!()
+      end)
+
+      :ok
+    end)
+  end
+
+  @doc """
+  Lists contacts modified since the given timestamp.
+  Used by CardDAV sync-collection REPORT for incremental sync.
+  """
+  def list_contacts_modified_since(account_id, %DateTime{} = since) do
+    Contact
+    |> scope_active(account_id)
+    |> where([c], c.updated_at > ^since)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists contacts soft-deleted since the given timestamp.
+  Used by CardDAV sync-collection REPORT to report deletions.
+  """
+  def list_contacts_deleted_since(account_id, %DateTime{} = since) do
+    Contact
+    |> scope_to_account(account_id)
+    |> where([c], not is_nil(c.deleted_at) and c.deleted_at > ^since)
+    |> Repo.all()
   end
 
   # ── Contact Merge ──────────────────────────────────────────────────────

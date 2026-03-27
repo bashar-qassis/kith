@@ -109,11 +109,37 @@ defmodule KithWeb.DAV.TestHelpers do
     user = Kith.AccountsFixtures.user_fixture()
     scope = Kith.Accounts.Scope.for_user(user)
 
+    # Ensure global ContactFieldTypes exist for DAV contact field round-trips
+    ensure_contact_field_types()
+
     %{
       conn: conn,
       user: user,
       scope: scope,
       account_id: user.account.id
     }
+  end
+
+  defp ensure_contact_field_types do
+    alias Kith.Contacts.ContactFieldType
+    alias Kith.Repo
+    import Ecto.Query
+
+    # Seeds store protocols with colons ("mailto:", "tel:", "https://").
+    # Only insert if no types exist for each protocol scheme.
+    for {name, protocol, seeded} <- [
+          {"Email", "mailto", "mailto:"},
+          {"Phone", "tel", "tel:"},
+          {"Website", "https", "https://"}
+        ] do
+      unless Repo.one(
+               from(t in ContactFieldType,
+                 where: like(t.protocol, ^"#{protocol}%"),
+                 limit: 1
+               )
+             ) do
+        Repo.insert!(%ContactFieldType{name: name, protocol: seeded, position: 0})
+      end
+    end
   end
 end

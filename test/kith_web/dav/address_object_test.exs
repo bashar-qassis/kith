@@ -365,4 +365,203 @@ defmodule KithWeb.DAV.AddressObjectTest do
       assert conn.status == 404
     end
   end
+
+  # ── RFC 7232 §3 — Conditional requests (If-Match / If-None-Match) ─────
+
+  describe "RFC 7232 §3 — conditional requests" do
+    test "PUT with correct If-Match succeeds (204)",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      # GET to retrieve ETag
+      conn_get = authed_dav(context, "GET", contact_path(contact))
+      [etag] = get_resp_header(conn_get, "etag")
+
+      vcard = build_vcard("Updated", "Person")
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-match", etag)
+        |> dav_request("PUT", contact_path(contact), vcard)
+
+      assert conn.status == 204
+    end
+
+    test "PUT with wrong If-Match returns 412 Precondition Failed",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      vcard = build_vcard("Updated", "Person")
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-match", "\"stale-etag-value\"")
+        |> dav_request("PUT", contact_path(contact), vcard)
+
+      assert conn.status == 412
+    end
+
+    test "PUT without If-Match header proceeds normally",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      vcard = build_vcard("Updated", "Person")
+      conn = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn.status == 204
+    end
+
+    test "DELETE with correct If-Match succeeds (204)",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      conn_get = authed_dav(context, "GET", contact_path(contact))
+      [etag] = get_resp_header(conn_get, "etag")
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-match", etag)
+        |> dav_request("DELETE", contact_path(contact))
+
+      assert conn.status == 204
+    end
+
+    test "DELETE with wrong If-Match returns 412",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-match", "\"stale-etag\"")
+        |> dav_request("DELETE", contact_path(contact))
+
+      assert conn.status == 412
+    end
+  end
+
+  # ── Round-trip contact fields via PUT/GET ──────────────────────────────
+
+  describe "PUT/GET round-trip for contact fields" do
+    test "PUT vCard with email and phone, GET returns them",
+         context do
+      vcard =
+        build_vcard("Jane", "Doe",
+          email: "jane@example.com",
+          phone: "+15551234567"
+        )
+
+      path = "/dav/addressbooks/default/kith-contact-new-1.vcf"
+      conn = authed_dav(context, "PUT", path, vcard)
+      assert conn.status == 201
+
+      # The server assigns its own UID, so we need to find the contact
+      # via PROPFIND to get its actual path
+      conn_list =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "1")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      # Extract the contact href from PROPFIND response
+      [href] =
+        Regex.scan(
+          ~r{<d:href>(/dav/addressbooks/default/kith-contact-\d+\.vcf)</d:href>},
+          conn_list.resp_body,
+          capture: :all_but_first
+        )
+        |> List.flatten()
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.status == 200
+      assert conn_get.resp_body =~ "jane@example.com"
+      assert conn_get.resp_body =~ "+15551234567"
+    end
+
+    test "PUT update replaces contact fields (not appends)",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+
+      # First PUT with one email
+      vcard1 = build_vcard("Jane", "Doe", email: "old@example.com")
+      conn1 = authed_dav(context, "PUT", contact_path(contact), vcard1)
+      assert conn1.status == 204
+
+      # Second PUT with different email
+      vcard2 = build_vcard("Jane", "Doe", email: "new@example.com")
+
+      conn2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("PUT", contact_path(contact), vcard2)
+
+      assert conn2.status == 204
+
+      # GET should show only the new email, not both
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      assert conn_get.resp_body =~ "new@example.com"
+      refute conn_get.resp_body =~ "old@example.com"
+    end
+  end
+
+  # ── RFC 6352 §5.1 — PUT Content-Type validation ───────────────────────
+
+  describe "RFC 6352 §5.1 — PUT Content-Type validation" do
+    test "PUT with wrong Content-Type returns 415 Unsupported Media Type", context do
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("content-type", "application/json")
+        |> dispatch(
+          KithWeb.Endpoint,
+          "PUT",
+          "/dav/addressbooks/default/kith-contact-new.vcf",
+          "{}"
+        )
+
+      assert conn.status == 415
+    end
+
+    test "PUT with invalid vCard body returns 422 with precondition error", context do
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("content-type", "text/vcard")
+        |> dispatch(
+          KithWeb.Endpoint,
+          "PUT",
+          "/dav/addressbooks/default/kith-contact-new.vcf",
+          "not a vcard"
+        )
+
+      assert conn.status == 422
+      assert conn.resp_body =~ "valid-address-data"
+    end
+  end
+
+  # ── RFC 2426 §2.6 — vCard line folding ─────────────────────────────────
+
+  describe "RFC 2426 §2.6 — vCard line folding" do
+    test "vCard lines longer than 75 octets are folded",
+         %{account_id: account_id} = context do
+      long_desc = String.duplicate("A", 200)
+
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Test",
+          description: long_desc
+        })
+
+      conn = authed_dav(context, "GET", contact_path(contact))
+      assert conn.status == 200
+      # Folded lines have CRLF followed by a space
+      assert conn.resp_body =~ "\r\n "
+    end
+  end
 end

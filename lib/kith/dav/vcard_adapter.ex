@@ -28,8 +28,12 @@ defmodule Kith.DAV.VCardAdapter do
   end
 
   @doc """
-  Parses a vCard string into a map of contact attributes suitable for
-  `Contacts.create_contact/2` or `Contacts.update_contact/2`.
+  Parses a vCard string into scalar attrs and nested data.
+
+  Returns `{scalar_attrs, nested_data}` on success or `:error` on parse failure.
+
+  `scalar_attrs` is a map suitable for `Contacts.create_contact/2`.
+  `nested_data` contains `:emails`, `:phones`, `:urls`, `:addresses`, `:uid`.
   """
   def vcard_to_attrs(vcard_string) do
     case Parser.parse(vcard_string) do
@@ -51,12 +55,23 @@ defmodule Kith.DAV.VCardAdapter do
           end
 
         # Strip nil values to avoid overwriting existing data with nils
-        attrs
-        |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-        |> Map.new()
+        scalar_attrs =
+          attrs
+          |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+          |> Map.new()
+
+        nested_data = %{
+          emails: parsed.emails || [],
+          phones: parsed.phones || [],
+          urls: parsed.urls || [],
+          addresses: parsed.addresses || [],
+          uid: parsed.uid
+        }
+
+        {scalar_attrs, nested_data}
 
       _ ->
-        %{}
+        :error
     end
   end
 

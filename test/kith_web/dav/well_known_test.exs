@@ -8,8 +8,10 @@ defmodule KithWeb.DAV.WellKnownTest do
   """
   use KithWeb.ConnCase, async: true
 
+  import KithWeb.DAV.TestHelpers
+
   describe "RFC 6764 §5 — well-known CardDAV discovery" do
-    test "MUST redirect with a 3xx status (uses 301)", %{conn: conn} do
+    test "GET MUST redirect with a 3xx status (uses 301)", %{conn: conn} do
       conn = get(conn, "/.well-known/carddav")
       assert conn.status in 300..399
     end
@@ -30,6 +32,14 @@ defmodule KithWeb.DAV.WellKnownTest do
       # This server allows unauthenticated discovery.
       conn = get(conn, "/.well-known/carddav")
       refute conn.status == 401
+    end
+
+    test "PROPFIND MUST also redirect (some clients use PROPFIND for discovery)",
+         %{conn: conn} do
+      conn = dav_request(conn, "PROPFIND", "/.well-known/carddav")
+      assert conn.status in 300..399
+      [location] = get_resp_header(conn, "location")
+      assert location == "/dav/principals/"
     end
   end
 end

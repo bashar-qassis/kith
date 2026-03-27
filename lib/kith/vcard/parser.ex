@@ -71,6 +71,7 @@ defmodule Kith.VCard.Parser do
       company: nil,
       occupation: nil,
       description: nil,
+      uid: nil,
       emails: [],
       phones: [],
       urls: [],
@@ -113,6 +114,9 @@ defmodule Kith.VCard.Parser do
 
   defp apply_property(acc, "NOTE", _params, value),
     do: %{acc | description: unescape(value)}
+
+  defp apply_property(acc, "UID", _params, value),
+    do: %{acc | uid: unescape(value)}
 
   defp apply_property(acc, "TEL", params, value) do
     label = extract_type(params)

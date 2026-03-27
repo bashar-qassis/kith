@@ -416,4 +416,263 @@ defmodule KithWeb.DAV.PropfindTest do
       assert conn.status == 404
     end
   end
+
+  # ── RFC 5397 §3 — current-user-principal on all resources ──────────────
+
+  describe "RFC 5397 §3 — current-user-principal SHOULD be on all DAV resources" do
+    test "principal resource MUST include current-user-principal", context do
+      conn = authed_dav(context, "PROPFIND", "/dav/principals/")
+      assert conn.status == 207
+      assert conn.resp_body =~ "current-user-principal"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+
+    test "home set resource MUST include current-user-principal", context do
+      conn = authed_dav(context, "PROPFIND", "/dav/addressbooks/", propfind_body())
+      assert conn.status == 207
+      assert conn.resp_body =~ "current-user-principal"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+
+    test "addressbook collection MUST include current-user-principal", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "current-user-principal"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+
+    test "individual contact MUST include current-user-principal",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      conn = authed_dav(context, "PROPFIND", contact_path(contact))
+      assert conn.status == 207
+      assert conn.resp_body =~ "current-user-principal"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+  end
+
+  # ── Defensive .well-known handling under /dav/ ─────────────────────────
+
+  describe "defensive .well-known handling under /dav/" do
+    test "PROPFIND to /dav/principals/.well-known/carddav redirects", context do
+      conn = authed_dav(context, "PROPFIND", "/dav/principals/.well-known/carddav")
+      assert conn.status == 301
+      [location] = get_resp_header(conn, "location")
+      assert location == "/dav/principals/"
+    end
+
+    test "PROPFIND to /dav/.well-known/carddav redirects", context do
+      conn = authed_dav(context, "PROPFIND", "/dav/.well-known/carddav")
+      assert conn.status == 301
+      [location] = get_resp_header(conn, "location")
+      assert location == "/dav/principals/"
+    end
+  end
+
+  # ── Thunderbird-style discovery sequence ───────────────────────────────
+
+  describe "Thunderbird-style discovery sequence" do
+    test "completes discovery from well-known through to addressbook", context do
+      # Step 1: PROPFIND /.well-known/carddav should redirect
+      conn1 = dav_request(build_conn(), "PROPFIND", "/.well-known/carddav")
+      assert conn1.status == 301
+      [location1] = get_resp_header(conn1, "location")
+      assert location1 == "/dav/principals/"
+
+      # Step 2: Follow redirect — PROPFIND /dav/principals/
+      conn2 = authed_dav(context, "PROPFIND", location1)
+      assert conn2.status == 207
+      assert conn2.resp_body =~ "current-user-principal"
+      assert conn2.resp_body =~ "/dav/principals/"
+      assert conn2.resp_body =~ "addressbook-home-set"
+      assert conn2.resp_body =~ "/dav/addressbooks/"
+
+      # Step 3: PROPFIND addressbook home set
+      conn3 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("PROPFIND", "/dav/addressbooks/", propfind_body())
+
+      assert conn3.status == 207
+      assert conn3.resp_body =~ "/dav/addressbooks/default/"
+
+      # Step 4: PROPFIND the addressbook collection
+      conn4 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn4.status == 207
+      assert conn4.resp_body =~ "getctag"
+      assert conn4.resp_body =~ "addressbook"
+
+      # Step 5: Thunderbird fallback — .well-known relative to configured URL
+      conn5 = authed_dav(context, "PROPFIND", "/dav/principals/.well-known/carddav")
+      assert conn5.status == 301
+      [location5] = get_resp_header(conn5, "location")
+      assert location5 == "/dav/principals/"
+    end
+  end
+
+  # ── Tier 3+4 — RFC 3744, RFC 6352, RFC 4918 additional properties ────
+
+  describe "RFC 3744 §4.2 — principal-URL property" do
+    test "principal resource includes principal-URL", context do
+      conn = authed_dav(context, "PROPFIND", "/dav/principals/")
+      assert conn.resp_body =~ "principal-URL"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+  end
+
+  describe "RFC 3744 §5.1 — owner property" do
+    test "addressbook collection includes owner property", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.resp_body =~ "owner"
+      assert conn.resp_body =~ "/dav/principals/"
+    end
+  end
+
+  describe "RFC 3744 §5.4 — current-user-privilege-set" do
+    test "addressbook collection advertises read and write privileges", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.resp_body =~ "current-user-privilege-set"
+      assert conn.resp_body =~ "<d:read/>"
+      assert conn.resp_body =~ "<d:write/>"
+    end
+  end
+
+  describe "RFC 6352 §6.2.1 — max-resource-size" do
+    test "addressbook collection advertises max-resource-size", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.resp_body =~ "max-resource-size"
+    end
+  end
+
+  describe "RFC 6352 §6.2.3 — supported-collation-set" do
+    test "addressbook collection advertises supported collation", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "0")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.resp_body =~ "supported-collation-set"
+      assert conn.resp_body =~ "i;unicode-casemap"
+    end
+  end
+
+  describe "RFC 4918 §9.1.4 — Depth: infinity" do
+    test "MUST return 403 Forbidden for Depth: infinity", context do
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "infinity")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      assert conn.status == 403
+      assert conn.resp_body =~ "propfind-finite-depth"
+    end
+  end
+
+  describe "RFC 4918 §8.2 — PROPPATCH stub" do
+    test "returns 207 with 404 propstat for live properties", context do
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:propertyupdate xmlns:d="DAV:">
+        <d:set><d:prop><d:displayname>New Name</d:displayname></d:prop></d:set>
+      </d:propertyupdate>
+      """
+
+      conn = authed_dav(context, "PROPPATCH", "/dav/addressbooks/default/", body)
+      assert conn.status == 207
+      assert conn.resp_body =~ "404 Not Found"
+    end
+  end
+
+  # ── RFC 4918 §9.1 — PROPFIND request body filtering ───────────────────
+
+  describe "RFC 4918 §9.1 — PROPFIND specific property requests" do
+    test "requesting specific prop returns only that property", context do
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:propfind xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:prop><d:getetag/></d:prop>
+      </d:propfind>
+      """
+
+      contact = ContactsFixtures.contact_fixture(context.account_id)
+
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("PROPFIND", contact_path(contact), body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "getetag"
+      # Should NOT include unrequested properties
+      refute conn.resp_body =~ "getcontenttype"
+      refute conn.resp_body =~ "getlastmodified"
+    end
+
+    test "requesting unknown property returns 404 propstat", context do
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:propfind xmlns:d="DAV:">
+        <d:prop><d:getetag/><d:unknown-property/></d:prop>
+      </d:propfind>
+      """
+
+      contact = ContactsFixtures.contact_fixture(context.account_id)
+
+      conn =
+        context.conn
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("PROPFIND", contact_path(contact), body)
+
+      assert conn.status == 207
+      # Found prop in 200 propstat
+      assert conn.resp_body =~ "getetag"
+      # Unknown prop in 404 propstat
+      assert conn.resp_body =~ "404 Not Found"
+    end
+
+    test "propname request returns empty property elements", context do
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:propfind xmlns:d="DAV:">
+        <d:propname/>
+      </d:propfind>
+      """
+
+      conn = authed_dav(context, "PROPFIND", "/dav/principals/", body)
+      assert conn.status == 207
+      # Should have empty elements (self-closing tags)
+      assert conn.resp_body =~ "<d:current-user-principal/>"
+      assert conn.resp_body =~ "<d:resourcetype/>"
+      assert conn.resp_body =~ "<card:addressbook-home-set/>"
+      # Empty elements should NOT contain nested href values
+      refute conn.resp_body =~ "<d:current-user-principal><d:href>"
+    end
+  end
 end
