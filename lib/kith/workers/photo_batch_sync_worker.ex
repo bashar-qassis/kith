@@ -42,6 +42,7 @@ defmodule Kith.Workers.PhotoBatchSyncWorker do
 
         if map_size(pending) == 0 do
           Logger.info("Import #{import.id}: no pending photos to sync")
+          save_sync_summary(import, %{synced: [], failed: [], not_found: []})
           maybe_cleanup_api_key(import)
           :ok
         else
