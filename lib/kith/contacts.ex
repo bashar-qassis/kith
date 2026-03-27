@@ -32,7 +32,7 @@ defmodule Kith.Contacts do
 
   # Suppress Ecto.Multi opaque type warnings (Dialyzer false positives)
   @dialyzer [
-    {:nowarn_function, set_cover_photo: 1},
+    {:nowarn_function, set_avatar: 2},
     {:nowarn_function, confirm_immich_link: 3},
     {:nowarn_function, unlink_immich: 1},
     {:nowarn_function, merge_tags: 3},
@@ -567,21 +567,38 @@ defmodule Kith.Contacts do
     |> Repo.insert()
   end
 
-  def delete_photo(%Photo{} = photo) do
-    Repo.delete(photo)
+  def photo_exists_by_hash?(contact_id, content_hash) when is_binary(content_hash) do
+    Photo
+    |> where([p], p.contact_id == ^contact_id and p.content_hash == ^content_hash)
+    |> Repo.exists?()
   end
 
-  def set_cover_photo(%Photo{} = photo) do
-    Ecto.Multi.new()
-    |> Ecto.Multi.update_all(
-      :unset_cover,
-      from(p in Photo,
-        where: p.contact_id == ^photo.contact_id and p.is_cover == true and p.id != ^photo.id
-      ),
-      set: [is_cover: false]
-    )
-    |> Ecto.Multi.update(:set_cover, Ecto.Changeset.change(photo, is_cover: true))
-    |> Repo.transaction()
+  def photo_exists_by_hash?(_contact_id, _content_hash), do: false
+
+  def delete_photo(%Photo{} = photo) do
+    contact = Repo.get!(Contact, photo.contact_id)
+
+    with {:ok, _} <- Repo.delete(photo) do
+      if contact.avatar == Kith.Storage.url(photo.storage_key) do
+        contact |> Ecto.Changeset.change(avatar: nil) |> Repo.update!()
+      end
+
+      {:ok, photo}
+    end
+  end
+
+  def set_avatar(%Contact{} = contact, %Photo{} = photo) do
+    avatar_url = Kith.Storage.url(photo.storage_key)
+
+    contact
+    |> Ecto.Changeset.change(avatar: avatar_url)
+    |> Repo.update()
+  end
+
+  def clear_avatar(%Contact{} = contact) do
+    contact
+    |> Ecto.Changeset.change(avatar: nil)
+    |> Repo.update()
   end
 
   ## Reference Data

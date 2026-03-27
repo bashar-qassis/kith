@@ -158,6 +158,11 @@ defmodule KithWeb.ContactLive.Show do
     {:noreply, assign(socket, :contact, updated_contact)}
   end
 
+  @impl true
+  def handle_info({:avatar_updated, updated_contact}, socket) do
+    {:noreply, assign(socket, :contact, updated_contact)}
+  end
+
   defp compute_age(birthdate) when is_struct(birthdate, Date) do
     today = Date.utc_today()
     years = today.year - birthdate.year
@@ -204,4 +209,5 @@ defmodule KithWeb.ContactLive.Show do
       end
     end)
   end
+
 end
