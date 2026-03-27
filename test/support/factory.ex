@@ -389,8 +389,7 @@ defmodule Kith.Factory do
       file_name: sequence(:photo_file, &"photo_#{&1}.jpg"),
       storage_key: sequence(:photo_key, &"contacts/photos/#{&1}.jpg"),
       file_size: 12345,
-      content_type: "image/jpeg",
-      is_cover: false
+      content_type: "image/jpeg"
     }
   end
 

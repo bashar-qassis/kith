@@ -12,7 +12,7 @@ defmodule Kith.Workers.ImportSourceWorker do
   alias Kith.Imports
   alias Kith.Storage
   alias Kith.Workers.ApiSupplementWorker
-  alias Kith.Workers.PhotoSyncWorker
+  alias Kith.Workers.PhotoBatchSyncWorker
 
   @dialyzer {:nowarn_function, maybe_enqueue_first_met_jobs: 2}
 
@@ -79,49 +79,41 @@ defmodule Kith.Workers.ImportSourceWorker do
       "Import #{import.id}: #{length(import_records)} import records, api_options=#{inspect(import.api_options)}"
     )
 
-    maybe_enqueue_photo_sync_jobs(import, import_records)
+    maybe_enqueue_photo_sync_job(import)
     maybe_enqueue_first_met_jobs(import, import_records)
   end
 
-  defp maybe_enqueue_photo_sync_jobs(import, import_records) do
-    unless import.api_options["photos"] || import.api_options[:photos], do: :skip
+  defp maybe_enqueue_photo_sync_job(import) do
+    if import.api_options["photos"] || import.api_options[:photos] do
+      Logger.info("Import #{import.id}: enqueuing batch photo sync job")
 
-    photo_records = Enum.filter(import_records, &(&1.source_entity_type == "photo"))
-    Logger.info("Import #{import.id}: enqueuing #{length(photo_records)} photo sync jobs")
-
-    enqueue_batched_jobs(photo_records, fn rec, delay ->
-      %{
-        import_id: import.id,
-        photo_id: rec.local_entity_id,
-        source_photo_id: rec.source_entity_id
-      }
-      |> PhotoSyncWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+      %{import_id: import.id}
+      |> PhotoBatchSyncWorker.new()
       |> Oban.insert()
-    end)
+    end
   end
 
   defp maybe_enqueue_first_met_jobs(import, import_records) do
-    unless import.api_options["first_met_details"] || import.api_options[:first_met_details],
-      do: :skip
+    if import.api_options["first_met_details"] || import.api_options[:first_met_details] do
+      contacts_with_first_met = extract_first_met_uuids(import)
 
-    contacts_with_first_met = extract_first_met_uuids(import)
+      contact_records =
+        Enum.filter(import_records, fn rec ->
+          rec.source_entity_type == "contact" and
+            MapSet.member?(contacts_with_first_met, rec.source_entity_id)
+        end)
 
-    contact_records =
-      Enum.filter(import_records, fn rec ->
-        rec.source_entity_type == "contact" and
-          MapSet.member?(contacts_with_first_met, rec.source_entity_id)
+      enqueue_batched_jobs(contact_records, fn rec, delay ->
+        %{
+          import_id: import.id,
+          contact_id: rec.local_entity_id,
+          source_contact_id: rec.source_entity_id,
+          key: "first_met_details"
+        }
+        |> ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
+        |> Oban.insert()
       end)
-
-    enqueue_batched_jobs(contact_records, fn rec, delay ->
-      %{
-        import_id: import.id,
-        contact_id: rec.local_entity_id,
-        source_contact_id: rec.source_entity_id,
-        key: "first_met_details"
-      }
-      |> ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
-      |> Oban.insert()
-    end)
+    end
   end
 
   defp extract_first_met_uuids(import) do

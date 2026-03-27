@@ -107,7 +107,7 @@ defmodule Kith.Exports do
       filename: p.file_name,
       file_size: p.file_size,
       content_type: p.content_type,
-      is_cover: p.is_cover
+      is_private: p.is_private
     }
   end
 

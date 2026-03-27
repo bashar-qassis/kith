@@ -3,10 +3,8 @@ defmodule KithWeb.ContactLive.Index do
 
   alias Kith.AuditLogs
   alias Kith.Contacts
-  alias Kith.Contacts.Photo
   alias Kith.DuplicateDetection
   alias Kith.Policy
-  alias Kith.Storage
   alias Kith.Workers.DuplicateDetectionWorker
 
   @sort_options %{
@@ -351,7 +349,7 @@ defmodule KithWeb.ContactLive.Index do
       deceased: socket.assigns.show_deceased,
       favorites_only: socket.assigns.show_favorites_only,
       tag_ids: socket.assigns.selected_tag_ids,
-      preload: [:tags, :photos]
+      preload: [:tags]
     ]
   end
 
@@ -388,16 +386,6 @@ defmodule KithWeb.ContactLive.Index do
   defp toggle_tag_id(selected, id) do
     if id in selected, do: List.delete(selected, id), else: [id | selected]
   end
-
-  defp contact_photo_url(%{photos: photos}) when is_list(photos) do
-    photo =
-      Enum.find(photos, &(&1.is_cover && !Photo.pending_sync?(&1))) ||
-        Enum.find(photos, &(!Photo.pending_sync?(&1)))
-
-    if photo, do: Storage.url(photo.storage_key)
-  end
-
-  defp contact_photo_url(_), do: nil
 
   defp days_until_deletion(deleted_at) do
     DateTime.diff(DateTime.utc_now(), deleted_at, :day) |> then(&(30 - &1))

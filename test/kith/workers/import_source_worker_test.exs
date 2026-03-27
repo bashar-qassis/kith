@@ -63,7 +63,10 @@ defmodule Kith.Workers.ImportSourceWorkerTest do
       assert updated.summary["contacts"] == 2
 
       # Verify photo sync jobs were enqueued
-      assert_enqueued(worker: Kith.Workers.PhotoSyncWorker, args: %{import_id: import_job.id})
+      assert_enqueued(
+        worker: Kith.Workers.PhotoBatchSyncWorker,
+        args: %{import_id: import_job.id}
+      )
     end
 
     test "marks import as failed on file not found", %{account_id: account_id, user: user} do

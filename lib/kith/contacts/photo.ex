@@ -7,8 +7,8 @@ defmodule Kith.Contacts.Photo do
     field :storage_key, :string
     field :file_size, :integer
     field :content_type, :string
-    field :is_cover, :boolean, default: false
     field :is_private, :boolean, default: false
+    field :content_hash, :string
 
     belongs_to :contact, Kith.Contacts.Contact
     belongs_to :account, Kith.Accounts.Account
@@ -24,12 +24,13 @@ defmodule Kith.Contacts.Photo do
       :storage_key,
       :file_size,
       :content_type,
-      :is_cover,
       :contact_id,
       :account_id,
-      :is_private
+      :is_private,
+      :content_hash
     ])
     |> validate_required([:file_name, :storage_key, :file_size, :content_type])
+    |> unique_constraint([:contact_id, :content_hash], name: :photos_contact_content_hash_idx)
   end
 
   @doc "Returns true if the photo is awaiting sync from an external source."

@@ -68,6 +68,19 @@ defmodule Kith.Imports do
     |> Repo.exists?()
   end
 
+  def list_imports(account_id) do
+    Import
+    |> where([i], i.account_id == ^account_id)
+    |> order_by([i], desc: i.inserted_at)
+    |> Repo.all()
+  end
+
+  def update_sync_summary(%Import{} = import, sync_summary) when is_map(sync_summary) do
+    import
+    |> Ecto.Changeset.change(sync_summary: sync_summary)
+    |> Repo.update()
+  end
+
   ## Source Resolution
 
   def resolve_source(source) when is_binary(source) do
