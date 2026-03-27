@@ -653,7 +653,11 @@ defmodule Kith.SettingsMultitenancyTest do
 
   defp create_user_in_account(account_id, email, role) do
     %User{account_id: account_id}
-    |> User.registration_changeset(%{email: email, password: "SecurePass123!", tos_accepted: true})
+    |> User.registration_changeset(%{
+      email: email,
+      password: "SecurePass123!",
+      tos_accepted: true
+    })
     |> Ecto.Changeset.put_change(:role, role)
     |> Ecto.Changeset.put_change(:confirmed_at, DateTime.utc_now(:second))
     |> Repo.insert()

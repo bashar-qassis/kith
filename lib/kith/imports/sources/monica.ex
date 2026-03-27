@@ -677,10 +677,15 @@ defmodule Kith.Imports.Sources.Monica do
 
     Enum.reduce(photos, contact, fn photo_data, current_contact ->
       file_name = photo_data["original_filename"] || "photo.jpg"
-      {storage_key, file_size, content_hash} = resolve_photo_storage(current_contact, photo_data, file_name)
+
+      {storage_key, file_size, content_hash} =
+        resolve_photo_storage(current_contact, photo_data, file_name)
 
       if content_hash && Contacts.photo_exists_by_hash?(current_contact.id, content_hash) do
-        Logger.debug("[Monica Import] Skipping duplicate photo for #{current_contact.first_name}: #{content_hash}")
+        Logger.debug(
+          "[Monica Import] Skipping duplicate photo for #{current_contact.first_name}: #{content_hash}"
+        )
+
         current_contact
       else
         attrs = %{
@@ -697,7 +702,10 @@ defmodule Kith.Imports.Sources.Monica do
             maybe_set_avatar(current_contact, photo, storage_key)
 
           {:error, reason} ->
-            Logger.warning("[Monica Import] Photo for #{current_contact.first_name}: #{inspect(reason)}")
+            Logger.warning(
+              "[Monica Import] Photo for #{current_contact.first_name}: #{inspect(reason)}"
+            )
+
             current_contact
         end
       end
@@ -1044,9 +1052,14 @@ defmodule Kith.Imports.Sources.Monica do
   end
 
   defp deduplicate_by_uuid(entries) do
-    entries
-    |> Enum.group_by(& &1["uuid"])
-    |> Enum.map(fn {_uuid, group} -> merge_contact_entries(group) end)
+    {with_uuid, without_uuid} = Enum.split_with(entries, & &1["uuid"])
+
+    merged =
+      with_uuid
+      |> Enum.group_by(& &1["uuid"])
+      |> Enum.map(fn {_uuid, group} -> merge_contact_entries(group) end)
+
+    merged ++ without_uuid
   end
 
   defp merge_contact_entries([single]), do: single
@@ -1074,7 +1087,7 @@ defmodule Kith.Imports.Sources.Monica do
   defp deduplicate_values(values) do
     Enum.uniq_by(values, fn
       v when is_binary(v) -> v
-      %{"uuid" => uuid} -> uuid
+      %{"uuid" => uuid} when uuid != nil -> uuid
       other -> other
     end)
   end

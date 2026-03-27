@@ -43,57 +43,60 @@ defmodule KithWeb.ImportHistoryLive.Show do
     >
       <.settings_shell current_path={~p"/settings/imports"} current_scope={@current_scope}>
         <div class="space-y-6">
-        <div class="flex items-center gap-3">
-          <.link navigate={~p"/settings/imports"} class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
-            <.icon name="hero-arrow-left" class="size-5" />
-          </.link>
-          <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Import Details</h1>
-        </div>
+          <div class="flex items-center gap-3">
+            <.link
+              navigate={~p"/settings/imports"}
+              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            >
+              <.icon name="hero-arrow-left" class="size-5" />
+            </.link>
+            <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">Import Details</h1>
+          </div>
 
-        <%!-- Import metadata --%>
-        <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5 space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-            Import Info
-          </h2>
-          <dl class="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-            <.detail_item label="Source" value={source_label(@import.source)} />
-            <.detail_item label="File" value={@import.file_name || "—"} />
-            <.detail_item label="Status" value={@import.status} />
-            <.detail_item label="Date" value={format_date(@import.inserted_at)} />
-          </dl>
+          <%!-- Import metadata --%>
+          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5 space-y-3">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+              Import Info
+            </h2>
+            <dl class="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+              <.detail_item label="Source" value={source_label(@import.source)} />
+              <.detail_item label="File" value={@import.file_name || "—"} />
+              <.detail_item label="Status" value={@import.status} />
+              <.detail_item label="Date" value={format_date(@import.inserted_at)} />
+            </dl>
 
-          <%= if @import.summary do %>
-            <div class="border-t border-[var(--color-border)] pt-3 mt-3">
-              <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
-                Import Summary
-              </h3>
-              <dl class="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-4">
-                <.detail_item
-                  :for={{key, val} <- summary_items(@import.summary)}
-                  label={key}
-                  value={to_string(val)}
-                />
-              </dl>
-            </div>
-          <% end %>
-        </div>
-
-        <%!-- Photo sync section --%>
-        <%= if @import.sync_summary do %>
-          <.photo_sync_section sync={@import.sync_summary} />
-        <% else %>
-          <%= if @import.api_options && (@import.api_options["photos"] || @import.api_options[:photos]) do %>
-            <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5">
-              <h2 class="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-3">
-                Photo Sync
-              </h2>
-              <div class="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                <.icon name="hero-arrow-path" class="size-4 animate-spin" />
-                Photo sync in progress...
+            <%= if @import.summary do %>
+              <div class="border-t border-[var(--color-border)] pt-3 mt-3">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+                  Import Summary
+                </h3>
+                <dl class="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-4">
+                  <.detail_item
+                    :for={{key, val} <- summary_items(@import.summary)}
+                    label={key}
+                    value={to_string(val)}
+                  />
+                </dl>
               </div>
-            </div>
+            <% end %>
+          </div>
+
+          <%!-- Photo sync section --%>
+          <%= if @import.sync_summary do %>
+            <.photo_sync_section sync={@import.sync_summary} />
+          <% else %>
+            <%= if @import.api_options && (@import.api_options["photos"] || @import.api_options[:photos]) do %>
+              <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-3">
+                  Photo Sync
+                </h2>
+                <div class="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <.icon name="hero-arrow-path" class="size-4 animate-spin" />
+                  Photo sync in progress...
+                </div>
+              </div>
+            <% end %>
           <% end %>
-        <% end %>
         </div>
       </.settings_shell>
     </Layouts.app>
