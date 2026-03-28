@@ -88,6 +88,14 @@ defmodule Kith.DAV.XMLParser do
     {:ok, filters}
   end
 
+  @doc "Extracts the requested vCard version from an address-data element in a REPORT body."
+  def parse_requested_vcard_version(body) do
+    case Regex.run(~r{address-data[^>]*version="([^"]+)"}, body) do
+      [_, "4.0"] -> :v40
+      _ -> :v30
+    end
+  end
+
   # ── Private ────────────────────────────────────────────────────────────
 
   @known_props %{

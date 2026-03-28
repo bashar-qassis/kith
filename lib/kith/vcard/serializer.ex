@@ -1,10 +1,11 @@
 defmodule Kith.VCard.Serializer do
   @moduledoc """
-  Serializes a contact (with preloaded associations) into a vCard 3.0 string.
+  Serializes a contact (with preloaded associations) into a vCard string.
 
-  vCard 3.0 spec: RFC 2426
+  Supports vCard 3.0 (RFC 2426, default) and vCard 4.0 (RFC 6350).
+
   - Line endings: CRLF (\\r\\n)
-  - Property folding: at 75 octets (not implemented here — most modern parsers handle long lines)
+  - Property folding: at 75 octets
   - Structured values use semicolons as separators
   - Special characters (semicolons, commas, backslashes, newlines) must be escaped
   """
@@ -12,17 +13,24 @@ defmodule Kith.VCard.Serializer do
   @crlf "\r\n"
 
   @doc """
-  Serializes a single contact into a vCard 3.0 string.
+  Serializes a single contact into a vCard string.
+
+  Options:
+    - `:version` — `:v30` (default) for vCard 3.0, `:v40` for vCard 4.0
 
   The contact must have the following associations preloaded:
   - :addresses
   - :contact_fields (with :contact_field_type)
   - :gender
+  - :tags
+  - :relationships (with :relationship_type and :related_contact)
   """
-  def serialize(%{} = contact) do
+  def serialize(%{} = contact, opts \\ []) do
+    version = Keyword.get(opts, :version, :v30)
+
     [
       "BEGIN:VCARD",
-      "VERSION:3.0",
+      version_line(version),
       fn_line(contact),
       n_line(contact),
       nickname_line(contact),
@@ -30,6 +38,11 @@ defmodule Kith.VCard.Serializer do
       org_line(contact),
       title_line(contact),
       note_line(contact),
+      gender_line(contact, version),
+      categories_line(contact),
+      related_lines(contact, version),
+      rev_line(contact),
+      photo_line(contact, version),
       contact_field_lines(contact),
       address_lines(contact),
       "END:VCARD"
@@ -43,9 +56,14 @@ defmodule Kith.VCard.Serializer do
   @doc """
   Serializes multiple contacts into a single vCard file (concatenated blocks).
   """
-  def serialize_many(contacts) do
-    Enum.map_join(contacts, "", &serialize/1)
+  def serialize_many(contacts, opts \\ []) do
+    Enum.map_join(contacts, "", &serialize(&1, opts))
   end
+
+  # ── Version ───────────────────────────────────────────────────────────
+
+  defp version_line(:v30), do: "VERSION:3.0"
+  defp version_line(:v40), do: "VERSION:4.0"
 
   # ── Identity Fields ──────────────────────────────────────────────────────
 
@@ -64,8 +82,8 @@ defmodule Kith.VCard.Serializer do
   defp n_line(contact) do
     last = escape(contact.last_name || "")
     first = escape(contact.first_name || "")
-    # N: last;first;middle;prefix;suffix — we only have first/last
-    "N:#{last};#{first};;;"
+    middle = escape(Map.get(contact, :middle_name) || "")
+    "N:#{last};#{first};#{middle};;"
   end
 
   defp nickname_line(%{nickname: nil}), do: nil
@@ -89,6 +107,128 @@ defmodule Kith.VCard.Serializer do
   defp note_line(%{description: nil}), do: nil
   defp note_line(%{description: ""}), do: nil
   defp note_line(%{description: desc}), do: "NOTE:" <> escape(desc)
+
+  # ── REV ──────────────────────────────────────────────────────────────
+
+  defp rev_line(contact) do
+    case Map.get(contact, :updated_at) do
+      %DateTime{} = dt -> "REV:" <> DateTime.to_iso8601(dt)
+      _ -> nil
+    end
+  end
+
+  # ── GENDER (version-aware) ──────────────────────────────────────────
+
+  defp gender_line(%{gender: %{name: name}}, :v30) when is_binary(name) and name != "",
+    do: "X-GENDER:" <> escape(name)
+
+  defp gender_line(%{gender: %{name: name}}, :v40) when is_binary(name) and name != "" do
+    {sex, text} = gender_to_rfc6350(name)
+    if text, do: "GENDER:#{sex};#{escape(text)}", else: "GENDER:#{sex}"
+  end
+
+  defp gender_line(_, _), do: nil
+
+  defp gender_to_rfc6350("Male"), do: {"M", nil}
+  defp gender_to_rfc6350("Female"), do: {"F", nil}
+  defp gender_to_rfc6350(other), do: {"O", other}
+
+  # ── CATEGORIES ──────────────────────────────────────────────────────
+
+  defp categories_line(contact) do
+    case Map.get(contact, :tags, []) do
+      tags when is_list(tags) and tags != [] ->
+        "CATEGORIES:" <> Enum.map_join(tags, ",", &escape_category(&1.name))
+
+      _ ->
+        nil
+    end
+  end
+
+  defp escape_category(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace(";", "\\;")
+    |> String.replace("\n", "\\n")
+  end
+
+  # ── RELATED (version-aware) ─────────────────────────────────────────
+
+  defp related_lines(contact, version) do
+    case Map.get(contact, :relationships, []) do
+      rels when is_list(rels) and rels != [] -> do_related_lines(rels, version)
+      _ -> []
+    end
+  end
+
+  defp do_related_lines(rels, :v30) do
+    Enum.flat_map(rels, fn rel ->
+      name = display_name_for_related(rel.related_contact)
+      label = map_relationship_to_label(rel.relationship_type.name)
+      group = "item#{rel.id}"
+      ["#{group}.X-ABRELATEDNAMES:#{escape(name)}", "#{group}.X-ABLabel:#{label}"]
+    end)
+  end
+
+  defp do_related_lines(rels, :v40) do
+    Enum.map(rels, fn rel ->
+      type = map_relationship_to_rfc6350(rel.relationship_type.name)
+      uid = "urn:uuid:kith-contact-#{rel.related_contact_id}"
+      "RELATED;TYPE=#{type}:#{uid}"
+    end)
+  end
+
+  defp display_name_for_related(%{display_name: name}) when is_binary(name) and name != "",
+    do: name
+
+  defp display_name_for_related(%{first_name: first, last_name: last}) do
+    [first, last] |> Enum.reject(&is_nil/1) |> Enum.join(" ")
+  end
+
+  defp display_name_for_related(_), do: ""
+
+  defp map_relationship_to_rfc6350(name) do
+    case String.downcase(name) do
+      n when n in ["spouse", "husband", "wife"] -> "spouse"
+      n when n in ["parent", "mother", "father"] -> "parent"
+      n when n in ["child", "son", "daughter"] -> "child"
+      n when n in ["sibling", "brother", "sister"] -> "sibling"
+      "friend" -> "friend"
+      n when n in ["colleague", "coworker", "co-worker"] -> "colleague"
+      _ -> "contact"
+    end
+  end
+
+  defp map_relationship_to_label(name) do
+    case String.downcase(name) do
+      n when n in ["spouse", "husband", "wife"] -> "_$!<Spouse>!$_"
+      n when n in ["parent", "mother", "father"] -> "_$!<Parent>!$_"
+      n when n in ["child", "son", "daughter"] -> "_$!<Child>!$_"
+      n when n in ["sibling", "brother", "sister"] -> "_$!<Sibling>!$_"
+      "friend" -> "_$!<Friend>!$_"
+      _ -> name
+    end
+  end
+
+  # ── PHOTO (version-aware) ───────────────────────────────────────────
+
+  defp photo_line(contact, version) do
+    case Map.get(contact, :avatar_data) do
+      %{binary: binary, content_type: ct} -> do_photo_line(binary, ct, version)
+      _ -> nil
+    end
+  end
+
+  defp do_photo_line(binary, ct, :v30) do
+    type = ct |> String.split("/") |> List.last() |> String.upcase()
+    b64 = Base.encode64(binary)
+    "PHOTO;ENCODING=b;TYPE=#{type}:#{b64}"
+  end
+
+  defp do_photo_line(binary, ct, :v40) do
+    b64 = Base.encode64(binary)
+    "PHOTO:data:#{ct};base64,#{b64}"
+  end
 
   # ── Contact Fields (TEL, EMAIL, URL, X-SOCIALPROFILE, IMPP) ────────────
 

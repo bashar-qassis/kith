@@ -57,6 +57,7 @@ defmodule Kith.DAV.XMLBuilder do
   def supported_address_data do
     ~s(<card:supported-address-data>) <>
       ~s(<card:address-data-type content-type="text/vcard" version="3.0"/>) <>
+      ~s(<card:address-data-type content-type="text/vcard" version="4.0"/>) <>
       ~s(</card:supported-address-data>)
   end
 

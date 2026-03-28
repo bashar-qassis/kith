@@ -10,21 +10,32 @@ defmodule Kith.DAV.VCardAdapter do
 
   alias Kith.Contacts.Contact
   alias Kith.Repo
+  alias Kith.Storage
   alias Kith.VCard.{Parser, Serializer}
 
-  @vcard_preloads [:addresses, :gender, contact_fields: :contact_field_type]
+  @vcard_preloads [
+    :addresses,
+    :gender,
+    :tags,
+    contact_fields: :contact_field_type,
+    relationships: [:relationship_type, :related_contact]
+  ]
 
   @doc """
-  Converts a Kith contact to a vCard 3.0 string with a CardDAV UID.
+  Converts a Kith contact to a vCard string with a CardDAV UID.
 
   Preloads required associations if not already loaded.
-  """
-  def contact_to_vcard(%Contact{} = contact) do
-    contact = Repo.preload(contact, @vcard_preloads)
 
-    # Use the existing serializer and inject UID after VERSION line
-    vcard = Serializer.serialize(contact)
-    inject_uid(vcard, contact.id)
+  Options:
+    - `:version` — `:v30` (default) for vCard 3.0, `:v40` for vCard 4.0
+  """
+  def contact_to_vcard(%Contact{} = contact, opts \\ []) do
+    version = Keyword.get(opts, :version, :v30)
+    contact = Repo.preload(contact, @vcard_preloads)
+    contact = maybe_load_avatar_data(contact)
+
+    vcard = Serializer.serialize(contact, version: version)
+    inject_uid(vcard, contact.id, version)
   end
 
   @doc """
@@ -37,51 +48,66 @@ defmodule Kith.DAV.VCardAdapter do
   """
   def vcard_to_attrs(vcard_string, opts \\ []) do
     case Parser.parse(vcard_string) do
-      {:ok, [parsed | _]} ->
-        attrs = %{
-          "first_name" => parsed.first_name,
-          "last_name" => parsed.last_name,
-          "nickname" => parsed.nickname,
-          "company" => parsed.company,
-          "occupation" => parsed.occupation,
-          "description" => parsed.description
-        }
-
-        attrs =
-          if parsed.birthdate do
-            Map.put(attrs, "birthdate", Date.to_iso8601(parsed.birthdate))
-          else
-            attrs
-          end
-
-        scalar_attrs = maybe_strip_nils(attrs, opts)
-
-        nested_data = %{
-          emails: parsed.emails || [],
-          phones: parsed.phones || [],
-          urls: parsed.urls || [],
-          addresses: parsed.addresses || [],
-          uid: parsed.uid
-        }
-
-        {scalar_attrs, nested_data}
-
-      _ ->
-        :error
+      {:ok, [parsed | _]} -> build_attrs(parsed, opts)
+      _ -> :error
     end
+  end
+
+  defp build_attrs(parsed, opts) do
+    account_id = Keyword.get(opts, :account_id)
+
+    scalar_attrs =
+      build_scalar_attrs(parsed)
+      |> maybe_add_birthdate(parsed)
+      |> maybe_resolve_gender(parsed, account_id)
+      |> maybe_strip_nils(opts)
+
+    nested_data = build_nested_data(parsed)
+    {scalar_attrs, nested_data}
+  end
+
+  defp build_scalar_attrs(parsed) do
+    %{
+      "first_name" => parsed.first_name,
+      "last_name" => parsed.last_name,
+      "middle_name" => parsed.middle_name,
+      "nickname" => parsed.nickname,
+      "company" => parsed.company,
+      "occupation" => parsed.occupation,
+      "description" => parsed.description
+    }
+  end
+
+  defp maybe_add_birthdate(attrs, %{birthdate: nil}), do: attrs
+
+  defp maybe_add_birthdate(attrs, %{birthdate: date}),
+    do: Map.put(attrs, "birthdate", Date.to_iso8601(date))
+
+  defp build_nested_data(parsed) do
+    %{
+      emails: parsed.emails || [],
+      phones: parsed.phones || [],
+      urls: parsed.urls || [],
+      addresses: parsed.addresses || [],
+      uid: parsed.uid,
+      categories: parsed.categories || [],
+      related: parsed.related || [],
+      impp: parsed.impp || [],
+      photo: parsed.photo
+    }
   end
 
   # ── Private ────────────────────────────────────────────────────────────
 
   # Inserts a UID line after the VERSION line in the serialized vCard.
-  defp inject_uid(vcard, contact_id) do
+  defp inject_uid(vcard, contact_id, :v30) do
     uid_line = "UID:kith-contact-#{contact_id}"
+    String.replace(vcard, "VERSION:3.0\r\n", "VERSION:3.0\r\n#{uid_line}\r\n")
+  end
 
-    vcard
-    |> String.replace(
-      "VERSION:3.0\r\n",
-      "VERSION:3.0\r\n#{uid_line}\r\n"
-    )
+  defp inject_uid(vcard, contact_id, :v40) do
+    uid_line = "UID:urn:uuid:kith-contact-#{contact_id}"
+    String.replace(vcard, "VERSION:4.0\r\n", "VERSION:4.0\r\n#{uid_line}\r\n")
   end
 
   defp maybe_strip_nils(attrs, opts) do
@@ -91,4 +117,50 @@ defmodule Kith.DAV.VCardAdapter do
       attrs
     end
   end
+
+  # ── Avatar loading ──────────────────────────────────────────────────
+
+  defp maybe_load_avatar_data(%Contact{avatar: nil} = contact), do: contact
+
+  defp maybe_load_avatar_data(%Contact{avatar: key} = contact) do
+    max_embed = Application.get_env(:kith, :max_vcard_photo_embed_bytes, 512 * 1024)
+
+    case Storage.read(key) do
+      {:ok, binary} when byte_size(binary) <= max_embed ->
+        ct = Storage.content_type(key)
+        Map.put(contact, :avatar_data, %{binary: binary, content_type: ct})
+
+      _ ->
+        contact
+    end
+  end
+
+  # ── Gender resolution ───────────────────────────────────────────────
+
+  defp maybe_resolve_gender(attrs, _parsed, nil), do: attrs
+
+  defp maybe_resolve_gender(attrs, parsed, account_id) do
+    gender_name = resolve_gender_name(parsed.gender, parsed.gender_text)
+    gender_record = gender_name && find_gender_by_name(account_id, gender_name)
+
+    if gender_record,
+      do: Map.put(attrs, "gender_id", gender_record.id),
+      else: attrs
+  end
+
+  defp find_gender_by_name(account_id, name) do
+    downcased = String.downcase(name)
+
+    account_id
+    |> Kith.Contacts.list_genders()
+    |> Enum.find(fn g -> String.downcase(g.name) == downcased end)
+  end
+
+  defp resolve_gender_name("M", _), do: "Male"
+  defp resolve_gender_name("F", _), do: "Female"
+  defp resolve_gender_name("O", text) when is_binary(text) and text != "", do: text
+  defp resolve_gender_name("N", _), do: nil
+  defp resolve_gender_name("U", _), do: nil
+  defp resolve_gender_name(nil, text) when is_binary(text) and text != "", do: text
+  defp resolve_gender_name(_, _), do: nil
 end

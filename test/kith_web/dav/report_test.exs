@@ -270,6 +270,61 @@ defmodule KithWeb.DAV.ReportTest do
     end
   end
 
+  # ── RFC 6352 §8.3 — version negotiation in REPORT ──────────────────────
+
+  describe "RFC 6352 §8.3 — version negotiation in REPORT" do
+    test "multiget REPORT with version=4.0 returns vCard 4.0 bodies",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{first_name: "VersionTest"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <card:addressbook-multiget xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:prop><d:getetag/><card:address-data content-type="text/vcard" version="4.0"/></d:prop>
+        <d:href>#{contact_path(contact)}</d:href>
+      </card:addressbook-multiget>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+      assert conn.status == 207
+      assert conn.resp_body =~ "VERSION:4.0"
+      refute conn.resp_body =~ "VERSION:3.0"
+    end
+
+    test "multiget REPORT without version defaults to vCard 3.0",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "VERSION:3.0"
+    end
+
+    test "sync-collection with version=4.0 returns vCard 4.0 bodies",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "SyncV4"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token/>
+        <d:prop>
+          <d:getetag/>
+          <card:address-data content-type="text/vcard" version="4.0"/>
+        </d:prop>
+      </d:sync-collection>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+      assert conn.status == 207
+      assert conn.resp_body =~ "VERSION:4.0"
+      assert conn.resp_body =~ "SyncV4"
+    end
+  end
+
   # ── Unsupported REPORT types ────────────────────────────────────────────
 
   describe "RFC 6352 — unsupported REPORT types" do

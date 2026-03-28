@@ -58,6 +58,7 @@ defmodule Kith.Contacts.Contact do
     has_many :conversations, Kith.Conversations.Conversation
     has_many :debts, Kith.Contacts.Debt
     has_many :immich_candidates, Kith.Contacts.ImmichCandidate
+    has_many :relationships, Kith.Contacts.Relationship
 
     many_to_many :tags, Kith.Contacts.Tag, join_through: "contact_tags"
     many_to_many :activities, Kith.Activities.Activity, join_through: "activity_contacts"

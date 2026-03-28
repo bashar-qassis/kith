@@ -282,6 +282,7 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp handle_multiget_report(conn, body) do
     {:ok, hrefs} = XMLParser.parse_addressbook_multiget(body)
+    version = XMLParser.parse_requested_vcard_version(body)
 
     responses =
       Enum.map(hrefs, fn href ->
@@ -294,7 +295,7 @@ defmodule Kith.DAV.CardDAVPlug do
             ])
 
           contact ->
-            vcard = VCardAdapter.contact_to_vcard(contact)
+            vcard = VCardAdapter.contact_to_vcard(contact, version: version)
             etag = compute_etag(contact)
 
             XMLBuilder.response(href, [
@@ -312,6 +313,7 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp handle_sync_collection_report(conn, body) do
     {:ok, client_token} = XMLParser.parse_sync_collection(body)
+    version = XMLParser.parse_requested_vcard_version(body)
     aid = account_id(conn)
 
     {active_responses, deleted_responses} =
@@ -319,14 +321,14 @@ defmodule Kith.DAV.CardDAVPlug do
         nil ->
           # Initial sync: return all contacts, no deletions
           contacts = list_contacts_for_dav(conn)
-          {Enum.map(contacts, &sync_contact_response/1), []}
+          {Enum.map(contacts, &sync_contact_response(&1, version)), []}
 
         since ->
           # Incremental sync: only changes since token timestamp
           modified = Contacts.list_contacts_modified_since(aid, since)
           deleted = Contacts.list_contacts_deleted_since(aid, since)
 
-          active = Enum.map(modified, &sync_contact_response/1)
+          active = Enum.map(modified, &sync_contact_response(&1, version))
 
           removed =
             Enum.map(deleted, fn contact ->
@@ -343,9 +345,9 @@ defmodule Kith.DAV.CardDAVPlug do
     send_dav_response(conn, 207, xml)
   end
 
-  defp sync_contact_response(contact) do
+  defp sync_contact_response(contact, version) do
     etag = compute_etag(contact)
-    vcard = VCardAdapter.contact_to_vcard(contact)
+    vcard = VCardAdapter.contact_to_vcard(contact, version: version)
 
     XMLBuilder.response(
       "/dav/addressbooks/default/kith-contact-#{contact.id}.vcf",
@@ -362,6 +364,7 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp handle_addressbook_query_report(conn, body) do
     {:ok, filters} = XMLParser.parse_addressbook_query(body)
+    version = XMLParser.parse_requested_vcard_version(body)
     contacts = list_contacts_for_dav(conn)
 
     matching =
@@ -369,7 +372,7 @@ defmodule Kith.DAV.CardDAVPlug do
         Enum.all?(filters, &contact_matches_filter?(contact, &1))
       end)
 
-    responses = Enum.map(matching, &sync_contact_response/1)
+    responses = Enum.map(matching, &sync_contact_response(&1, version))
     send_dav_response(conn, 207, XMLBuilder.multistatus(responses))
   end
 
@@ -418,16 +421,19 @@ defmodule Kith.DAV.CardDAVPlug do
   # ── GET ────────────────────────────────────────────────────────────────
 
   defp handle_get_contact(conn, uid) do
+    version = requested_vcard_version(conn)
+
     case find_contact_by_uid(conn, uid) do
       nil ->
         send_resp(conn, 404, "Not Found")
 
       contact ->
-        vcard = VCardAdapter.contact_to_vcard(contact)
+        vcard = VCardAdapter.contact_to_vcard(contact, version: version)
         etag = compute_etag(contact)
+        content_type = vcard_content_type(version)
 
         conn
-        |> put_resp_content_type("text/vcard", "utf-8")
+        |> put_resp_content_type(content_type, "utf-8")
         |> put_resp_header("etag", "\"#{etag}\"")
         |> send_resp(200, vcard)
     end
@@ -448,13 +454,14 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp do_put_contact(conn, uid, body) do
-    case VCardAdapter.vcard_to_attrs(body, strip_nils: false) do
+    aid = account_id(conn)
+
+    case VCardAdapter.vcard_to_attrs(body, strip_nils: false, account_id: aid) do
       :error ->
         xml = XMLBuilder.precondition_error("valid-address-data", "Invalid vCard format")
         send_dav_response(conn, 422, xml)
 
       {scalar_attrs, nested_data} ->
-        aid = account_id(conn)
         existing = find_contact_by_uid(conn, uid)
         put_contact(conn, aid, existing, scalar_attrs, nested_data)
     end
@@ -577,7 +584,13 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp list_contacts_for_dav(conn) do
     Contacts.list_contacts(account_id(conn),
-      preload: [:addresses, :gender, contact_fields: :contact_field_type]
+      preload: [
+        :addresses,
+        :gender,
+        :tags,
+        contact_fields: :contact_field_type,
+        relationships: [:relationship_type, :related_contact]
+      ]
     )
   end
 
@@ -686,6 +699,14 @@ defmodule Kith.DAV.CardDAVPlug do
         Enum.reverse(propstats)
     end
   end
+
+  defp requested_vcard_version(conn) do
+    accept = get_req_header(conn, "accept") |> List.first("")
+    if String.contains?(accept, "version=4.0"), do: :v40, else: :v30
+  end
+
+  defp vcard_content_type(:v40), do: "text/vcard; version=4.0"
+  defp vcard_content_type(_), do: "text/vcard"
 
   defp send_dav_response(conn, status, xml) do
     conn

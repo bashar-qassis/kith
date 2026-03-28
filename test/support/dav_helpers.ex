@@ -38,11 +38,18 @@ defmodule KithWeb.DAV.TestHelpers do
   end
 
   def build_vcard(first_name, last_name, opts \\ []) do
+    middle = opts[:middle_name] || ""
+
+    n_line =
+      if middle != "",
+        do: "N:#{last_name};#{first_name};#{middle};;",
+        else: "N:#{last_name};#{first_name};;;"
+
     lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
       "FN:#{first_name} #{last_name}",
-      "N:#{last_name};#{first_name};;;"
+      n_line
     ]
 
     lines = if opts[:uid], do: lines ++ ["UID:#{opts[:uid]}"], else: lines
@@ -53,6 +60,109 @@ defmodule KithWeb.DAV.TestHelpers do
     lines = if opts[:email], do: lines ++ ["EMAIL;TYPE=HOME:#{opts[:email]}"], else: lines
     lines = if opts[:phone], do: lines ++ ["TEL;TYPE=CELL:#{opts[:phone]}"], else: lines
     lines = if opts[:note], do: lines ++ ["NOTE:#{opts[:note]}"], else: lines
+
+    lines =
+      if opts[:categories] do
+        lines ++ ["CATEGORIES:" <> Enum.join(opts[:categories], ",")]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:gender] do
+        lines ++ ["X-GENDER:#{opts[:gender]}"]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:photo_b64] do
+        lines ++ ["PHOTO;ENCODING=b;TYPE=JPEG:#{opts[:photo_b64]}"]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:related] do
+        Enum.reduce(opts[:related], lines, fn rel, acc ->
+          acc ++
+            [
+              "item#{System.unique_integer([:positive])}.X-ABRELATEDNAMES:#{rel.uid}",
+              "item#{System.unique_integer([:positive])}.X-ABLabel:#{rel.type}"
+            ]
+        end)
+      else
+        lines
+      end
+
+    lines =
+      if opts[:impp] do
+        Enum.reduce(opts[:impp], lines, fn impp, acc ->
+          acc ++ ["IMPP:#{impp}"]
+        end)
+      else
+        lines
+      end
+
+    lines = lines ++ ["END:VCARD"]
+    Enum.join(lines, "\r\n") <> "\r\n"
+  end
+
+  def build_vcard_v40(first_name, last_name, opts \\ []) do
+    middle = opts[:middle_name] || ""
+
+    n_line =
+      if middle != "",
+        do: "N:#{last_name};#{first_name};#{middle};;",
+        else: "N:#{last_name};#{first_name};;;"
+
+    lines = [
+      "BEGIN:VCARD",
+      "VERSION:4.0",
+      "FN:#{first_name} #{last_name}",
+      n_line
+    ]
+
+    lines = if opts[:uid], do: lines ++ ["UID:#{opts[:uid]}"], else: lines
+    lines = if opts[:nickname], do: lines ++ ["NICKNAME:#{opts[:nickname]}"], else: lines
+    lines = if opts[:company], do: lines ++ ["ORG:#{opts[:company]}"], else: lines
+    lines = if opts[:occupation], do: lines ++ ["TITLE:#{opts[:occupation]}"], else: lines
+    lines = if opts[:birthdate], do: lines ++ ["BDAY:#{opts[:birthdate]}"], else: lines
+    lines = if opts[:email], do: lines ++ ["EMAIL;TYPE=HOME:#{opts[:email]}"], else: lines
+    lines = if opts[:phone], do: lines ++ ["TEL;TYPE=CELL:#{opts[:phone]}"], else: lines
+    lines = if opts[:note], do: lines ++ ["NOTE:#{opts[:note]}"], else: lines
+
+    lines =
+      if opts[:categories] do
+        lines ++ ["CATEGORIES:" <> Enum.join(opts[:categories], ",")]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:gender] do
+        lines ++ ["GENDER:#{opts[:gender]}"]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:related] do
+        Enum.reduce(opts[:related], lines, fn rel, acc ->
+          acc ++ ["RELATED;TYPE=#{String.downcase(rel.type)}:urn:uuid:#{rel.uid}"]
+        end)
+      else
+        lines
+      end
+
+    lines =
+      if opts[:impp] do
+        Enum.reduce(opts[:impp], lines, fn impp, acc ->
+          acc ++ ["IMPP:#{impp}"]
+        end)
+      else
+        lines
+      end
 
     lines = lines ++ ["END:VCARD"]
     Enum.join(lines, "\r\n") <> "\r\n"
@@ -112,12 +222,29 @@ defmodule KithWeb.DAV.TestHelpers do
     # Ensure global ContactFieldTypes exist for DAV contact field round-trips
     ensure_contact_field_types()
 
+    # Seed genders for gender round-trip tests
+    seed_genders()
+
     %{
       conn: conn,
       user: user,
       scope: scope,
       account_id: user.account.id
     }
+  end
+
+  defp seed_genders do
+    alias Kith.Contacts.Gender
+    alias Kith.Repo
+    import Ecto.Query
+
+    for {name, pos} <- [{"Male", 0}, {"Female", 1}] do
+      unless Repo.one(
+               from(g in Gender, where: is_nil(g.account_id) and g.name == ^name, limit: 1)
+             ) do
+        Repo.insert!(%Gender{name: name, position: pos, account_id: nil})
+      end
+    end
   end
 
   defp ensure_contact_field_types do
