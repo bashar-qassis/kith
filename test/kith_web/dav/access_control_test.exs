@@ -65,6 +65,47 @@ defmodule KithWeb.DAV.AccessControlTest do
 
       assert resp_b.status == 200
     end
+
+    test "principal A MUST NOT be able to PUT to principal B's address object",
+         %{conn: conn, user_a: user_a, user_b: user_b} do
+      contact_b = ContactsFixtures.contact_fixture(user_b.account.id)
+      vcard = build_vcard("Hacked", "Contact")
+
+      resp =
+        conn
+        |> basic_auth(user_a.email, dav_password())
+        |> dav_request("PUT", contact_path(contact_b), vcard)
+
+      # find_contact_by_uid scopes by account_id, so user_a can't find user_b's contact.
+      # A new contact is created under user_a's account instead — not a cross-account write.
+      assert resp.status in [201, 404]
+
+      # Verify user_b's contact was NOT modified
+      resp_b =
+        build_conn()
+        |> basic_auth(user_b.email, dav_password())
+        |> dav_request("GET", contact_path(contact_b))
+
+      assert resp_b.status == 200
+      refute resp_b.resp_body =~ "Hacked"
+    end
+
+    test "principal A MUST NOT see principal B's contacts in multiget REPORT",
+         %{conn: conn, user_a: user_a, user_b: user_b} do
+      contact_b =
+        ContactsFixtures.contact_fixture(user_b.account.id, %{first_name: "SecretData"})
+
+      body = multiget_body([contact_path(contact_b)])
+
+      resp =
+        conn
+        |> basic_auth(user_a.email, dav_password())
+        |> dav_request("REPORT", "/dav/addressbooks/default/", body)
+
+      assert resp.status == 207
+      assert resp.resp_body =~ "404 Not Found"
+      refute resp.resp_body =~ "SecretData"
+    end
   end
 
   # ═══════════════════════════════════════════════════════════════════════════

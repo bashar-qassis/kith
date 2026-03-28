@@ -1362,13 +1362,21 @@ defmodule Kith.Contacts do
       create_imported_contact_fields(contact, account_id, nested_data.urls, "https")
 
       Enum.each(nested_data.addresses, fn addr ->
-        %Address{}
-        |> Address.changeset(Map.merge(addr, %{contact_id: contact.id, account_id: account_id}))
-        |> Repo.insert!()
+        insert_address!(addr, contact.id, account_id)
       end)
 
       :ok
     end)
+  end
+
+  defp insert_address!(addr, contact_id, account_id) do
+    %Address{}
+    |> Address.changeset(Map.merge(addr, %{contact_id: contact_id, account_id: account_id}))
+    |> Repo.insert()
+    |> case do
+      {:ok, address} -> address
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
   end
 
   @doc "Bumps `updated_at` on a contact. Used after replacing child data."

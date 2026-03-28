@@ -73,20 +73,6 @@ defmodule Kith.DAV.XMLBuilder do
   def current_user_principal(href),
     do: "<d:current-user-principal><d:href>#{escape(href)}</d:href></d:current-user-principal>"
 
-  @doc "Builds a propstat element for properties that were not found (404)."
-  def propstat_not_found(prop_names) do
-    props = Enum.map_join(prop_names, "\n", fn name -> "<d:#{name}/>" end)
-
-    """
-    <d:propstat>
-    <d:prop>
-    #{props}
-    </d:prop>
-    <d:status>HTTP/1.1 404 Not Found</d:status>
-    </d:propstat>
-    """
-  end
-
   @doc "Builds a propstat element for protected properties that cannot be modified (403)."
   def propstat_forbidden(prop_names) do
     props = Enum.map_join(prop_names, "\n", fn name -> "<d:#{name}/>" end)

@@ -48,6 +48,36 @@ defmodule Kith.ContactsDAVTest do
       nested = %{emails: [], phones: [], urls: [], addresses: []}
       assert {:ok, :ok} = Contacts.replace_contact_children(contact, aid, nested)
     end
+
+    test "replaces children with address data", %{contact: contact, account_id: aid} do
+      nested = %{
+        emails: [%{value: "addr@example.com", label: "Work"}],
+        phones: [],
+        urls: [],
+        addresses: [
+          %{
+            label: "Home",
+            line1: "123 Main St",
+            city: "Springfield",
+            province: "IL",
+            postal_code: "62701",
+            country: "US"
+          }
+        ]
+      }
+
+      assert {:ok, :ok} = Contacts.replace_contact_children(contact, aid, nested)
+
+      contact =
+        Kith.Repo.preload(contact, [:addresses, contact_fields: :contact_field_type], force: true)
+
+      assert length(contact.addresses) == 1
+      assert hd(contact.addresses).line1 == "123 Main St"
+      assert hd(contact.addresses).city == "Springfield"
+
+      values = Enum.map(contact.contact_fields, & &1.value)
+      assert "addr@example.com" in values
+    end
   end
 
   describe "touch_contact!/1" do

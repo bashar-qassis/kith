@@ -230,6 +230,46 @@ defmodule KithWeb.DAV.ReportTest do
     end
   end
 
+  # ── Invalid sync tokens ──────────────────────────────────────────────────
+
+  describe "RFC 6578 §3 — invalid sync tokens" do
+    test "garbage sync token falls back to full sync",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "FullSync"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>not-a-valid-token-at-all</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "FullSync"
+    end
+
+    test "out-of-range timestamp in sync token falls back to full sync",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "RangeTest"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>https://kith.app/ns/sync/99999999999999999</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "RangeTest"
+    end
+  end
+
   # ── Unsupported REPORT types ────────────────────────────────────────────
 
   describe "RFC 6352 — unsupported REPORT types" do

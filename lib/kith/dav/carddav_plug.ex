@@ -392,7 +392,10 @@ defmodule Kith.DAV.CardDAVPlug do
     protocol = if prop == "EMAIL", do: "mailto", else: "tel"
 
     contact.contact_fields
-    |> Enum.filter(&String.starts_with?(&1.contact_field_type.protocol, protocol))
+    |> Enum.filter(fn cf ->
+      cf.contact_field_type.protocol &&
+        String.starts_with?(cf.contact_field_type.protocol, protocol)
+    end)
     |> Enum.map_join("\n", & &1.value)
   end
 
@@ -593,8 +596,11 @@ defmodule Kith.DAV.CardDAVPlug do
   defp parse_sync_token(""), do: nil
 
   defp parse_sync_token(token) do
-    case Regex.run(~r{/ns/sync/(\d+)$}, token) do
-      [_, ts] -> DateTime.from_unix!(String.to_integer(ts))
+    with [_, ts] <- Regex.run(~r{/ns/sync/(\d+)$}, token),
+         {unix, ""} <- Integer.parse(ts),
+         {:ok, dt} <- DateTime.from_unix(unix) do
+      dt
+    else
       _ -> nil
     end
   end
