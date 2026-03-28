@@ -10,7 +10,7 @@ ARG ALPINE_VERSION=3.21.6
 # =============================================================================
 FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-alpine-${ALPINE_VERSION} AS builder
 
-RUN apk add --no-cache git build-base
+RUN apk add --no-cache git build-base nodejs npm
 
 ENV MIX_ENV=prod
 
@@ -30,14 +30,17 @@ COPY config/config.exs config/prod.exs config/
 # but values are read from env vars at container startup
 COPY config/runtime.exs config/
 
-# Compile assets (Phoenix 1.8+ uses standalone tailwind/esbuild binaries, no Node.js needed)
+# Compile assets (npm packages needed for Alpine.js CSP, Trix, tailwindcss-animate)
 COPY assets assets
 COPY priv priv
 COPY lib lib
-RUN mix assets.deploy
+RUN mix assets.setup
 
-# Compile application
+# Compile application (must precede assets.deploy so phoenix_live_view
+# compiler generates colocated hooks JS referenced by esbuild)
 RUN mix compile
+RUN mix assets.vendor
+RUN mix assets.deploy
 
 # Build release
 RUN mix release
@@ -50,6 +53,8 @@ FROM alpine:${ALPINE_VERSION} AS runner
 RUN apk add --no-cache \
     libssl3 \
     libcrypto3 \
+    libstdc++ \
+    libgcc \
     ncurses-libs \
     ca-certificates \
     curl \

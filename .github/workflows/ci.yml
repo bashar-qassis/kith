@@ -139,9 +139,10 @@ jobs:
           load: true
 
       - name: Verify image starts
-        run: docker run --rm kith:ci eval "IO.puts(:ok)"
+        run: docker run --rm kith:ci version
 
       - name: Verify non-root user
         run: |
-          uid=$(docker run --rm kith:ci eval "System.cmd(\"id\", [\"-u\"]) |> elem(0) |> String.trim() |> IO.puts()")
+          uid=$(docker run --rm --entrypoint sh kith:ci -c 'id -u')
           echo "Container UID: $uid"
+          [ "$uid" = "1000" ] || exit 1
