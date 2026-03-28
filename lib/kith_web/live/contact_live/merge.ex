@@ -252,7 +252,7 @@ defmodule KithWeb.ContactLive.Merge do
         <div :if={@step == 1 && @contact_a}>
           <UI.card>
             <div class="flex items-center gap-4 mb-4">
-              <KithUI.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:md} />
+              <KithUI.avatar name={@contact_a.display_name} src={avatar_url(@contact_a)} size={:md} />
               <div>
                 <p class="text-sm text-[var(--color-text-tertiary)]">Merging from:</p>
                 <span class="font-semibold text-[var(--color-text-primary)]">
@@ -314,11 +314,11 @@ defmodule KithWeb.ContactLive.Merge do
             <div class="grid grid-cols-3 gap-4 mb-4 text-sm font-semibold text-[var(--color-text-secondary)]">
               <div>Field</div>
               <div class="flex items-center gap-2">
-                <KithUI.avatar name={@contact_a.display_name} src={@contact_a.avatar} size={:sm} />
+                <KithUI.avatar name={@contact_a.display_name} src={avatar_url(@contact_a)} size={:sm} />
                 {@contact_a.display_name} (A)
               </div>
               <div class="flex items-center gap-2">
-                <KithUI.avatar name={@contact_b.display_name} src={@contact_b.avatar} size={:sm} />
+                <KithUI.avatar name={@contact_b.display_name} src={avatar_url(@contact_b)} size={:sm} />
                 {@contact_b.display_name} (B)
               </div>
             </div>

@@ -394,7 +394,7 @@ defmodule Kith.Imports.Sources.MonicaTest do
       assert {:ok, summary} =
                MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
-      assert summary.contacts == 2
+      assert summary.contacts == 3
 
       # Carol's photo should be imported even though it was on the older entry
       carol_photo =
@@ -435,7 +435,26 @@ defmodule Kith.Imports.Sources.MonicaTest do
       {:ok, summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
 
       # Carol has 3 unique notes (note-uuid-1 and note-uuid-2 overlap between entries)
-      assert summary.notes == 3
+      assert summary.notes == 4
+    end
+
+    test "handles entries without data key during merge", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      {:ok, summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      # Eve has two entries — one without "data" key, one with a note
+      assert summary.contacts == 3
+
+      eve_rec =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-eve")
+
+      eve = Repo.get!(Contacts.Contact, eve_rec.local_entity_id)
+      assert eve.last_name == "NoData"
     end
   end
 

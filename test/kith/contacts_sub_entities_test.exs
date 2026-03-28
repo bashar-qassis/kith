@@ -181,13 +181,13 @@ defmodule Kith.ContactsSubEntitiesTest do
       photos = Contacts.list_photos(contact.id)
       assert length(photos) == 2
 
-      # Set avatar
+      # Set avatar (stores storage_key, not URL)
       {:ok, updated_contact} = Contacts.set_avatar(contact, photo1)
-      assert updated_contact.avatar == Kith.Storage.url(photo1.storage_key)
+      assert updated_contact.avatar == photo1.storage_key
 
       # Setting another as avatar replaces the first
       {:ok, updated_contact2} = Contacts.set_avatar(updated_contact, photo2)
-      assert updated_contact2.avatar == Kith.Storage.url(photo2.storage_key)
+      assert updated_contact2.avatar == photo2.storage_key
 
       # Deleting avatar photo clears avatar
       {:ok, _} = Contacts.delete_photo(photo2)

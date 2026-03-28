@@ -4,7 +4,7 @@ defmodule Kith.Repo.Migrations.RemoveIsCoverFromPhotos do
   def up do
     # Migrate existing cover photos to contact.avatar before dropping the column
     execute("""
-    UPDATE contacts SET avatar = '/uploads/' || p.storage_key
+    UPDATE contacts SET avatar = p.storage_key
     FROM photos p
     WHERE p.contact_id = contacts.id
       AND p.is_cover = true
