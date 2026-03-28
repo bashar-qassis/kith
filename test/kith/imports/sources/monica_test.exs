@@ -438,6 +438,23 @@ defmodule Kith.Imports.Sources.MonicaTest do
       assert summary.notes == 4
     end
 
+    test "imports birthdate from v4 map object in properties", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      carol_rec =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-carol")
+
+      carol = Repo.get!(Contacts.Contact, carol_rec.local_entity_id)
+      assert carol.birthdate == ~D[1985-03-15]
+      assert carol.birthdate_year_unknown == false
+    end
+
     test "handles entries without data key during merge", %{
       account_id: account_id,
       user: user

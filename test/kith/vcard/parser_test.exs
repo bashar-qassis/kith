@@ -133,6 +133,270 @@ defmodule Kith.VCard.ParserTest do
     end
   end
 
+  describe "parse/1 — extended properties" do
+    test "parses middle name from N property (RFC 2426 §3.1.2)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Marie Doe
+      N:Doe;Jane;Marie;;
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.middle_name == "Marie"
+    end
+
+    test "parses N without middle name as nil" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.middle_name == nil
+    end
+
+    test "parses CATEGORIES as list (RFC 2426 §3.6.1)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      CATEGORIES:Family,Friends,VIP
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.categories == ["Family", "Friends", "VIP"]
+    end
+
+    test "parses single CATEGORIES value" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      CATEGORIES:Family
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.categories == ["Family"]
+    end
+
+    test "parses GENDER sex component (RFC 6350 §6.2.7)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      GENDER:F
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.gender == "F"
+      assert contact.gender_text == nil
+    end
+
+    test "parses GENDER with sex and text components" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Alex Smith
+      N:Smith;Alex;;;
+      GENDER:O;Non-binary
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.gender == "O"
+      assert contact.gender_text == "Non-binary"
+    end
+
+    test "parses X-GENDER extension for vCard 3.0" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      X-GENDER:Female
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.gender_text == "Female"
+    end
+
+    test "parses RELATED with TYPE parameter (RFC 6350 §6.6.6)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      RELATED;TYPE=spouse:urn:uuid:kith-contact-42
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert length(contact.related) == 1
+      assert hd(contact.related).value == "urn:uuid:kith-contact-42"
+      assert hd(contact.related).type == "Spouse"
+    end
+
+    test "parses multiple RELATED properties" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      RELATED;TYPE=spouse:urn:uuid:kith-contact-42
+      RELATED;TYPE=friend:urn:uuid:kith-contact-99
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert length(contact.related) == 2
+    end
+
+    test "parses IMPP into separate list (RFC 6350 §6.4.3)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      IMPP:xmpp:jane@chat.example.com
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert length(contact.impp) == 1
+      assert hd(contact.impp).value == "xmpp:jane@chat.example.com"
+      assert contact.urls == []
+    end
+
+    test "parses REV timestamp (RFC 2426 §3.6.4)" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      REV:2026-03-29T12:00:00Z
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.rev == "2026-03-29T12:00:00Z"
+    end
+
+    test "parses PHOTO with ENCODING=b and TYPE (RFC 2426 §3.1.4)" do
+      b64 = Base.encode64("fake-jpeg-data")
+
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      PHOTO;ENCODING=b;TYPE=JPEG:#{b64}
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo != nil
+      assert contact.photo.content_type == "image/jpeg"
+      assert contact.photo.encoding == :base64
+      assert contact.photo.data == b64
+    end
+
+    test "parses PHOTO with data URI (RFC 6350 §6.2.4)" do
+      b64 = Base.encode64("fake-png-data")
+
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      PHOTO:data:image/png;base64,#{b64}
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo != nil
+      assert contact.photo.content_type == "image/png"
+      assert contact.photo.data == b64
+    end
+
+    test "parses PHOTO with URI reference" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:4.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      PHOTO:https://example.com/photo.jpg
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo != nil
+      assert contact.photo.url == "https://example.com/photo.jpg"
+    end
+
+    test "handles missing PHOTO gracefully" do
+      vcard = """
+      BEGIN:VCARD
+      VERSION:3.0
+      FN:Jane Doe
+      N:Doe;Jane;;;
+      END:VCARD
+      """
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo == nil
+    end
+
+    test "parses CATEGORIES with escaped commas (RFC 2426 §3.6.1)" do
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nCATEGORIES:Music\\,Art,Sports\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.categories == ["Music,Art", "Sports"]
+    end
+
+    test "rejects dangerous PHOTO content types (SVG XSS)" do
+      b64 = Base.encode64("fake")
+
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nPHOTO;ENCODING=b;TYPE=svg+xml:#{b64}\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo.content_type == "image/jpeg"
+    end
+
+    test "parses GENDER:O without text component" do
+      vcard = "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Alex\r\nN:Alex;;;;\r\nGENDER:O\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.gender == "O"
+      assert contact.gender_text == nil
+    end
+
+    test "parses PHOTO with ENCODING=BASE64 uppercase (compatibility)" do
+      b64 = Base.encode64("fake-jpeg-data")
+
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nPHOTO;ENCODING=BASE64;TYPE=JPEG:#{b64}\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo != nil
+      assert contact.photo.content_type == "image/jpeg"
+      assert contact.photo.encoding == :base64
+    end
+  end
+
   describe "unescape/1" do
     test "unescapes semicolons" do
       assert Parser.unescape("a\\;b") == "a;b"

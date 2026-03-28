@@ -468,8 +468,8 @@ defmodule Kith.Imports.Sources.Monica do
     gender_name = get_in(contact_data, ["gender", "data", "name"])
     gender_id = if gender_name, do: Map.get(ref_data.genders, gender_name)
 
-    birthdate_info = parse_special_date(get_in(contact_data, ["birthdate", "data"]))
-    first_met_info = parse_special_date(get_in(contact_data, ["first_met_date", "data"]))
+    birthdate_info = parse_special_date(unwrap_data(contact_data["birthdate"]))
+    first_met_info = parse_special_date(unwrap_data(contact_data["first_met_date"]))
 
     is_active = contact_data["is_active"]
     is_archived = if is_active == false, do: true, else: false
@@ -501,7 +501,7 @@ defmodule Kith.Imports.Sources.Monica do
     date_str = date_data["date"]
 
     if date_str do
-      case Date.from_iso8601(date_str) do
+      case parse_date_or_datetime(date_str) do
         {:ok, date} ->
           year_unknown = date_data["is_year_unknown"] == true
           %{date: date, year_unknown: year_unknown}
@@ -513,6 +513,26 @@ defmodule Kith.Imports.Sources.Monica do
       %{}
     end
   end
+
+  # Monica exports dates as full ISO 8601 datetimes ("1990-06-15T00:00:00Z"),
+  # not just date strings ("1990-06-15"). Handle both formats.
+  defp parse_date_or_datetime(str) do
+    case Date.from_iso8601(str) do
+      {:ok, _date} = ok ->
+        ok
+
+      {:error, _} ->
+        case DateTime.from_iso8601(str) do
+          {:ok, dt, _offset} -> {:ok, DateTime.to_date(dt)}
+          _ -> :error
+        end
+    end
+  end
+
+  # Monica v2 API wraps in {"data": {...}}, but export files use flat objects.
+  defp unwrap_data(%{"data" => inner}) when is_map(inner), do: inner
+  defp unwrap_data(%{} = map), do: map
+  defp unwrap_data(_), do: nil
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
@@ -1181,9 +1201,11 @@ defmodule Kith.Imports.Sources.Monica do
     end
   end
 
+  defp parse_v4_birthdate(%{"birthdate" => %{"date" => _} = bd}), do: bd
   defp parse_v4_birthdate(%{"birthdate" => bd}) when is_binary(bd), do: %{"date" => bd}
   defp parse_v4_birthdate(_), do: nil
 
+  defp parse_v4_first_met(%{"first_met_date" => %{"date" => _} = d}), do: d
   defp parse_v4_first_met(%{"first_met_date" => d}) when is_binary(d), do: %{"date" => d}
   defp parse_v4_first_met(_), do: nil
 

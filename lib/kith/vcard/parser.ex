@@ -15,13 +15,19 @@ defmodule Kith.VCard.Parser do
   Returns `{:ok, contacts}` or `{:error, reason}`.
 
   Each contact map has keys:
-  - :first_name, :last_name, :display_name, :nickname
+  - :first_name, :last_name, :middle_name, :display_name, :nickname
   - :birthdate (Date or nil)
   - :company, :occupation, :description
+  - :categories (list of strings)
+  - :gender, :gender_text (RFC 6350 §6.2.7)
   - :emails (list of %{value, label})
   - :phones (list of %{value, label})
   - :urls (list of %{value, label})
+  - :impp (list of %{value, label})
   - :addresses (list of %{label, line1, line2, city, province, postal_code, country})
+  - :related (list of %{value, type})
+  - :rev (string timestamp or nil)
+  - :photo (map with :content_type/:data/:encoding or :url, or nil)
   """
   def parse(data) when is_binary(data) do
     contacts =
@@ -65,6 +71,7 @@ defmodule Kith.VCard.Parser do
     base = %{
       first_name: nil,
       last_name: nil,
+      middle_name: nil,
       display_name: nil,
       nickname: nil,
       birthdate: nil,
@@ -72,10 +79,17 @@ defmodule Kith.VCard.Parser do
       occupation: nil,
       description: nil,
       uid: nil,
+      categories: [],
+      gender: nil,
+      gender_text: nil,
       emails: [],
       phones: [],
       urls: [],
-      addresses: []
+      addresses: [],
+      related: [],
+      impp: [],
+      rev: nil,
+      photo: nil
     }
 
     Enum.reduce(lines, base, &parse_line/2)
@@ -95,7 +109,8 @@ defmodule Kith.VCard.Parser do
     parts = String.split(value, ";", parts: 5)
     last = Enum.at(parts, 0) |> unescape_or_nil()
     first = Enum.at(parts, 1) |> unescape_or_nil()
-    %{acc | last_name: last, first_name: first}
+    middle = Enum.at(parts, 2) |> unescape_or_nil()
+    %{acc | last_name: last, first_name: first, middle_name: middle}
   end
 
   defp apply_property(acc, "NICKNAME", _params, value),
@@ -141,13 +156,41 @@ defmodule Kith.VCard.Parser do
 
   defp apply_property(acc, "IMPP", params, value) do
     label = extract_type(params)
-    %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
+    %{acc | impp: acc.impp ++ [%{value: unescape(value), label: label}]}
   end
 
   defp apply_property(acc, name, params, value)
        when name in ["X-SOCIALPROFILE", "X-TWITTER", "X-INSTAGRAM"] do
     label = extract_type(params) || social_label(name)
     %{acc | urls: acc.urls ++ [%{value: unescape(value), label: label}]}
+  end
+
+  defp apply_property(acc, "CATEGORIES", _params, value) do
+    cats = split_unescaped(value, ",") |> Enum.map(&(String.trim(&1) |> unescape()))
+    %{acc | categories: cats}
+  end
+
+  defp apply_property(acc, "GENDER", _params, value) do
+    case String.split(value, ";", parts: 2) do
+      [sex, text] -> %{acc | gender: unescape(sex), gender_text: unescape(text)}
+      [sex] -> %{acc | gender: unescape(sex)}
+    end
+  end
+
+  defp apply_property(acc, "X-GENDER", _params, value) do
+    %{acc | gender_text: unescape(value)}
+  end
+
+  defp apply_property(acc, "RELATED", params, value) do
+    type = extract_type(params) || "contact"
+    %{acc | related: acc.related ++ [%{value: unescape(value), type: type}]}
+  end
+
+  defp apply_property(acc, "REV", _params, value),
+    do: %{acc | rev: unescape(value)}
+
+  defp apply_property(acc, "PHOTO", params, value) do
+    %{acc | photo: parse_photo_data(params, value)}
   end
 
   defp apply_property(acc, _name, _params, _value), do: acc
@@ -200,7 +243,53 @@ defmodule Kith.VCard.Parser do
     }
   end
 
+  # ── Photo Parsing ─────────────────────────────────────────────────
+
+  @allowed_photo_types ~w(image/jpeg image/png image/gif image/webp)
+
+  defp parse_photo_data(params, value) do
+    encoding = Map.get(params, "ENCODING")
+
+    cond do
+      # vCard 4.0 data URI (RFC 6350 §6.2.4)
+      String.starts_with?(value, "data:") ->
+        case Regex.run(~r/^data:([^;]+);base64,(.+)$/s, value) do
+          [_, content_type, b64] ->
+            %{content_type: sanitize_photo_type(content_type), data: b64, encoding: :base64}
+
+          _ ->
+            nil
+        end
+
+      # vCard 3.0 inline binary (RFC 2426 §3.1.4) — ENCODING=b or ENCODING=BASE64
+      encoding != nil and String.upcase(encoding) in ["B", "BASE64"] ->
+        type_str = Map.get(params, "TYPE", "JPEG")
+        content_type = sanitize_photo_type("image/" <> String.downcase(type_str))
+        %{content_type: content_type, data: value, encoding: :base64}
+
+      # URI reference (both versions)
+      String.match?(value, ~r/^https?:\/\//) ->
+        %{url: value}
+
+      # Bare base64 with TYPE param but no ENCODING (compatibility)
+      Map.has_key?(params, "TYPE") ->
+        type_str = Map.get(params, "TYPE", "JPEG")
+        content_type = sanitize_photo_type("image/" <> String.downcase(type_str))
+        %{content_type: content_type, data: value, encoding: :base64}
+
+      true ->
+        nil
+    end
+  end
+
+  defp sanitize_photo_type(ct) when ct in @allowed_photo_types, do: ct
+  defp sanitize_photo_type(_), do: "image/jpeg"
+
   # ── Helpers ────────────────────────────────────────────────────────────
+
+  defp split_unescaped(str, delimiter) do
+    Regex.split(~r/(?<!\\)#{Regex.escape(delimiter)}/, str)
+  end
 
   defp extract_type(params) do
     case Map.get(params, "TYPE") do

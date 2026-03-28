@@ -29,6 +29,7 @@ defmodule Kith.Contacts do
   }
 
   alias Kith.Activities.{Activity, Call}
+  alias Kith.Storage
 
   # Suppress Ecto.Multi opaque type warnings (Dialyzer false positives)
   @dialyzer [
@@ -1365,6 +1366,31 @@ defmodule Kith.Contacts do
         insert_address!(addr, contact.id, account_id)
       end)
 
+      # Tags (CATEGORIES)
+      if Map.has_key?(nested_data, :categories) do
+        replace_contact_tags(contact, account_id, Map.get(nested_data, :categories, []))
+      end
+
+      # Relationships (RELATED)
+      if Map.has_key?(nested_data, :related) do
+        replace_contact_relationships(contact, account_id, Map.get(nested_data, :related, []))
+      end
+
+      # IMPP
+      if Map.has_key?(nested_data, :impp) do
+        create_imported_contact_fields(
+          contact,
+          account_id,
+          Map.get(nested_data, :impp, []),
+          "impp"
+        )
+      end
+
+      # Photo
+      if photo = Map.get(nested_data, :photo) do
+        maybe_import_vcard_photo(contact, account_id, photo)
+      end
+
       :ok
     end)
   end
@@ -1379,6 +1405,179 @@ defmodule Kith.Contacts do
     end
   end
 
+  # ── Tag sync (CATEGORIES) ──────────────────────────────────────────
+
+  defp replace_contact_tags(_contact, _account_id, []), do: :ok
+
+  defp replace_contact_tags(contact, account_id, category_names) do
+    from(ct in "contact_tags", where: ct.contact_id == ^contact.id) |> Repo.delete_all()
+
+    Enum.each(category_names, fn name ->
+      tag = find_or_create_tag!(account_id, String.trim(name))
+
+      Repo.insert_all(
+        "contact_tags",
+        [%{contact_id: contact.id, tag_id: tag.id}],
+        on_conflict: :nothing
+      )
+    end)
+  end
+
+  defp find_or_create_tag!(account_id, name) do
+    case Repo.one(
+           from(t in Tag, where: t.account_id == ^account_id and t.name == ^name, limit: 1)
+         ) do
+      nil ->
+        case create_tag(account_id, %{"name" => name}) do
+          {:ok, tag} ->
+            tag
+
+          {:error, _} ->
+            # Race: another transaction created it first — re-fetch
+            Repo.one!(from(t in Tag, where: t.account_id == ^account_id and t.name == ^name))
+        end
+
+      tag ->
+        tag
+    end
+  end
+
+  # ── Relationship sync (RELATED) ────────────────────────────────────
+
+  defp replace_contact_relationships(_contact, _account_id, []), do: :ok
+
+  defp replace_contact_relationships(contact, account_id, related_entries) do
+    from(r in Relationship, where: r.contact_id == ^contact.id and r.account_id == ^account_id)
+    |> Repo.delete_all()
+
+    Enum.each(related_entries, fn entry ->
+      with {:ok, related_id} <- extract_contact_id_from_uid(entry.value),
+           %Contact{} <- get_contact(account_id, related_id) do
+        type_name = vcard_type_to_relationship_name(entry.type)
+        rel_type = find_or_create_relationship_type!(account_id, type_name)
+
+        %Relationship{}
+        |> Relationship.changeset(%{
+          account_id: account_id,
+          contact_id: contact.id,
+          related_contact_id: related_id,
+          relationship_type_id: rel_type.id
+        })
+        |> Repo.insert(on_conflict: :nothing)
+      else
+        _ -> :ok
+      end
+    end)
+  end
+
+  defp extract_contact_id_from_uid(uid) do
+    # Match both "kith-contact-123" and "urn:uuid:kith-contact-123"
+    case Regex.run(~r/kith-contact-(\d+)/, uid) do
+      [_, id_str] -> {:ok, String.to_integer(id_str)}
+      _ -> :error
+    end
+  end
+
+  defp vcard_type_to_relationship_name(type) do
+    case String.downcase(type || "contact") do
+      "spouse" -> "Spouse"
+      "parent" -> "Parent"
+      "child" -> "Child"
+      "sibling" -> "Sibling"
+      "friend" -> "Friend"
+      "colleague" -> "Colleague"
+      _ -> "Contact"
+    end
+  end
+
+  defp find_or_create_relationship_type!(account_id, name) do
+    # First check global (account_id is nil) then account-specific
+    case Repo.one(
+           from(rt in RelationshipType,
+             where: (is_nil(rt.account_id) or rt.account_id == ^account_id) and rt.name == ^name,
+             order_by: [asc_nulls_first: rt.account_id],
+             limit: 1
+           )
+         ) do
+      nil ->
+        # Create account-specific relationship type
+        %RelationshipType{}
+        |> RelationshipType.changeset(%{name: name, reverse_name: name, account_id: account_id})
+        |> Repo.insert()
+        |> case do
+          {:ok, rt} ->
+            rt
+
+          {:error, _} ->
+            # Race: another transaction created it first — re-fetch
+            Repo.one!(
+              from(rt in RelationshipType,
+                where:
+                  (is_nil(rt.account_id) or rt.account_id == ^account_id) and rt.name == ^name,
+                order_by: [asc_nulls_first: rt.account_id],
+                limit: 1
+              )
+            )
+        end
+
+      rt ->
+        rt
+    end
+  end
+
+  # ── Photo import (PHOTO) ───────────────────────────────────────────
+
+  defp maybe_import_vcard_photo(_contact, _account_id, nil), do: :ok
+
+  defp maybe_import_vcard_photo(contact, account_id, %{
+         data: b64_data,
+         content_type: ct,
+         encoding: :base64
+       }) do
+    max_bytes = Application.get_env(:kith, :max_vcard_photo_bytes, 2 * 1024 * 1024)
+
+    with {:ok, binary} <- Base.decode64(String.replace(b64_data, ~r/\s/, "")),
+         true <- byte_size(binary) <= max_bytes,
+         hash <- :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower),
+         false <- photo_exists_by_hash?(contact.id, hash) do
+      upload_and_set_avatar(contact, account_id, binary, ct, hash)
+    else
+      _ -> :ok
+    end
+  end
+
+  defp maybe_import_vcard_photo(%{id: id}, _account_id, _photo) do
+    require Logger
+    Logger.debug("Skipping unsupported vCard PHOTO format for contact #{id}")
+    :ok
+  end
+
+  defp upload_and_set_avatar(contact, account_id, binary, ct, hash) do
+    ext = photo_extension(ct)
+    key = Storage.generate_key(account_id, "photos", "carddav-import#{ext}")
+
+    with {:ok, _} <- Storage.upload_binary(binary, key),
+         {:ok, photo} <-
+           create_photo(contact, %{
+             "file_name" => "carddav-photo#{ext}",
+             "storage_key" => key,
+             "file_size" => byte_size(binary),
+             "content_type" => ct,
+             "content_hash" => hash,
+             "account_id" => account_id
+           }) do
+      set_avatar(contact, photo)
+    else
+      _ -> :ok
+    end
+  end
+
+  defp photo_extension("image/jpeg"), do: ".jpg"
+  defp photo_extension("image/png"), do: ".png"
+  defp photo_extension("image/gif"), do: ".gif"
+  defp photo_extension("image/webp"), do: ".webp"
+  defp photo_extension(_), do: ".jpg"
+
   @doc "Bumps `updated_at` on a contact. Used after replacing child data."
   def touch_contact!(%Contact{} = contact) do
     contact
@@ -1386,17 +1585,26 @@ defmodule Kith.Contacts do
     |> Repo.update!()
   end
 
+  @doc false
+  def dav_preloads do
+    [
+      :addresses,
+      :gender,
+      :tags,
+      contact_fields: :contact_field_type,
+      relationships: [:relationship_type, :related_contact]
+    ]
+  end
+
   @doc """
   Lists contacts modified since the given timestamp.
   Used by CardDAV sync-collection REPORT for incremental sync.
   """
-  @dav_preloads [:addresses, :gender, contact_fields: :contact_field_type]
-
   def list_contacts_modified_since(account_id, %DateTime{} = since) do
     Contact
     |> scope_active(account_id)
     |> where([c], c.updated_at > ^since)
-    |> preload(^@dav_preloads)
+    |> preload(^dav_preloads())
     |> Repo.all()
   end
 

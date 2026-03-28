@@ -30,18 +30,20 @@
           }
         },
         "birthdate": {
-          "data": {
-            "date": "1990-06-15",
-            "is_year_unknown": false,
-            "is_age_based": false
-          }
+          "uuid": "birthdate-uuid-alice",
+          "date": "1990-06-15T00:00:00.000000Z",
+          "is_year_unknown": false,
+          "is_age_based": false,
+          "created_at": "2025-01-01T00:00:00.000000Z",
+          "updated_at": "2025-01-01T00:00:00.000000Z"
         },
         "first_met_date": {
-          "data": {
-            "date": "2015-09-01",
-            "is_year_unknown": false,
-            "is_age_based": false
-          }
+          "uuid": "first-met-uuid-alice",
+          "date": "2015-09-01T00:00:00.000000Z",
+          "is_year_unknown": false,
+          "is_age_based": false,
+          "created_at": "2025-01-01T00:00:00.000000Z",
+          "updated_at": "2025-01-01T00:00:00.000000Z"
         },
         "first_met_through": null,
         "tags": {
@@ -168,15 +170,14 @@
           }
         },
         "birthdate": {
-          "data": {
-            "date": "0001-03-20",
-            "is_year_unknown": true,
-            "is_age_based": false
-          }
+          "uuid": "birthdate-uuid-bob",
+          "date": "0001-03-20T00:00:00.000000Z",
+          "is_year_unknown": true,
+          "is_age_based": false,
+          "created_at": "2025-01-01T00:00:00.000000Z",
+          "updated_at": "2025-01-01T00:00:00.000000Z"
         },
-        "first_met_date": {
-          "data": null
-        },
+        "first_met_date": null,
         "first_met_through": "contact-uuid-alice",
         "tags": {
           "data": [

@@ -38,11 +38,26 @@ defmodule KithWeb.DAV.TestHelpers do
   end
 
   def build_vcard(first_name, last_name, opts \\ []) do
+    do_build_vcard(first_name, last_name, "3.0", opts)
+  end
+
+  def build_vcard_v40(first_name, last_name, opts \\ []) do
+    do_build_vcard(first_name, last_name, "4.0", opts)
+  end
+
+  defp do_build_vcard(first_name, last_name, version, opts) do
+    middle = opts[:middle_name] || ""
+
+    n_line =
+      if middle != "",
+        do: "N:#{last_name};#{first_name};#{middle};;",
+        else: "N:#{last_name};#{first_name};;;"
+
     lines = [
       "BEGIN:VCARD",
-      "VERSION:3.0",
+      "VERSION:#{version}",
       "FN:#{first_name} #{last_name}",
-      "N:#{last_name};#{first_name};;;"
+      n_line
     ]
 
     lines = if opts[:uid], do: lines ++ ["UID:#{opts[:uid]}"], else: lines
@@ -54,8 +69,71 @@ defmodule KithWeb.DAV.TestHelpers do
     lines = if opts[:phone], do: lines ++ ["TEL;TYPE=CELL:#{opts[:phone]}"], else: lines
     lines = if opts[:note], do: lines ++ ["NOTE:#{opts[:note]}"], else: lines
 
+    lines =
+      if opts[:categories] do
+        lines ++ ["CATEGORIES:" <> Enum.join(opts[:categories], ",")]
+      else
+        lines
+      end
+
+    lines = add_version_specific_fields(lines, version, opts)
+
+    lines =
+      if opts[:impp] do
+        Enum.reduce(opts[:impp], lines, fn impp, acc ->
+          acc ++ ["IMPP:#{impp}"]
+        end)
+      else
+        lines
+      end
+
     lines = lines ++ ["END:VCARD"]
     Enum.join(lines, "\r\n") <> "\r\n"
+  end
+
+  defp add_version_specific_fields(lines, "3.0", opts) do
+    lines =
+      if opts[:gender] do
+        lines ++ ["X-GENDER:#{opts[:gender]}"]
+      else
+        lines
+      end
+
+    lines =
+      if opts[:photo_b64] do
+        lines ++ ["PHOTO;ENCODING=b;TYPE=JPEG:#{opts[:photo_b64]}"]
+      else
+        lines
+      end
+
+    if opts[:related] do
+      Enum.reduce(opts[:related], lines, fn rel, acc ->
+        acc ++
+          [
+            "item#{System.unique_integer([:positive])}.X-ABRELATEDNAMES:#{rel.uid}",
+            "item#{System.unique_integer([:positive])}.X-ABLabel:#{rel.type}"
+          ]
+      end)
+    else
+      lines
+    end
+  end
+
+  defp add_version_specific_fields(lines, "4.0", opts) do
+    lines =
+      if opts[:gender] do
+        lines ++ ["GENDER:#{opts[:gender]}"]
+      else
+        lines
+      end
+
+    if opts[:related] do
+      Enum.reduce(opts[:related], lines, fn rel, acc ->
+        acc ++ ["RELATED;TYPE=#{String.downcase(rel.type)}:urn:uuid:#{rel.uid}"]
+      end)
+    else
+      lines
+    end
   end
 
   def contact_uid(contact), do: "kith-contact-#{contact.id}.vcf"
@@ -112,12 +190,29 @@ defmodule KithWeb.DAV.TestHelpers do
     # Ensure global ContactFieldTypes exist for DAV contact field round-trips
     ensure_contact_field_types()
 
+    # Seed genders for gender round-trip tests
+    seed_genders()
+
     %{
       conn: conn,
       user: user,
       scope: scope,
       account_id: user.account.id
     }
+  end
+
+  defp seed_genders do
+    alias Kith.Contacts.Gender
+    alias Kith.Repo
+    import Ecto.Query
+
+    for {name, pos} <- [{"Male", 0}, {"Female", 1}] do
+      unless Repo.one(
+               from(g in Gender, where: is_nil(g.account_id) and g.name == ^name, limit: 1)
+             ) do
+        Repo.insert!(%Gender{name: name, position: pos, account_id: nil})
+      end
+    end
   end
 
   defp ensure_contact_field_types do
@@ -127,10 +222,11 @@ defmodule KithWeb.DAV.TestHelpers do
 
     # Seeds store protocols with colons ("mailto:", "tel:", "https://").
     # Only insert if no types exist for each protocol scheme.
-    for {name, protocol, seeded} <- [
-          {"Email", "mailto", "mailto:"},
-          {"Phone", "tel", "tel:"},
-          {"Website", "https", "https://"}
+    for {name, protocol, seeded, vcard_label} <- [
+          {"Email", "mailto", "mailto:", "EMAIL"},
+          {"Phone", "tel", "tel:", "TEL"},
+          {"Website", "https", "https://", nil},
+          {"IMPP", "impp", "impp:", "IMPP"}
         ] do
       unless Repo.one(
                from(t in ContactFieldType,
@@ -138,7 +234,12 @@ defmodule KithWeb.DAV.TestHelpers do
                  limit: 1
                )
              ) do
-        Repo.insert!(%ContactFieldType{name: name, protocol: seeded, position: 0})
+        Repo.insert!(%ContactFieldType{
+          name: name,
+          protocol: seeded,
+          vcard_label: vcard_label,
+          position: 0
+        })
       end
     end
   end
