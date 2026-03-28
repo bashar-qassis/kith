@@ -373,6 +373,91 @@ defmodule Kith.Imports.Sources.MonicaTest do
     end
   end
 
+  describe "v4 format import with duplicate contact entries" do
+    @v4_fixture_path Path.join([
+                       __DIR__,
+                       "..",
+                       "..",
+                       "..",
+                       "support",
+                       "fixtures",
+                       "monica_v4_export.json"
+                     ])
+
+    test "merges photo references from duplicate entries", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      assert {:ok, summary} =
+               MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      assert summary.contacts == 3
+
+      # Carol's photo should be imported even though it was on the older entry
+      carol_photo =
+        Imports.find_import_record(account_id, "monica", "photo", "photo-uuid-carol-1")
+
+      assert carol_photo, "Carol's photo should survive dedup merge"
+
+      # Dave's photo should also be imported (single entry, no dedup)
+      dave_photo =
+        Imports.find_import_record(account_id, "monica", "photo", "photo-uuid-dave-1")
+
+      assert dave_photo, "Dave's photo should be imported"
+    end
+
+    test "uses properties from the latest entry when merging", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      carol_rec =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-carol")
+
+      carol = Repo.get!(Contacts.Contact, carol_rec.local_entity_id)
+      assert carol.last_name == "Newer"
+    end
+
+    test "deduplicates sub-data values by UUID when merging", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      {:ok, summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      # Carol has 3 unique notes (note-uuid-1 and note-uuid-2 overlap between entries)
+      assert summary.notes == 4
+    end
+
+    test "handles entries without data key during merge", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+      data = File.read!(@v4_fixture_path)
+
+      {:ok, summary} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      # Eve has two entries — one without "data" key, one with a note
+      assert summary.contacts == 3
+
+      eve_rec =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-eve")
+
+      eve = Repo.get!(Contacts.Contact, eve_rec.local_entity_id)
+      assert eve.last_name == "NoData"
+    end
+  end
+
   describe "api_supplement_options/0" do
     test "returns available supplement options" do
       options = MonicaSource.api_supplement_options()

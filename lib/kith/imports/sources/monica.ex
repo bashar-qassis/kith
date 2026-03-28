@@ -108,11 +108,12 @@ defmodule Kith.Imports.Sources.Monica do
   end
 
   @impl true
-  def fetch_photo(%{url: url, api_key: api_key}, resource_id) do
+  def list_photos(%{url: url, api_key: api_key}, page) do
     headers = [{"Authorization", "Bearer #{api_key}"}]
 
-    case Req.get("#{url}/api/photos/#{resource_id}", headers: headers) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
+    case Req.get("#{url}/api/photos?page=#{page}", headers: headers) do
+      {:ok, %{status: 200, body: %{"data" => photos}}} when is_list(photos) -> {:ok, photos}
+      {:ok, %{status: 200, body: _}} -> {:ok, []}
       {:ok, %{status: 429}} -> {:error, :rate_limited}
       {:ok, %{status: status}} -> {:error, "Unexpected status: #{status}"}
       {:error, reason} -> {:error, reason}
@@ -674,25 +675,62 @@ defmodule Kith.Imports.Sources.Monica do
   defp import_photos(contact, contact_data, import_record) do
     photos = get_in(contact_data, ["photos", "data"]) || []
 
-    Enum.each(photos, fn photo_data ->
-      file_name = photo_data["original_filename"] || "photo.jpg"
-      {storage_key, file_size} = resolve_photo_storage(contact, photo_data, file_name)
-
-      attrs = %{
-        "file_name" => file_name,
-        "storage_key" => storage_key,
-        "file_size" => file_size,
-        "content_type" => photo_data["mime_type"] || "image/jpeg"
-      }
-
-      case Contacts.create_photo(contact, attrs) do
-        {:ok, photo} ->
-          maybe_record_entity(import_record, "photo", photo_data["uuid"], "photo", photo.id)
-
-        {:error, reason} ->
-          Logger.warning("[Monica Import] Photo for #{contact.first_name}: #{inspect(reason)}")
-      end
+    Enum.reduce(photos, contact, fn photo_data, current_contact ->
+      import_single_photo(current_contact, photo_data, import_record)
     end)
+  end
+
+  defp import_single_photo(contact, photo_data, import_record) do
+    file_name = photo_data["original_filename"] || "photo.jpg"
+
+    {storage_key, file_size, content_hash} =
+      resolve_photo_storage(contact, photo_data, file_name)
+
+    if content_hash && Contacts.photo_exists_by_hash?(contact.id, content_hash) do
+      Logger.debug(
+        "[Monica Import] Skipping duplicate photo for #{contact.first_name}: #{content_hash}"
+      )
+
+      contact
+    else
+      create_imported_photo(contact, photo_data, import_record, %{
+        file_name: file_name,
+        storage_key: storage_key,
+        file_size: file_size,
+        content_hash: content_hash
+      })
+    end
+  end
+
+  defp create_imported_photo(contact, photo_data, import_record, photo_attrs) do
+    attrs = %{
+      "file_name" => photo_attrs.file_name,
+      "storage_key" => photo_attrs.storage_key,
+      "file_size" => photo_attrs.file_size,
+      "content_type" => photo_data["mime_type"] || "image/jpeg",
+      "content_hash" => photo_attrs.content_hash
+    }
+
+    case Contacts.create_photo(contact, attrs) do
+      {:ok, photo} ->
+        maybe_record_entity(import_record, "photo", photo_data["uuid"], "photo", photo.id)
+        maybe_set_avatar(contact, photo, photo_attrs.storage_key)
+
+      {:error, reason} ->
+        Logger.warning("[Monica Import] Photo for #{contact.first_name}: #{inspect(reason)}")
+
+        contact
+    end
+  end
+
+  defp maybe_set_avatar(contact, _photo, "pending_sync:" <> _), do: contact
+
+  defp maybe_set_avatar(contact, _photo, storage_key) do
+    if is_nil(contact.avatar) do
+      contact |> Ecto.Changeset.change(avatar: storage_key) |> Repo.update!()
+    else
+      contact
+    end
   end
 
   defp resolve_photo_storage(contact, photo_data, file_name) do
@@ -700,10 +738,11 @@ defmodule Kith.Imports.Sources.Monica do
       {:ok, binary} ->
         key = Kith.Storage.generate_key(contact.account_id, "photos", file_name)
         {:ok, _} = Kith.Storage.upload_binary(binary, key)
-        {key, byte_size(binary)}
+        content_hash = :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower)
+        {key, byte_size(binary), content_hash}
 
       :error ->
-        {"pending_sync:#{photo_data["uuid"]}", photo_data["filesize"] || 0}
+        {"pending_sync:#{photo_data["uuid"]}", photo_data["filesize"] || 0, nil}
     end
   end
 
@@ -1023,14 +1062,43 @@ defmodule Kith.Imports.Sources.Monica do
   end
 
   defp deduplicate_by_uuid(entries) do
-    entries
-    |> Enum.group_by(& &1["uuid"])
-    |> Enum.map(fn {_uuid, group} ->
-      # Prefer the entry with the most sub-data, then latest updated_at
-      Enum.max_by(group, fn e ->
-        sub_count = (e["data"] || []) |> Enum.map(&(&1["count"] || 0)) |> Enum.sum()
-        {sub_count, e["updated_at"] || ""}
-      end)
+    {with_uuid, without_uuid} = Enum.split_with(entries, & &1["uuid"])
+
+    merged =
+      with_uuid
+      |> Enum.group_by(& &1["uuid"])
+      |> Enum.map(fn {_uuid, group} -> merge_contact_entries(group) end)
+
+    merged ++ without_uuid
+  end
+
+  defp merge_contact_entries([single]), do: single
+
+  defp merge_contact_entries(group) do
+    primary = Enum.max_by(group, fn e -> e["updated_at"] || "" end)
+    merged_data = merge_sub_data(group)
+    Map.put(primary, "data", merged_data)
+  end
+
+  defp merge_sub_data(group) do
+    group
+    |> Enum.flat_map(fn entry -> entry["data"] || [] end)
+    |> Enum.group_by(fn section -> section["type"] end)
+    |> Enum.map(fn {type, sections} ->
+      all_values =
+        sections
+        |> Enum.flat_map(fn section -> section["values"] || [] end)
+        |> deduplicate_values()
+
+      %{"type" => type, "count" => length(all_values), "values" => all_values}
+    end)
+  end
+
+  defp deduplicate_values(values) do
+    Enum.uniq_by(values, fn
+      v when is_binary(v) -> v
+      %{"uuid" => uuid} when uuid != nil -> uuid
+      other -> other
     end)
   end
 
@@ -1089,7 +1157,7 @@ defmodule Kith.Imports.Sources.Monica do
     Enum.flat_map(values, fn
       uuid when is_binary(uuid) ->
         case Map.get(lookup, uuid) do
-          nil -> []
+          nil -> [%{"uuid" => uuid}]
           obj -> [obj]
         end
 

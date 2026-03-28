@@ -4,6 +4,7 @@ defmodule Kith.Imports do
   """
 
   import Ecto.Query, warn: false
+  alias Kith.Accounts.Scope
   alias Kith.Imports.{Import, ImportRecord}
   alias Kith.Repo
 
@@ -66,6 +67,25 @@ defmodule Kith.Imports do
     |> where([i], i.account_id == ^account_id)
     |> where([i], i.status in ["pending", "processing"])
     |> Repo.exists?()
+  end
+
+  def list_imports(%Scope{} = scope) do
+    Import
+    |> where([i], i.account_id == ^scope.account.id)
+    |> order_by([i], desc: i.inserted_at)
+    |> Repo.all()
+  end
+
+  def get_import(%Scope{} = scope, id) do
+    Import
+    |> where([i], i.id == ^id and i.account_id == ^scope.account.id)
+    |> Repo.one()
+  end
+
+  def update_sync_summary(%Import{} = import, sync_summary) when is_map(sync_summary) do
+    import
+    |> Ecto.Changeset.change(sync_summary: sync_summary)
+    |> Repo.update()
   end
 
   ## Source Resolution

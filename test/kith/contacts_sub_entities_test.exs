@@ -174,27 +174,28 @@ defmodule Kith.ContactsSubEntitiesTest do
   ## Photos
 
   describe "photos" do
-    test "CRUD and cover photo", %{contact: contact, account_id: account_id} do
+    test "CRUD and avatar", %{contact: contact, account_id: _account_id} do
       photo1 = photo_fixture(contact)
       photo2 = photo_fixture(contact, %{"file_name" => "photo2.jpg"})
 
       photos = Contacts.list_photos(contact.id)
       assert length(photos) == 2
 
-      # Set cover photo
-      {:ok, _} = Contacts.set_cover_photo(photo1)
-      updated = Contacts.get_photo!(account_id, photo1.id)
-      assert updated.is_cover == true
+      # Set avatar (stores storage_key, not URL)
+      {:ok, updated_contact} = Contacts.set_avatar(contact, photo1)
+      assert updated_contact.avatar == photo1.storage_key
 
-      # Setting another as cover unsets the first
-      {:ok, _} = Contacts.set_cover_photo(photo2)
-      p1 = Contacts.get_photo!(account_id, photo1.id)
-      p2 = Contacts.get_photo!(account_id, photo2.id)
-      assert p1.is_cover == false
-      assert p2.is_cover == true
+      # Setting another as avatar replaces the first
+      {:ok, updated_contact2} = Contacts.set_avatar(updated_contact, photo2)
+      assert updated_contact2.avatar == photo2.storage_key
+
+      # Deleting avatar photo clears avatar
+      {:ok, _} = Contacts.delete_photo(photo2)
+      cleared_contact = Contacts.get_contact!(updated_contact2.account_id, contact.id)
+      assert is_nil(cleared_contact.avatar)
 
       {:ok, _} = Contacts.delete_photo(photo1)
-      assert length(Contacts.list_photos(contact.id)) == 1
+      assert length(Contacts.list_photos(contact.id)) == 0
     end
   end
 

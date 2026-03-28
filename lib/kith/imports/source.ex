@@ -25,8 +25,8 @@ defmodule Kith.Imports.Source do
   @callback supports_api?() :: boolean()
 
   @callback test_connection(credential()) :: :ok | {:error, String.t()}
-  @callback fetch_photo(credential(), resource_id :: String.t()) ::
-              {:ok, binary()} | {:error, term()}
+  @callback list_photos(credential(), page :: pos_integer()) ::
+              {:ok, [map()]} | {:error, term()}
   @callback api_supplement_options() :: [
               %{key: atom(), label: String.t(), description: String.t()}
             ]
@@ -35,7 +35,7 @@ defmodule Kith.Imports.Source do
 
   @optional_callbacks [
     test_connection: 1,
-    fetch_photo: 2,
+    list_photos: 2,
     api_supplement_options: 0,
     fetch_supplement: 3
   ]

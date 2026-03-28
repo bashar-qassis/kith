@@ -39,7 +39,7 @@
         <%!-- Main info card --%>
         <UI.card>
           <div class="flex flex-col items-center text-center">
-            <KithUI.avatar name={@contact.display_name} size={:lg} />
+            <KithUI.avatar name={@contact.display_name} src={avatar_url(@contact)} size={:lg} />
 
             <div class="flex items-center gap-2 mt-3">
               <h1 class="text-xl font-semibold text-[var(--color-text-primary)]">
@@ -443,7 +443,7 @@
               <.live_component
                 module={KithWeb.ContactLive.PhotosGalleryComponent}
                 id={"photos-#{@contact.id}"}
-                contact_id={@contact.id}
+                contact={@contact}
                 account_id={@account_id}
                 can_edit={can?(assigns, :create, :photo)}
               />

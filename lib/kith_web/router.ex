@@ -362,6 +362,8 @@ defmodule KithWeb.Router do
       live "/settings/integrations", SettingsLive.Integrations, :index
       live "/settings/account", SettingsLive.Account, :index
       live "/settings/import", ImportWizardLive, :index
+      live "/settings/imports", ImportHistoryLive.Index, :index
+      live "/settings/imports/:id", ImportHistoryLive.Show, :show
       live "/settings/export", SettingsLive.Export, :index
 
       # Immich review

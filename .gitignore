@@ -62,3 +62,6 @@ erl_crash.dump
 
 # Dialyzer PLTs
 /priv/plts/
+
+# Temporary claude files
+/claude-docs/

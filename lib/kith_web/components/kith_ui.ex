@@ -13,6 +13,11 @@ defmodule KithWeb.KithUI do
 
   alias Kith.Cldr.DateTime.Relative
 
+  @doc "Resolves a contact's avatar storage key to a display URL. Returns nil if no avatar."
+  def avatar_url(nil), do: nil
+  def avatar_url(%{avatar: nil}), do: nil
+  def avatar_url(%{avatar: key}), do: Kith.Storage.url(key)
+
   # ==========================================================================
   # Helpers
   # ==========================================================================
@@ -188,7 +193,7 @@ defmodule KithWeb.KithUI do
       class="inline-flex items-center gap-2 rounded-[var(--radius-full)] bg-[var(--color-surface-sunken)] pe-3 ps-1 py-1 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-border)] transition-colors duration-150"
     >
       <.avatar
-        src={Map.get(@contact, :avatar_url)}
+        src={avatar_url(@contact)}
         name={Map.get(@contact, :display_name, "")}
         size={:sm}
       />

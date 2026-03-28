@@ -52,6 +52,7 @@ defmodule KithWeb.AdminLive.ObanDashboard do
     |> assign(:queue_stats, fetch_queue_stats())
     |> assign(:recent_failures, fetch_recent_failures())
     |> assign(:recent_jobs, fetch_recent_jobs())
+    |> assign(:photo_sync_jobs, fetch_photo_sync_jobs())
   end
 
   defp fetch_queue_stats do
@@ -84,6 +85,34 @@ defmodule KithWeb.AdminLive.ObanDashboard do
       }
     )
     |> Repo.all()
+  end
+
+  defp fetch_photo_sync_jobs do
+    from(j in "oban_jobs",
+      where: j.worker == "Kith.Workers.PhotoBatchSyncWorker",
+      order_by: [desc: j.inserted_at],
+      limit: 10,
+      select: %{
+        id: j.id,
+        state: j.state,
+        attempt: j.attempt,
+        max_attempts: j.max_attempts,
+        args: j.args,
+        inserted_at: j.inserted_at,
+        attempted_at: j.attempted_at
+      }
+    )
+    |> Repo.all()
+    |> Enum.map(fn job ->
+      import_id = get_in(job.args, ["import_id"])
+      import_record = import_id && Kith.Imports.get_import(import_id)
+
+      Map.merge(job, %{
+        import_id: import_id,
+        import_source: import_record && import_record.source,
+        sync_summary: import_record && import_record.sync_summary
+      })
+    end)
   end
 
   defp fetch_recent_jobs do
@@ -212,6 +241,75 @@ defmodule KithWeb.AdminLive.ObanDashboard do
         <% end %>
       </div>
 
+      <%!-- Photo Sync Jobs --%>
+      <div class="mt-8">
+        <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-3">Photo Sync Jobs</h2>
+        <%= if @photo_sync_jobs == [] do %>
+          <p class="text-sm text-[var(--color-text-tertiary)]">No photo sync jobs.</p>
+        <% else %>
+          <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-[var(--color-border)]">
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    ID
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Import
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    State
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Progress
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Attempt
+                  </th>
+                  <th class="px-3 py-2 text-start text-xs font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    Created
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  :for={job <- @photo_sync_jobs}
+                  class="border-b border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+                >
+                  <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
+                    {job.id}
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-primary)]">
+                    <%= if job.import_id do %>
+                      <.link
+                        navigate={~p"/settings/imports/#{job.import_id}"}
+                        class="text-[var(--color-accent)] hover:underline"
+                      >
+                        #{job.import_id} ({job.import_source || "?"})
+                      </.link>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class="px-3 py-2">
+                    <UI.badge variant={state_variant(job.state)}>{job.state}</UI.badge>
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                    {sync_progress(job.sync_summary)}
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                    {job.attempt}/{job.max_attempts}
+                  </td>
+                  <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                    {format_time(job.inserted_at)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </div>
+
       <%!-- Recent Jobs --%>
       <div class="mt-8">
         <h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-3">Recent Jobs</h2>
@@ -290,6 +388,9 @@ defmodule KithWeb.AdminLive.ObanDashboard do
   defp state_variant("retryable"), do: "error"
   defp state_variant("discarded"), do: "error"
   defp state_variant(_), do: "default"
+
+  defp sync_progress(%{"synced" => synced, "total" => total}), do: "#{synced}/#{total} synced"
+  defp sync_progress(_), do: "—"
 
   defp format_time(nil), do: "-"
 

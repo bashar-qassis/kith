@@ -14,6 +14,7 @@ defmodule Kith.Imports.Import do
     field :api_key_encrypted, Kith.Vault.EncryptedBinary
     field :api_options, :map
     field :summary, :map
+    field :sync_summary, :map
     field :started_at, :utc_datetime
     field :completed_at, :utc_datetime
 

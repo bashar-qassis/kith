@@ -18,7 +18,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
 
   @impl true
   def update(assigns, socket) do
-    photos = Contacts.list_photos(assigns.contact_id)
+    photos = Contacts.list_photos(assigns.contact.id)
 
     {:ok,
      socket
@@ -36,7 +36,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
   end
 
   def handle_event("upload", _params, socket) do
-    contact = Contacts.get_contact!(socket.assigns.account_id, socket.assigns.contact_id)
+    contact = socket.assigns.contact
 
     uploaded_photos =
       consume_uploaded_entries(socket, :photo, fn %{path: path}, entry ->
@@ -55,7 +55,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
       end)
 
     if uploaded_photos != [] do
-      photos = Contacts.list_photos(socket.assigns.contact_id)
+      photos = Contacts.list_photos(contact.id)
 
       {:noreply,
        socket
@@ -66,31 +66,45 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
     end
   end
 
-  def handle_event("set-cover", %{"id" => id}, socket) do
-    photo = Contacts.get_photo!(socket.assigns.account_id, String.to_integer(id))
-    {:ok, _} = Contacts.set_cover_photo(photo)
-    photos = Contacts.list_photos(socket.assigns.contact_id)
+  def handle_event("set-avatar", %{"id" => id}, socket) do
+    contact = socket.assigns.contact
+    photo = Contacts.get_photo!(contact.account_id, String.to_integer(id))
+    {:ok, updated_contact} = Contacts.set_avatar(contact, photo)
+    photos = Contacts.list_photos(contact.id)
+
+    send(self(), {:avatar_updated, updated_contact})
 
     {:noreply,
      socket
+     |> assign(:contact, updated_contact)
      |> assign(:photos, photos)
-     |> put_flash(:info, "Cover photo set.")}
+     |> put_flash(:info, "Avatar set.")}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
-    photo = Contacts.get_photo!(socket.assigns.account_id, String.to_integer(id))
+    contact = socket.assigns.contact
+    photo = Contacts.get_photo!(contact.account_id, String.to_integer(id))
     Storage.delete(photo.storage_key)
     {:ok, _} = Contacts.delete_photo(photo)
-    photos = Contacts.list_photos(socket.assigns.contact_id)
+    photos = Contacts.list_photos(contact.id)
+
+    # Refresh contact in case avatar was cleared
+    updated_contact = Contacts.get_contact!(contact.account_id, contact.id)
+    send(self(), {:avatar_updated, updated_contact})
 
     {:noreply,
      socket
+     |> assign(:contact, updated_contact)
      |> assign(:photos, photos)
      |> put_flash(:info, "Photo deleted.")}
   end
 
   defp photo_url(photo) do
     Storage.url(photo.storage_key)
+  end
+
+  defp avatar?(photo, contact) do
+    contact.avatar == photo.storage_key
   end
 
   @impl true
@@ -104,7 +118,7 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
       <%!-- Upload form --%>
       <%= if @can_edit do %>
         <form
-          id={"photo-upload-#{@contact_id}"}
+          id={"photo-upload-#{@contact.id}"}
           phx-submit="upload"
           phx-change="validate"
           phx-target={@myself}
@@ -173,20 +187,20 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                 class="w-full aspect-square object-cover rounded-[var(--radius-lg)] cursor-pointer"
                 x-on:click={"show('#{photo_url(photo)}', '#{photo.file_name}')"}
               />
-              <%= if photo.is_cover do %>
+              <%= if avatar?(photo, @contact) do %>
                 <span class="absolute top-1 start-1 inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">
-                  Cover
+                  Avatar
                 </span>
               <% end %>
               <%= if @can_edit do %>
                 <div class="absolute top-1 end-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <%= unless photo.is_cover do %>
+                  <%= unless avatar?(photo, @contact) do %>
                     <button
-                      phx-click="set-cover"
+                      phx-click="set-avatar"
                       phx-value-id={photo.id}
                       phx-target={@myself}
                       class="inline-flex items-center justify-center size-6 rounded-full bg-[var(--color-surface-elevated)]/80 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
-                      title="Set as cover"
+                      title="Set as avatar"
                     >
                       <.icon name="hero-star" class="size-3" />
                     </button>

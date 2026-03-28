@@ -68,6 +68,12 @@ defmodule KithWeb.SettingsLive.SettingsLayout do
             label="Import"
           />
           <.settings_nav_item
+            path={~p"/settings/imports"}
+            current_path={@current_path}
+            icon="hero-clock"
+            label="Import History"
+          />
+          <.settings_nav_item
             path={~p"/settings/export"}
             current_path={@current_path}
             icon="hero-arrow-down-tray"
