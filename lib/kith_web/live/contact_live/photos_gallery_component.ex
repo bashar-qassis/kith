@@ -103,8 +103,8 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
     Storage.url(photo.storage_key)
   end
 
-  defp is_avatar?(photo, contact) do
-    contact.avatar == Storage.url(photo.storage_key)
+  defp avatar?(photo, contact) do
+    contact.avatar == photo.storage_key
   end
 
   @impl true
@@ -187,14 +187,14 @@ defmodule KithWeb.ContactLive.PhotosGalleryComponent do
                 class="w-full aspect-square object-cover rounded-[var(--radius-lg)] cursor-pointer"
                 x-on:click={"show('#{photo_url(photo)}', '#{photo.file_name}')"}
               />
-              <%= if is_avatar?(photo, @contact) do %>
+              <%= if avatar?(photo, @contact) do %>
                 <span class="absolute top-1 start-1 inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">
                   Avatar
                 </span>
               <% end %>
               <%= if @can_edit do %>
                 <div class="absolute top-1 end-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <%= unless is_avatar?(photo, @contact) do %>
+                  <%= unless avatar?(photo, @contact) do %>
                     <button
                       phx-click="set-avatar"
                       phx-value-id={photo.id}

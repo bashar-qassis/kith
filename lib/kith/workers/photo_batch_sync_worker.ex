@@ -60,16 +60,20 @@ defmodule Kith.Workers.PhotoBatchSyncWorker do
     Imports.list_import_records(import_id)
     |> Enum.filter(&(&1.source_entity_type == "photo"))
     |> Enum.reduce(%{}, fn rec, acc ->
-      case Repo.get(Photo, rec.local_entity_id) |> Repo.preload(:contact) do
-        %Photo{} = photo ->
-          if Photo.pending_sync?(photo),
-            do: Map.put(acc, rec.source_entity_id, photo),
-            else: acc
-
-        nil ->
-          acc
-      end
+      maybe_add_pending_photo(rec, acc)
     end)
+  end
+
+  defp maybe_add_pending_photo(rec, acc) do
+    case Repo.get(Photo, rec.local_entity_id) |> Repo.preload(:contact) do
+      %Photo{} = photo ->
+        if Photo.pending_sync?(photo),
+          do: Map.put(acc, rec.source_entity_id, photo),
+          else: acc
+
+      nil ->
+        acc
+    end
   end
 
   defp do_sync(source_mod, credential, import, pending, results) do
@@ -80,8 +84,9 @@ defmodule Kith.Workers.PhotoBatchSyncWorker do
         maybe_cleanup_api_key(import)
         :ok
 
-      {:snooze, seconds} ->
-        {:snooze, seconds}
+      {:error, reason} ->
+        save_sync_summary(import, results)
+        {:error, reason}
     end
   end
 
@@ -111,7 +116,7 @@ defmodule Kith.Workers.PhotoBatchSyncWorker do
 
       {:error, reason} ->
         Logger.warning("Import #{import.id}: API error on page #{page}: #{inspect(reason)}")
-        {:snooze, 120}
+        {:error, reason}
     end
   end
 
@@ -195,18 +200,11 @@ defmodule Kith.Workers.PhotoBatchSyncWorker do
   end
 
   defp build_result_entry(photo, uuid, status, reason) do
-    contact_name =
-      case photo.contact do
-        %{display_name: name} when is_binary(name) -> name
-        %{first_name: name} when is_binary(name) -> name
-        _ -> "Unknown"
-      end
-
     entry = %{
       "uuid" => uuid,
       "file_name" => photo.file_name,
       "status" => to_string(status),
-      "contact_name" => contact_name
+      "contact_id" => photo.contact_id
     }
 
     if reason, do: Map.put(entry, "reason", reason), else: entry

@@ -1,36 +1,69 @@
 defmodule KithWeb.ImportHistoryLive.Show do
   use KithWeb, :live_view
 
+  alias Kith.Contacts
   alias Kith.Imports
 
   import KithWeb.SettingsLive.SettingsLayout
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    account_id = socket.assigns.current_scope.account.id
-    import_record = Imports.get_import!(id)
+    scope = socket.assigns.current_scope
 
-    if import_record.account_id != account_id do
-      {:ok, socket |> put_flash(:error, "Not found") |> redirect(to: ~p"/settings/imports")}
-    else
-      if connected?(socket) do
-        Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{account_id}")
-      end
+    case Imports.get_import(scope, id) do
+      nil ->
+        {:ok, socket |> put_flash(:error, "Not found") |> redirect(to: ~p"/settings/imports")}
 
-      {:ok,
-       socket
-       |> assign(:page_title, "Import Details")
-       |> assign(:import, import_record)}
+      import_record ->
+        if connected?(socket) do
+          Phoenix.PubSub.subscribe(Kith.PubSub, "import:#{scope.account.id}")
+        end
+
+        contact_names = load_contact_names(import_record)
+
+        {:ok,
+         socket
+         |> assign(:page_title, "Import Details")
+         |> assign(:import, import_record)
+         |> assign(:contact_names, contact_names)}
     end
   end
 
   @impl true
   def handle_info({:sync_complete, summary}, socket) do
-    import_record = Imports.get_import!(socket.assigns.import.id)
-    {:noreply, assign(socket, :import, %{import_record | sync_summary: summary})}
+    scope = socket.assigns.current_scope
+    import_record = Imports.get_import(scope, socket.assigns.import.id)
+
+    if import_record do
+      contact_names = load_contact_names(%{import_record | sync_summary: summary})
+
+      {:noreply,
+       socket
+       |> assign(:import, %{import_record | sync_summary: summary})
+       |> assign(:contact_names, contact_names)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(_, socket), do: {:noreply, socket}
+
+  defp load_contact_names(%{sync_summary: %{"photos" => photos}}) when is_list(photos) do
+    photos
+    |> Enum.map(& &1["contact_id"])
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Contacts.get_contact_names()
+  end
+
+  defp load_contact_names(_), do: %{}
+
+  defp contact_name(photo, contact_names) do
+    case Map.get(contact_names, photo["contact_id"]) do
+      nil -> "Deleted contact"
+      name -> name
+    end
+  end
 
   @impl true
   def render(assigns) do
@@ -83,7 +116,7 @@ defmodule KithWeb.ImportHistoryLive.Show do
 
           <%!-- Photo sync section --%>
           <%= if @import.sync_summary do %>
-            <.photo_sync_section sync={@import.sync_summary} />
+            <.photo_sync_section sync={@import.sync_summary} contact_names={@contact_names} />
           <% else %>
             <%= if @import.api_options && (@import.api_options["photos"] || @import.api_options[:photos]) do %>
               <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5">
@@ -104,6 +137,7 @@ defmodule KithWeb.ImportHistoryLive.Show do
   end
 
   attr :sync, :map, required: true
+  attr :contact_names, :map, required: true
 
   defp photo_sync_section(assigns) do
     ~H"""
@@ -158,7 +192,7 @@ defmodule KithWeb.ImportHistoryLive.Show do
                   {photo["file_name"] || "—"}
                 </td>
                 <td class="px-4 py-2 text-[var(--color-text-secondary)]">
-                  {photo["contact_name"] || "—"}
+                  {contact_name(photo, @contact_names)}
                 </td>
                 <td class="px-4 py-2">
                   <.photo_status_badge status={photo["status"]} />

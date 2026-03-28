@@ -252,6 +252,14 @@ defmodule Kith.Contacts do
     |> Repo.get!(id)
   end
 
+  def get_contact_names(ids) when is_list(ids) do
+    Contact
+    |> where([c], c.id in ^ids)
+    |> select([c], {c.id, c.display_name})
+    |> Repo.all()
+    |> Map.new()
+  end
+
   def create_contact(account_id, attrs) do
     %Contact{account_id: account_id}
     |> Contact.create_changeset(attrs)
@@ -579,7 +587,7 @@ defmodule Kith.Contacts do
     contact = Repo.get!(Contact, photo.contact_id)
 
     with {:ok, _} <- Repo.delete(photo) do
-      if contact.avatar == Kith.Storage.url(photo.storage_key) do
+      if contact.avatar == photo.storage_key do
         contact |> Ecto.Changeset.change(avatar: nil) |> Repo.update!()
       end
 
@@ -588,10 +596,8 @@ defmodule Kith.Contacts do
   end
 
   def set_avatar(%Contact{} = contact, %Photo{} = photo) do
-    avatar_url = Kith.Storage.url(photo.storage_key)
-
     contact
-    |> Ecto.Changeset.change(avatar: avatar_url)
+    |> Ecto.Changeset.change(avatar: photo.storage_key)
     |> Repo.update()
   end
 

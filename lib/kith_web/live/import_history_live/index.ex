@@ -7,8 +7,7 @@ defmodule KithWeb.ImportHistoryLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    account_id = socket.assigns.current_scope.account.id
-    imports = Imports.list_imports(account_id)
+    imports = Imports.list_imports(socket.assigns.current_scope)
 
     {:ok,
      socket

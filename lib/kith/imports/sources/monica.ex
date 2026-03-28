@@ -676,48 +676,58 @@ defmodule Kith.Imports.Sources.Monica do
     photos = get_in(contact_data, ["photos", "data"]) || []
 
     Enum.reduce(photos, contact, fn photo_data, current_contact ->
-      file_name = photo_data["original_filename"] || "photo.jpg"
-
-      {storage_key, file_size, content_hash} =
-        resolve_photo_storage(current_contact, photo_data, file_name)
-
-      if content_hash && Contacts.photo_exists_by_hash?(current_contact.id, content_hash) do
-        Logger.debug(
-          "[Monica Import] Skipping duplicate photo for #{current_contact.first_name}: #{content_hash}"
-        )
-
-        current_contact
-      else
-        attrs = %{
-          "file_name" => file_name,
-          "storage_key" => storage_key,
-          "file_size" => file_size,
-          "content_type" => photo_data["mime_type"] || "image/jpeg",
-          "content_hash" => content_hash
-        }
-
-        case Contacts.create_photo(current_contact, attrs) do
-          {:ok, photo} ->
-            maybe_record_entity(import_record, "photo", photo_data["uuid"], "photo", photo.id)
-            maybe_set_avatar(current_contact, photo, storage_key)
-
-          {:error, reason} ->
-            Logger.warning(
-              "[Monica Import] Photo for #{current_contact.first_name}: #{inspect(reason)}"
-            )
-
-            current_contact
-        end
-      end
+      import_single_photo(current_contact, photo_data, import_record)
     end)
+  end
+
+  defp import_single_photo(contact, photo_data, import_record) do
+    file_name = photo_data["original_filename"] || "photo.jpg"
+
+    {storage_key, file_size, content_hash} =
+      resolve_photo_storage(contact, photo_data, file_name)
+
+    if content_hash && Contacts.photo_exists_by_hash?(contact.id, content_hash) do
+      Logger.debug(
+        "[Monica Import] Skipping duplicate photo for #{contact.first_name}: #{content_hash}"
+      )
+
+      contact
+    else
+      create_imported_photo(contact, photo_data, import_record, %{
+        file_name: file_name,
+        storage_key: storage_key,
+        file_size: file_size,
+        content_hash: content_hash
+      })
+    end
+  end
+
+  defp create_imported_photo(contact, photo_data, import_record, photo_attrs) do
+    attrs = %{
+      "file_name" => photo_attrs.file_name,
+      "storage_key" => photo_attrs.storage_key,
+      "file_size" => photo_attrs.file_size,
+      "content_type" => photo_data["mime_type"] || "image/jpeg",
+      "content_hash" => photo_attrs.content_hash
+    }
+
+    case Contacts.create_photo(contact, attrs) do
+      {:ok, photo} ->
+        maybe_record_entity(import_record, "photo", photo_data["uuid"], "photo", photo.id)
+        maybe_set_avatar(contact, photo, photo_attrs.storage_key)
+
+      {:error, reason} ->
+        Logger.warning("[Monica Import] Photo for #{contact.first_name}: #{inspect(reason)}")
+
+        contact
+    end
   end
 
   defp maybe_set_avatar(contact, _photo, "pending_sync:" <> _), do: contact
 
   defp maybe_set_avatar(contact, _photo, storage_key) do
     if is_nil(contact.avatar) do
-      avatar_url = Kith.Storage.url(storage_key)
-      contact |> Ecto.Changeset.change(avatar: avatar_url) |> Repo.update!()
+      contact |> Ecto.Changeset.change(avatar: storage_key) |> Repo.update!()
     else
       contact
     end
