@@ -73,6 +73,73 @@ defmodule Kith.DAV.XMLBuilder do
   def current_user_principal(href),
     do: "<d:current-user-principal><d:href>#{escape(href)}</d:href></d:current-user-principal>"
 
+  @doc "Builds a propstat element for protected properties that cannot be modified (403)."
+  def propstat_forbidden(prop_names) do
+    props = Enum.map_join(prop_names, "\n", fn name -> "<d:#{name}/>" end)
+
+    """
+    <d:propstat>
+    <d:prop>
+    #{props}
+    </d:prop>
+    <d:status>HTTP/1.1 403 Forbidden</d:status>
+    </d:propstat>
+    """
+  end
+
+  @doc "Builds a response element for a deleted resource in sync-collection (RFC 6578 §3.5)."
+  def response_deleted(href) do
+    """
+    <d:response>
+    <d:href>#{escape(href)}</d:href>
+    <d:status>HTTP/1.1 404 Not Found</d:status>
+    </d:response>
+    """
+  end
+
+  @doc "Builds a DAV precondition error response (RFC 6352 §10)."
+  def precondition_error(precondition, message) do
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <d:error xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+    <card:#{precondition}/>
+    <d:description>#{escape(message)}</d:description>
+    </d:error>
+    """
+  end
+
+  @doc "Wraps response elements in a DAV multistatus envelope with a sync-token."
+  def multistatus(responses, sync_token: token) do
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav" xmlns:cs="http://calendarserver.org/ns/">
+    #{Enum.join(responses, "\n")}
+    #{sync_token(token)}
+    </d:multistatus>
+    """
+  end
+
+  def max_resource_size(size), do: "<card:max-resource-size>#{size}</card:max-resource-size>"
+
+  def principal_url(href),
+    do: "<d:principal-URL><d:href>#{escape(href)}</d:href></d:principal-URL>"
+
+  def owner(href), do: "<d:owner><d:href>#{escape(href)}</d:href></d:owner>"
+
+  def current_user_privilege_set do
+    "<d:current-user-privilege-set>" <>
+      "<d:privilege><d:read/></d:privilege>" <>
+      "<d:privilege><d:write/></d:privilege>" <>
+      "<d:privilege><d:all/></d:privilege>" <>
+      "</d:current-user-privilege-set>"
+  end
+
+  def supported_collation_set do
+    "<card:supported-collation-set>" <>
+      "<card:supported-collation>i;unicode-casemap</card:supported-collation>" <>
+      "</card:supported-collation-set>"
+  end
+
   # ── XML escaping ──────────────────────────────────────────────────────
 
   @doc "Escapes XML special characters in text content."

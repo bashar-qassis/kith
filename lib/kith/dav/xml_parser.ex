@@ -61,26 +61,58 @@ defmodule Kith.DAV.XMLParser do
     {:ok, token}
   end
 
+  @doc """
+  Parses an addressbook-query REPORT body.
+
+  Returns `{:ok, filters}` where filters is a list of
+  `%{property: name, match: text, match_type: type}` maps.
+
+  Supports basic text-match on FN, EMAIL, TEL properties.
+  """
+  def parse_addressbook_query(body) do
+    filters =
+      Regex.scan(
+        ~r/<card:prop-filter\s+name="([^"]+)"[^>]*>.*?<card:text-match[^>]*>([^<]+)<\/card:text-match>.*?<\/card:prop-filter>/si,
+        body
+      )
+      |> Enum.map(fn [full_match, prop_name, text] ->
+        match_type =
+          case Regex.run(~r/match-type="([^"]+)"/, full_match) do
+            [_, type] -> type
+            _ -> "contains"
+          end
+
+        %{property: String.upcase(prop_name), match: String.trim(text), match_type: match_type}
+      end)
+
+    {:ok, filters}
+  end
+
   # ── Private ────────────────────────────────────────────────────────────
 
-  defp extract_requested_props(body) do
-    checks = [
-      {"displayname", :displayname},
-      {"resourcetype", :resourcetype},
-      {"getcontenttype", :getcontenttype},
-      {"getetag", :getetag},
-      {"getlastmodified", :getlastmodified},
-      {"address-data", :address_data},
-      {"getctag", :getctag},
-      {"sync-token", :sync_token},
-      {"current-user-principal", :current_user_principal},
-      {"addressbook-home-set", :addressbook_home_set},
-      {"supported-report-set", :supported_report_set},
-      {"supported-address-data", :supported_address_data}
-    ]
+  @known_props %{
+    "displayname" => :displayname,
+    "resourcetype" => :resourcetype,
+    "getcontenttype" => :getcontenttype,
+    "getetag" => :getetag,
+    "getlastmodified" => :getlastmodified,
+    "address-data" => :address_data,
+    "getctag" => :getctag,
+    "sync-token" => :sync_token,
+    "current-user-principal" => :current_user_principal,
+    "addressbook-home-set" => :addressbook_home_set,
+    "supported-report-set" => :supported_report_set,
+    "supported-address-data" => :supported_address_data,
+    "principal-URL" => :principal_url,
+    "owner" => :owner,
+    "current-user-privilege-set" => :current_user_privilege_set,
+    "max-resource-size" => :max_resource_size,
+    "supported-collation-set" => :supported_collation_set
+  }
 
-    for {needle, atom} <- checks,
-        String.contains?(body, needle),
+  defp extract_requested_props(body) do
+    for {name, atom} <- @known_props,
+        String.contains?(body, name),
         do: atom
   end
 end

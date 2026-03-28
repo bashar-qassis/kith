@@ -1,0 +1,286 @@
+defmodule KithWeb.DAV.ReportTest do
+  @moduledoc """
+  RFC 6352 §8.7 — addressbook-multiget REPORT
+  RFC 6578 §3  — sync-collection REPORT
+  """
+  use KithWeb.ConnCase, async: true
+
+  import KithWeb.DAV.TestHelpers
+
+  alias Kith.Contacts
+  alias Kith.ContactsFixtures
+
+  setup :setup_dav_user
+
+  # ── RFC 6352 §8.7 — addressbook-multiget ────────────────────────────────
+
+  describe "RFC 6352 §8.7 — addressbook-multiget REPORT" do
+    test "MUST return 207 Multi-Status with response for each requested href",
+         %{account_id: account_id} = context do
+      c1 = ContactsFixtures.contact_fixture(account_id, %{first_name: "Alice"})
+      c2 = ContactsFixtures.contact_fixture(account_id, %{first_name: "Bob"})
+      _c3 = ContactsFixtures.contact_fixture(account_id, %{first_name: "Charlie"})
+
+      body = multiget_body([contact_path(c1), contact_path(c2)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert count_responses(conn.resp_body) == 2
+    end
+
+    test "MUST return address-data containing the vCard for each found resource",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{first_name: "Zara", last_name: "Quinn"})
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.resp_body =~ "address-data"
+      assert conn.resp_body =~ "BEGIN:VCARD"
+      assert conn.resp_body =~ "Zara"
+      assert conn.resp_body =~ "Quinn"
+    end
+
+    test "MUST include getetag in each response", %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.resp_body =~ "getetag"
+    end
+
+    test "MUST return 404 status for inaccessible/missing resources in multiget",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      missing = "/dav/addressbooks/default/kith-contact-999999.vcf"
+
+      body = multiget_body([contact_path(contact), missing])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "404 Not Found"
+    end
+  end
+
+  # ── RFC 6578 §3 — sync-collection ──────────────────────────────────────
+
+  describe "RFC 6578 §3 — sync-collection REPORT" do
+    test "MUST return 207 Multi-Status with all current members",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Alice"})
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Bob"})
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "Alice"
+      assert conn.resp_body =~ "Bob"
+    end
+
+    test "response MUST include sync-token that is a valid URI (RFC 6578 §4)",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id)
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.resp_body =~ "sync-token"
+
+      [token] =
+        Regex.run(~r/<d:sync-token>([^<]+)<\/d:sync-token>/, conn.resp_body,
+          capture: :all_but_first
+        )
+
+      assert token =~ ~r{^https?://}
+    end
+
+    test "each member response MUST include getetag and address-data",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id)
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.resp_body =~ "getetag"
+      assert conn.resp_body =~ "address-data"
+      assert conn.resp_body =~ "BEGIN:VCARD"
+    end
+
+    test "MUST NOT include deleted or archived members",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Active"})
+      archived = ContactsFixtures.contact_fixture(account_id, %{first_name: "Archived"})
+      deleted = ContactsFixtures.contact_fixture(account_id, %{first_name: "Deleted"})
+      {:ok, _} = Contacts.archive_contact(archived)
+      {:ok, _} = Contacts.soft_delete_contact(deleted)
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.resp_body =~ "Active"
+      refute conn.resp_body =~ "kith-contact-#{archived.id}.vcf"
+      refute conn.resp_body =~ "kith-contact-#{deleted.id}.vcf"
+    end
+  end
+
+  # ── RFC 6578 §3 — incremental sync-collection ──────────────────────────
+
+  describe "RFC 6578 §3 — incremental sync-collection" do
+    test "sync with valid token returns only modified contacts",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Existing"})
+
+      # Get initial sync token
+      conn1 =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      [token] =
+        Regex.run(~r/<d:sync-token>([^<]+)<\/d:sync-token>/, conn1.resp_body,
+          capture: :all_but_first
+        )
+
+      # Wait and create a new contact
+      Process.sleep(1100)
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "NewAfterSync"})
+
+      # Incremental sync with the token
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>#{token}</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn2.status == 207
+      assert conn2.resp_body =~ "NewAfterSync"
+      refute conn2.resp_body =~ "Existing"
+    end
+
+    test "sync reports deleted contacts with 404 status",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id, %{first_name: "ToDelete"})
+
+      # Get initial sync token
+      conn1 =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      [token] =
+        Regex.run(~r/<d:sync-token>([^<]+)<\/d:sync-token>/, conn1.resp_body,
+          capture: :all_but_first
+        )
+
+      # Wait and delete the contact
+      Process.sleep(1100)
+      {:ok, _} = Contacts.soft_delete_contact(contact)
+
+      # Incremental sync
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>#{token}</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn2.status == 207
+      assert conn2.resp_body =~ "kith-contact-#{contact.id}.vcf"
+      assert conn2.resp_body =~ "404 Not Found"
+    end
+  end
+
+  # ── RFC 6352 §8.6 — addressbook-query ──────────────────────────────────
+
+  describe "RFC 6352 §8.6 — addressbook-query REPORT" do
+    test "returns contacts matching FN filter",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Alice", last_name: "Smith"})
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "Bob", last_name: "Jones"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <card:addressbook-query xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+        <card:filter>
+          <card:prop-filter name="FN">
+            <card:text-match match-type="contains">Alice</card:text-match>
+          </card:prop-filter>
+        </card:filter>
+      </card:addressbook-query>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "Alice"
+      refute conn.resp_body =~ "Bob"
+    end
+  end
+
+  # ── Invalid sync tokens ──────────────────────────────────────────────────
+
+  describe "RFC 6578 §3 — invalid sync tokens" do
+    test "garbage sync token falls back to full sync",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "FullSync"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>not-a-valid-token-at-all</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "FullSync"
+    end
+
+    test "out-of-range timestamp in sync token falls back to full sync",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{first_name: "RangeTest"})
+
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:sync-collection xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+        <d:sync-token>https://kith.app/ns/sync/99999999999999999</d:sync-token>
+        <d:prop><d:getetag/><card:address-data/></d:prop>
+      </d:sync-collection>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "RangeTest"
+    end
+  end
+
+  # ── Unsupported REPORT types ────────────────────────────────────────────
+
+  describe "RFC 6352 — unsupported REPORT types" do
+    test "server MUST return 400 for unrecognized REPORT type", context do
+      body = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <d:unknown-report xmlns:d="DAV:"/>
+      """
+
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+      assert conn.status == 400
+    end
+  end
+end
