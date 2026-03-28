@@ -31,14 +31,14 @@
         },
         "birthdate": {
           "data": {
-            "date": "1990-06-15",
+            "date": "1990-06-15T00:00:00Z",
             "is_year_unknown": false,
             "is_age_based": false
           }
         },
         "first_met_date": {
           "data": {
-            "date": "2015-09-01",
+            "date": "2015-09-01T00:00:00Z",
             "is_year_unknown": false,
             "is_age_based": false
           }
@@ -169,7 +169,7 @@
         },
         "birthdate": {
           "data": {
-            "date": "0001-03-20",
+            "date": "0001-03-20T00:00:00Z",
             "is_year_unknown": true,
             "is_age_based": false
           }

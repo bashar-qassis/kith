@@ -501,7 +501,7 @@ defmodule Kith.Imports.Sources.Monica do
     date_str = date_data["date"]
 
     if date_str do
-      case Date.from_iso8601(date_str) do
+      case parse_date_or_datetime(date_str) do
         {:ok, date} ->
           year_unknown = date_data["is_year_unknown"] == true
           %{date: date, year_unknown: year_unknown}
@@ -511,6 +511,21 @@ defmodule Kith.Imports.Sources.Monica do
       end
     else
       %{}
+    end
+  end
+
+  # Monica exports dates as full ISO 8601 datetimes ("1990-06-15T00:00:00Z"),
+  # not just date strings ("1990-06-15"). Handle both formats.
+  defp parse_date_or_datetime(str) do
+    case Date.from_iso8601(str) do
+      {:ok, _date} = ok ->
+        ok
+
+      {:error, _} ->
+        case DateTime.from_iso8601(str) do
+          {:ok, dt, _offset} -> {:ok, DateTime.to_date(dt)}
+          _ -> :error
+        end
     end
   end
 
