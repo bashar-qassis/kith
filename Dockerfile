@@ -39,7 +39,7 @@ RUN mix assets.setup
 # Compile application (must precede assets.deploy so phoenix_live_view
 # compiler generates colocated hooks JS referenced by esbuild)
 RUN mix compile
-
+RUN mix assets.vendor
 RUN mix assets.deploy
 
 # Build release
