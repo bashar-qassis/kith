@@ -855,4 +855,379 @@ defmodule KithWeb.DAV.AddressObjectTest do
       assert conn.resp_body =~ ~s(version="4.0")
     end
   end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Comprehensive PUT/GET round-trip for ALL scalar fields
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  describe "PUT/GET round-trip — all scalar fields" do
+    test "birthdate round-trips via BDAY property", context do
+      vcard = build_vcard("Alice", "Test", birthdate: "1990-06-15")
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "BDAY:1990-06-15"
+    end
+
+    test "nickname round-trips via NICKNAME property", context do
+      vcard = build_vcard("Alice", "Test", nickname: "Ali")
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "NICKNAME:Ali"
+    end
+
+    test "occupation round-trips via TITLE property", context do
+      vcard = build_vcard("Alice", "Test", occupation: "Software Engineer")
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "TITLE:Software Engineer"
+    end
+
+    test "description round-trips via NOTE property", context do
+      vcard = build_vcard("Alice", "Test", note: "Met at conference 2024")
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "NOTE:Met at conference 2024"
+    end
+
+    test "company round-trips via ORG property", context do
+      vcard = build_vcard("Alice", "Test", company: "Acme Corp")
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "ORG:Acme Corp"
+    end
+
+    test "all scalar fields round-trip together", context do
+      vcard =
+        build_vcard("Alice", "Test",
+          middle_name: "Marie",
+          nickname: "Ali",
+          birthdate: "1990-06-15",
+          company: "Acme Corp",
+          occupation: "Engineer",
+          note: "Best friend"
+        )
+
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      body = conn_get.resp_body
+      assert body =~ "N:Test;Alice;Marie;;"
+      assert body =~ "NICKNAME:Ali"
+      assert body =~ "BDAY:1990-06-15"
+      assert body =~ "ORG:Acme Corp"
+      assert body =~ "TITLE:Engineer"
+      assert body =~ "NOTE:Best friend"
+    end
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PUT/GET round-trip — field clearing (PUT without field clears it)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  describe "PUT/GET round-trip — field clearing" do
+    test "PUTting vCard without BDAY clears existing birthdate",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          birthdate: ~D[1990-06-15]
+        })
+
+      # Verify birthdate is serialized first
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "BDAY:1990-06-15"
+
+      # PUT vCard without BDAY
+      vcard = build_vcard("Alice", "Updated")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      # Verify birthdate is cleared
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      refute conn_get2.resp_body =~ "BDAY"
+    end
+
+    test "PUTting vCard without NICKNAME clears existing nickname",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          nickname: "Ali"
+        })
+
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "NICKNAME:Ali"
+
+      vcard = build_vcard("Alice", "Updated")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      refute conn_get2.resp_body =~ "NICKNAME"
+    end
+
+    test "PUTting vCard without ORG clears existing company",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          company: "OldCorp"
+        })
+
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "ORG:OldCorp"
+
+      vcard = build_vcard("Alice", "Updated")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      refute conn_get2.resp_body =~ "ORG"
+    end
+
+    test "PUTting vCard without TITLE clears existing occupation",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          occupation: "Engineer"
+        })
+
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "TITLE:Engineer"
+
+      vcard = build_vcard("Alice", "Updated")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      refute conn_get2.resp_body =~ "TITLE"
+    end
+
+    test "PUTting vCard without NOTE clears existing description",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          description: "Old note"
+        })
+
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "NOTE:Old note"
+
+      vcard = build_vcard("Alice", "Updated")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      refute conn_get2.resp_body =~ "NOTE"
+    end
+
+    test "PUTting vCard without middle name clears existing middle_name",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          last_name: "Smith",
+          middle_name: "Marie"
+        })
+
+      conn_get1 = authed_dav(context, "GET", contact_path(contact))
+      assert conn_get1.resp_body =~ "N:Smith;Alice;Marie;;"
+
+      vcard = build_vcard("Alice", "Smith")
+      conn_put = authed_dav(context, "PUT", contact_path(contact), vcard)
+      assert conn_put.status == 204
+
+      conn_get2 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", contact_path(contact))
+
+      assert conn_get2.resp_body =~ "N:Smith;Alice;;;"
+    end
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PUT/GET round-trip — IMPP (RFC 6350 §6.4.3)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  describe "PUT/GET round-trip — IMPP" do
+    test "PUT vCard with IMPP stores and re-serializes the field", context do
+      vcard = build_vcard("Alice", "Test", impp: ["xmpp:alice@chat.example.com"])
+      {href, _} = put_and_find(context, vcard)
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      # IMPP should be stored as a contact field and re-serialized
+      # The exact property name depends on the serializer's handling of the field type
+      assert conn_get.resp_body =~ "alice@chat.example.com"
+    end
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # vCard 4.0 PUT round-trips
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  describe "vCard 4.0 PUT round-trip" do
+    test "PUT vCard 4.0 with GENDER:F resolves to gender and round-trips",
+         context do
+      vcard = build_vcard_v40("Jane", "Doe", gender: "F")
+
+      conn =
+        authed_dav(
+          context,
+          "PUT",
+          "/dav/addressbooks/default/kith-contact-999999.vcf",
+          vcard
+        )
+
+      assert conn.status == 201
+
+      conn_list =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "1")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      [href] =
+        Regex.scan(
+          ~r{<d:href>(/dav/addressbooks/default/kith-contact-\d+\.vcf)</d:href>},
+          conn_list.resp_body,
+          capture: :all_but_first
+        )
+        |> List.flatten()
+
+      # GET as v3.0 — should show X-GENDER:Female
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "X-GENDER:Female"
+
+      # GET as v4.0 — should show GENDER:F
+      conn_get40 =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("accept", "text/vcard;version=4.0")
+        |> dav_request("GET", href)
+
+      assert conn_get40.resp_body =~ "GENDER:F"
+    end
+
+    test "PUT vCard 4.0 with compact BDAY round-trips", context do
+      vcard = build_vcard_v40("Jane", "Doe", birthdate: "19900615")
+
+      conn =
+        authed_dav(
+          context,
+          "PUT",
+          "/dav/addressbooks/default/kith-contact-999999.vcf",
+          vcard
+        )
+
+      assert conn.status == 201
+
+      conn_list =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("depth", "1")
+        |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+      [href] =
+        Regex.scan(
+          ~r{<d:href>(/dav/addressbooks/default/kith-contact-\d+\.vcf)</d:href>},
+          conn_list.resp_body,
+          capture: :all_but_first
+        )
+        |> List.flatten()
+
+      conn_get =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> dav_request("GET", href)
+
+      assert conn_get.resp_body =~ "BDAY:1990-06-15"
+    end
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Helpers
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Creates a contact via PUT and returns {href, conn} for the created resource
+  defp put_and_find(context, vcard) do
+    path = "/dav/addressbooks/default/kith-contact-new-#{System.unique_integer([:positive])}.vcf"
+    conn = authed_dav(context, "PUT", path, vcard)
+    assert conn.status == 201
+
+    conn_list =
+      build_conn()
+      |> basic_auth(context.user.email, dav_password())
+      |> put_req_header("depth", "1")
+      |> dav_request("PROPFIND", "/dav/addressbooks/default/", propfind_body())
+
+    [href] =
+      Regex.scan(
+        ~r{<d:href>(/dav/addressbooks/default/kith-contact-\d+\.vcf)</d:href>},
+        conn_list.resp_body,
+        capture: :all_but_first
+      )
+      |> List.flatten()
+
+    {href, conn}
+  end
 end

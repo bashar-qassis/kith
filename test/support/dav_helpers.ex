@@ -254,10 +254,11 @@ defmodule KithWeb.DAV.TestHelpers do
 
     # Seeds store protocols with colons ("mailto:", "tel:", "https://").
     # Only insert if no types exist for each protocol scheme.
-    for {name, protocol, seeded} <- [
-          {"Email", "mailto", "mailto:"},
-          {"Phone", "tel", "tel:"},
-          {"Website", "https", "https://"}
+    for {name, protocol, seeded, vcard_label} <- [
+          {"Email", "mailto", "mailto:", "EMAIL"},
+          {"Phone", "tel", "tel:", "TEL"},
+          {"Website", "https", "https://", nil},
+          {"IMPP", "impp", "impp:", "IMPP"}
         ] do
       unless Repo.one(
                from(t in ContactFieldType,
@@ -265,7 +266,12 @@ defmodule KithWeb.DAV.TestHelpers do
                  limit: 1
                )
              ) do
-        Repo.insert!(%ContactFieldType{name: name, protocol: seeded, position: 0})
+        Repo.insert!(%ContactFieldType{
+          name: name,
+          protocol: seeded,
+          vcard_label: vcard_label,
+          position: 0
+        })
       end
     end
   end

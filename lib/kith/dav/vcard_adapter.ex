@@ -58,7 +58,6 @@ defmodule Kith.DAV.VCardAdapter do
 
     scalar_attrs =
       build_scalar_attrs(parsed)
-      |> maybe_add_birthdate(parsed)
       |> maybe_resolve_gender(parsed, account_id)
       |> maybe_strip_nils(opts)
 
@@ -74,14 +73,10 @@ defmodule Kith.DAV.VCardAdapter do
       "nickname" => parsed.nickname,
       "company" => parsed.company,
       "occupation" => parsed.occupation,
-      "description" => parsed.description
+      "description" => parsed.description,
+      "birthdate" => parsed.birthdate && Date.to_iso8601(parsed.birthdate)
     }
   end
-
-  defp maybe_add_birthdate(attrs, %{birthdate: nil}), do: attrs
-
-  defp maybe_add_birthdate(attrs, %{birthdate: date}),
-    do: Map.put(attrs, "birthdate", Date.to_iso8601(date))
 
   defp build_nested_data(parsed) do
     %{
