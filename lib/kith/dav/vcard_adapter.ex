@@ -35,7 +35,7 @@ defmodule Kith.DAV.VCardAdapter do
   `scalar_attrs` is a map suitable for `Contacts.create_contact/2`.
   `nested_data` contains `:emails`, `:phones`, `:urls`, `:addresses`, `:uid`.
   """
-  def vcard_to_attrs(vcard_string) do
+  def vcard_to_attrs(vcard_string, opts \\ []) do
     case Parser.parse(vcard_string) do
       {:ok, [parsed | _]} ->
         attrs = %{
@@ -54,11 +54,7 @@ defmodule Kith.DAV.VCardAdapter do
             attrs
           end
 
-        # Strip nil values to avoid overwriting existing data with nils
-        scalar_attrs =
-          attrs
-          |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-          |> Map.new()
+        scalar_attrs = maybe_strip_nils(attrs, opts)
 
         nested_data = %{
           emails: parsed.emails || [],
@@ -86,5 +82,13 @@ defmodule Kith.DAV.VCardAdapter do
       "VERSION:3.0\r\n",
       "VERSION:3.0\r\n#{uid_line}\r\n"
     )
+  end
+
+  defp maybe_strip_nils(attrs, opts) do
+    if Keyword.get(opts, :strip_nils, true) do
+      attrs |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()
+    else
+      attrs
+    end
   end
 end

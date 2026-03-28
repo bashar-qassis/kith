@@ -75,9 +75,9 @@ defmodule Kith.DAV.XMLParser do
         ~r/<card:prop-filter\s+name="([^"]+)"[^>]*>.*?<card:text-match[^>]*>([^<]+)<\/card:text-match>.*?<\/card:prop-filter>/si,
         body
       )
-      |> Enum.map(fn [_, prop_name, text] ->
+      |> Enum.map(fn [full_match, prop_name, text] ->
         match_type =
-          case Regex.run(~r/match-type="([^"]+)"/, body) do
+          case Regex.run(~r/match-type="([^"]+)"/, full_match) do
             [_, type] -> type
             _ -> "contains"
           end
@@ -111,23 +111,8 @@ defmodule Kith.DAV.XMLParser do
   }
 
   defp extract_requested_props(body) do
-    # Extract property element names from inside <d:prop>...</d:prop>
-    prop_names =
-      case Regex.run(~r/<[dD]:prop[^>]*>(.*?)<\/[dD]:prop>/si, body) do
-        [_, inner] ->
-          Regex.scan(~r/<(?:[a-z]+:)?([a-zA-Z-]+)[\s\/\>]/i, inner)
-          |> Enum.map(fn [_, name] -> name end)
-          |> Enum.uniq()
-
-        _ ->
-          # Fallback: scan full body for known property names
-          for {needle, atom} <- @known_props,
-              String.contains?(body, needle),
-              do: atom
-      end
-
-    Enum.map(prop_names, fn name ->
-      Map.get(@known_props, name, String.to_atom(String.replace(name, "-", "_")))
-    end)
+    for {name, atom} <- @known_props,
+        String.contains?(body, name),
+        do: atom
   end
 end

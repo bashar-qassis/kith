@@ -50,5 +50,20 @@ defmodule KithWeb.DAV.AuthTest do
       conn = authed_dav(context, "PROPFIND", "/dav/")
       refute conn.status == 401
     end
+
+    test "MUST reject unconfirmed user credentials", %{conn: conn, user: user} do
+      import Ecto.Query
+
+      Kith.Repo.update_all(from(u in Kith.Accounts.User, where: u.id == ^user.id),
+        set: [confirmed_at: nil]
+      )
+
+      conn =
+        conn
+        |> basic_auth(user.email, dav_password())
+        |> dav_request("PROPFIND", "/dav/")
+
+      assert conn.status == 401
+    end
   end
 end

@@ -1371,14 +1371,24 @@ defmodule Kith.Contacts do
     end)
   end
 
+  @doc "Bumps `updated_at` on a contact. Used after replacing child data."
+  def touch_contact!(%Contact{} = contact) do
+    contact
+    |> Ecto.Changeset.change(updated_at: DateTime.utc_now(:second))
+    |> Repo.update!()
+  end
+
   @doc """
   Lists contacts modified since the given timestamp.
   Used by CardDAV sync-collection REPORT for incremental sync.
   """
+  @dav_preloads [:addresses, :gender, contact_fields: :contact_field_type]
+
   def list_contacts_modified_since(account_id, %DateTime{} = since) do
     Contact
     |> scope_active(account_id)
     |> where([c], c.updated_at > ^since)
+    |> preload(^@dav_preloads)
     |> Repo.all()
   end
 

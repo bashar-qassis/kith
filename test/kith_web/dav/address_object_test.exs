@@ -436,6 +436,32 @@ defmodule KithWeb.DAV.AddressObjectTest do
 
       assert conn.status == 412
     end
+
+    test "PUT with If-None-Match: * to existing resource returns 412",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+      vcard = build_vcard("New", "Person")
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-none-match", "*")
+        |> dav_request("PUT", contact_path(contact), vcard)
+
+      assert conn.status == 412
+    end
+
+    test "PUT with If-None-Match: * to new resource succeeds (201)", context do
+      vcard = build_vcard("Brand", "New")
+
+      conn =
+        build_conn()
+        |> basic_auth(context.user.email, dav_password())
+        |> put_req_header("if-none-match", "*")
+        |> dav_request("PUT", "/dav/addressbooks/default/kith-contact-999999.vcf", vcard)
+
+      assert conn.status == 201
+    end
   end
 
   # ── Round-trip contact fields via PUT/GET ──────────────────────────────

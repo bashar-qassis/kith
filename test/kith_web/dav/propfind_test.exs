@@ -596,7 +596,7 @@ defmodule KithWeb.DAV.PropfindTest do
   end
 
   describe "RFC 4918 §8.2 — PROPPATCH stub" do
-    test "returns 207 with 404 propstat for live properties", context do
+    test "returns 207 with 403 propstat for live properties", context do
       body = """
       <?xml version="1.0" encoding="UTF-8"?>
       <d:propertyupdate xmlns:d="DAV:">
@@ -606,7 +606,7 @@ defmodule KithWeb.DAV.PropfindTest do
 
       conn = authed_dav(context, "PROPPATCH", "/dav/addressbooks/default/", body)
       assert conn.status == 207
-      assert conn.resp_body =~ "404 Not Found"
+      assert conn.resp_body =~ "403 Forbidden"
     end
   end
 
@@ -635,7 +635,7 @@ defmodule KithWeb.DAV.PropfindTest do
       refute conn.resp_body =~ "getlastmodified"
     end
 
-    test "requesting unknown property returns 404 propstat", context do
+    test "requesting unknown property ignores it, serves known props", context do
       body = """
       <?xml version="1.0" encoding="UTF-8"?>
       <d:propfind xmlns:d="DAV:">
@@ -651,10 +651,10 @@ defmodule KithWeb.DAV.PropfindTest do
         |> dav_request("PROPFIND", contact_path(contact), body)
 
       assert conn.status == 207
-      # Found prop in 200 propstat
+      # Known prop is still served
       assert conn.resp_body =~ "getetag"
-      # Unknown prop in 404 propstat
-      assert conn.resp_body =~ "404 Not Found"
+      # Unknown props are silently ignored (not in atom table)
+      refute conn.resp_body =~ "unknown-property"
     end
 
     test "propname request returns empty property elements", context do

@@ -18,7 +18,8 @@ defmodule Kith.DAV.Auth do
     with ["Basic " <> encoded] <- get_req_header(conn, "authorization"),
          {:ok, decoded} <- Base.decode64(encoded),
          [email, password] <- String.split(decoded, ":", parts: 2),
-         %Kith.Accounts.User{} = user <-
+         %Kith.Accounts.User{confirmed_at: confirmed_at} = user
+         when not is_nil(confirmed_at) <-
            Accounts.get_user_by_email_and_password(email, password) do
       {:ok, user}
     else

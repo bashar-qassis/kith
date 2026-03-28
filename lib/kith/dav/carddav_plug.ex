@@ -205,11 +205,11 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp handle_addressbook_propfind_depth(conn, request_type, depth) do
-    responses = [addressbook_response(conn, request_type)]
+    contacts = list_contacts_for_dav(conn)
+    responses = [addressbook_response(conn, request_type, contacts)]
 
     responses =
       if depth != "0" do
-        contacts = list_contacts_for_dav(conn)
         responses ++ Enum.map(contacts, &contact_member_response(&1, request_type))
       else
         responses
@@ -389,9 +389,6 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp contact_property_value(contact, prop) when prop in ["EMAIL", "TEL"] do
-    # For multi-value properties, check if any value matches
-    contact = Kith.Repo.preload(contact, contact_fields: :contact_field_type)
-
     protocol = if prop == "EMAIL", do: "mailto", else: "tel"
 
     contact.contact_fields
@@ -448,56 +445,57 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp do_put_contact(conn, uid, body) do
-    case VCardAdapter.vcard_to_attrs(body) do
+    case VCardAdapter.vcard_to_attrs(body, strip_nils: false) do
       :error ->
         xml = XMLBuilder.precondition_error("valid-address-data", "Invalid vCard format")
         send_dav_response(conn, 422, xml)
 
       {scalar_attrs, nested_data} ->
         aid = account_id(conn)
-
-        case find_contact_by_uid(conn, uid) do
-          nil -> put_create_contact(conn, aid, scalar_attrs, nested_data)
-          contact -> put_update_contact(conn, aid, contact, scalar_attrs, nested_data)
-        end
+        existing = find_contact_by_uid(conn, uid)
+        put_contact(conn, aid, existing, scalar_attrs, nested_data)
     end
   end
 
-  defp put_create_contact(conn, aid, scalar_attrs, nested_data) do
+  defp put_contact(conn, aid, nil, scalar_attrs, nested_data) do
+    with {:ok, contact} <- Contacts.create_contact(aid, scalar_attrs),
+         {:ok, _} <- Contacts.replace_contact_children(contact, aid, nested_data) do
+      contact = Contacts.touch_contact!(contact)
+      etag = compute_etag(contact)
+
+      conn
+      |> put_resp_header("etag", "\"#{etag}\"")
+      |> send_resp(201, "")
+    else
+      {:error, _} -> send_resp(conn, 422, "Invalid vCard data")
+    end
+  end
+
+  defp put_contact(conn, aid, contact, scalar_attrs, nested_data) do
     # RFC 7232 §3.2: If-None-Match: * means "only if resource does NOT exist"
-    # Since resource is nil, the precondition is satisfied — proceed with create
-    case Contacts.create_contact(aid, scalar_attrs) do
-      {:ok, contact} ->
-        Contacts.replace_contact_children(contact, aid, nested_data)
-        etag = compute_etag(contact)
-
-        conn
-        |> put_resp_header("etag", "\"#{etag}\"")
-        |> send_resp(201, "")
-
-      {:error, _changeset} ->
-        send_resp(conn, 422, "Invalid vCard data")
+    if get_req_header(conn, "if-none-match") == ["*"] do
+      send_resp(conn, 412, "Precondition Failed")
+    else
+      put_update_contact(conn, aid, contact, scalar_attrs, nested_data)
     end
   end
 
   defp put_update_contact(conn, aid, contact, scalar_attrs, nested_data) do
-    # RFC 7232 §3.1: If-Match — only update if ETag matches
     case check_if_match(conn, contact) do
       :precondition_failed ->
         send_resp(conn, 412, "Precondition Failed")
 
       :ok ->
-        case Contacts.update_contact(contact, scalar_attrs) do
-          {:ok, updated} ->
-            Contacts.replace_contact_children(updated, aid, nested_data)
-            etag = compute_etag(updated)
+        with {:ok, updated} <- Contacts.update_contact(contact, scalar_attrs),
+             {:ok, _} <- Contacts.replace_contact_children(updated, aid, nested_data) do
+          updated = Contacts.touch_contact!(updated)
+          etag = compute_etag(updated)
 
-            conn
-            |> put_resp_header("etag", "\"#{etag}\"")
-            |> send_resp(204, "")
-
-          {:error, _changeset} ->
-            send_resp(conn, 422, "Invalid vCard data")
+          conn
+          |> put_resp_header("etag", "\"#{etag}\"")
+          |> send_resp(204, "")
+        else
+          {:error, _} -> send_resp(conn, 422, "Invalid vCard data")
         end
     end
   end
@@ -528,19 +526,25 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp handle_proppatch(conn) do
     {:ok, body, conn} = read_body(conn)
-    {:ok, {:prop, props}} = XMLParser.parse_propfind(body)
 
-    # All properties are live (server-managed) — cannot be modified
-    prop_names = Enum.map(props, &Atom.to_string/1) |> Enum.map(&String.replace(&1, "_", "-"))
+    case XMLParser.parse_propfind(body) do
+      {:ok, {:prop, props}} ->
+        # All properties are live (server-managed) — cannot be modified (RFC 4918 §9.2)
+        prop_names =
+          Enum.map(props, &Atom.to_string/1) |> Enum.map(&String.replace(&1, "_", "-"))
 
-    xml =
-      XMLBuilder.multistatus([
-        XMLBuilder.response("/dav/addressbooks/default/", [
-          XMLBuilder.propstat_not_found(prop_names)
-        ])
-      ])
+        xml =
+          XMLBuilder.multistatus([
+            XMLBuilder.response("/dav/addressbooks/default/", [
+              XMLBuilder.propstat_forbidden(prop_names)
+            ])
+          ])
 
-    send_dav_response(conn, 207, xml)
+        send_dav_response(conn, 207, xml)
+
+      _ ->
+        send_resp(conn, 400, "Bad Request")
+    end
   end
 
   # RFC 7232 §3.1: If-Match precondition check
@@ -569,7 +573,9 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp list_contacts_for_dav(conn) do
-    Contacts.list_contacts(account_id(conn))
+    Contacts.list_contacts(account_id(conn),
+      preload: [:addresses, :gender, contact_fields: :contact_field_type]
+    )
   end
 
   defp compute_etag(%Contact{} = contact) do
@@ -593,10 +599,7 @@ defmodule Kith.DAV.CardDAVPlug do
     end
   end
 
-  defp addressbook_response(conn, request_type) do
-    # Use the latest contact's updated_at as CTag, or current time if none
-    contacts = list_contacts_for_dav(conn)
-
+  defp addressbook_response(_conn, request_type, contacts) do
     ctag =
       case contacts do
         [] ->

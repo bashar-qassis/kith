@@ -87,6 +87,20 @@ defmodule Kith.DAV.XMLBuilder do
     """
   end
 
+  @doc "Builds a propstat element for protected properties that cannot be modified (403)."
+  def propstat_forbidden(prop_names) do
+    props = Enum.map_join(prop_names, "\n", fn name -> "<d:#{name}/>" end)
+
+    """
+    <d:propstat>
+    <d:prop>
+    #{props}
+    </d:prop>
+    <d:status>HTTP/1.1 403 Forbidden</d:status>
+    </d:propstat>
+    """
+  end
+
   @doc "Builds a response element for a deleted resource in sync-collection (RFC 6578 §3.5)."
   def response_deleted(href) do
     """
