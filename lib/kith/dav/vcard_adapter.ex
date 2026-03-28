@@ -8,18 +8,11 @@ defmodule Kith.DAV.VCardAdapter do
   parser output into changeset-compatible attribute maps.
   """
 
+  alias Kith.Contacts
   alias Kith.Contacts.Contact
   alias Kith.Repo
   alias Kith.Storage
   alias Kith.VCard.{Parser, Serializer}
-
-  @vcard_preloads [
-    :addresses,
-    :gender,
-    :tags,
-    contact_fields: :contact_field_type,
-    relationships: [:relationship_type, :related_contact]
-  ]
 
   @doc """
   Converts a Kith contact to a vCard string with a CardDAV UID.
@@ -31,8 +24,9 @@ defmodule Kith.DAV.VCardAdapter do
   """
   def contact_to_vcard(%Contact{} = contact, opts \\ []) do
     version = Keyword.get(opts, :version, :v30)
-    contact = Repo.preload(contact, @vcard_preloads)
-    contact = maybe_load_avatar_data(contact)
+    include_photo = Keyword.get(opts, :include_photo, true)
+    contact = Repo.preload(contact, Contacts.dav_preloads())
+    contact = if include_photo, do: maybe_load_avatar_data(contact), else: contact
 
     vcard = Serializer.serialize(contact, version: version)
     inject_uid(vcard, contact.id, version)
@@ -123,7 +117,7 @@ defmodule Kith.DAV.VCardAdapter do
     case Storage.read(key) do
       {:ok, binary} when byte_size(binary) <= max_embed ->
         ct = Storage.content_type(key)
-        Map.put(contact, :avatar_data, %{binary: binary, content_type: ct})
+        %{contact | avatar_data: %{binary: binary, content_type: ct}}
 
       _ ->
         contact

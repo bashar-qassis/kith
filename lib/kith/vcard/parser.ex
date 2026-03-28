@@ -166,7 +166,7 @@ defmodule Kith.VCard.Parser do
   end
 
   defp apply_property(acc, "CATEGORIES", _params, value) do
-    cats = value |> String.split(",") |> Enum.map(&(String.trim(&1) |> unescape()))
+    cats = split_unescaped(value, ",") |> Enum.map(&(String.trim(&1) |> unescape()))
     %{acc | categories: cats}
   end
 
@@ -245,6 +245,8 @@ defmodule Kith.VCard.Parser do
 
   # ── Photo Parsing ─────────────────────────────────────────────────
 
+  @allowed_photo_types ~w(image/jpeg image/png image/gif image/webp)
+
   defp parse_photo_data(params, value) do
     encoding = Map.get(params, "ENCODING")
 
@@ -253,7 +255,7 @@ defmodule Kith.VCard.Parser do
       String.starts_with?(value, "data:") ->
         case Regex.run(~r/^data:([^;]+);base64,(.+)$/s, value) do
           [_, content_type, b64] ->
-            %{content_type: content_type, data: b64, encoding: :base64}
+            %{content_type: sanitize_photo_type(content_type), data: b64, encoding: :base64}
 
           _ ->
             nil
@@ -262,7 +264,7 @@ defmodule Kith.VCard.Parser do
       # vCard 3.0 inline binary (RFC 2426 §3.1.4) — ENCODING=b or ENCODING=BASE64
       encoding != nil and String.upcase(encoding) in ["B", "BASE64"] ->
         type_str = Map.get(params, "TYPE", "JPEG")
-        content_type = "image/" <> String.downcase(type_str)
+        content_type = sanitize_photo_type("image/" <> String.downcase(type_str))
         %{content_type: content_type, data: value, encoding: :base64}
 
       # URI reference (both versions)
@@ -272,7 +274,7 @@ defmodule Kith.VCard.Parser do
       # Bare base64 with TYPE param but no ENCODING (compatibility)
       Map.has_key?(params, "TYPE") ->
         type_str = Map.get(params, "TYPE", "JPEG")
-        content_type = "image/" <> String.downcase(type_str)
+        content_type = sanitize_photo_type("image/" <> String.downcase(type_str))
         %{content_type: content_type, data: value, encoding: :base64}
 
       true ->
@@ -280,7 +282,14 @@ defmodule Kith.VCard.Parser do
     end
   end
 
+  defp sanitize_photo_type(ct) when ct in @allowed_photo_types, do: ct
+  defp sanitize_photo_type(_), do: "image/jpeg"
+
   # ── Helpers ────────────────────────────────────────────────────────────
+
+  defp split_unescaped(str, delimiter) do
+    Regex.split(~r/(?<!\\)#{Regex.escape(delimiter)}/, str)
+  end
 
   defp extract_type(params) do
     case Map.get(params, "TYPE") do

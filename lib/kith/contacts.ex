@@ -1428,8 +1428,14 @@ defmodule Kith.Contacts do
            from(t in Tag, where: t.account_id == ^account_id and t.name == ^name, limit: 1)
          ) do
       nil ->
-        {:ok, tag} = create_tag(account_id, %{"name" => name})
-        tag
+        case create_tag(account_id, %{"name" => name}) do
+          {:ok, tag} ->
+            tag
+
+          {:error, _} ->
+            # Race: another transaction created it first — re-fetch
+            Repo.one!(from(t in Tag, where: t.account_id == ^account_id and t.name == ^name))
+        end
 
       tag ->
         tag
@@ -1497,7 +1503,22 @@ defmodule Kith.Contacts do
         # Create account-specific relationship type
         %RelationshipType{}
         |> RelationshipType.changeset(%{name: name, reverse_name: name, account_id: account_id})
-        |> Repo.insert!()
+        |> Repo.insert()
+        |> case do
+          {:ok, rt} ->
+            rt
+
+          {:error, _} ->
+            # Race: another transaction created it first — re-fetch
+            Repo.one!(
+              from(rt in RelationshipType,
+                where:
+                  (is_nil(rt.account_id) or rt.account_id == ^account_id) and rt.name == ^name,
+                order_by: [asc_nulls_first: rt.account_id],
+                limit: 1
+              )
+            )
+        end
 
       rt ->
         rt
@@ -1525,7 +1546,11 @@ defmodule Kith.Contacts do
     end
   end
 
-  defp maybe_import_vcard_photo(_, _, _), do: :ok
+  defp maybe_import_vcard_photo(%{id: id}, _account_id, _photo) do
+    require Logger
+    Logger.debug("Skipping unsupported vCard PHOTO format for contact #{id}")
+    :ok
+  end
 
   defp upload_and_set_avatar(contact, account_id, binary, ct, hash) do
     ext = photo_extension(ct)
@@ -1560,23 +1585,26 @@ defmodule Kith.Contacts do
     |> Repo.update!()
   end
 
+  @doc false
+  def dav_preloads do
+    [
+      :addresses,
+      :gender,
+      :tags,
+      contact_fields: :contact_field_type,
+      relationships: [:relationship_type, :related_contact]
+    ]
+  end
+
   @doc """
   Lists contacts modified since the given timestamp.
   Used by CardDAV sync-collection REPORT for incremental sync.
   """
-  @dav_preloads [
-    :addresses,
-    :gender,
-    :tags,
-    contact_fields: :contact_field_type,
-    relationships: [:relationship_type, :related_contact]
-  ]
-
   def list_contacts_modified_since(account_id, %DateTime{} = since) do
     Contact
     |> scope_active(account_id)
     |> where([c], c.updated_at > ^since)
-    |> preload(^@dav_preloads)
+    |> preload(^dav_preloads())
     |> Repo.all()
   end
 

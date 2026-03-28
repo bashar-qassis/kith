@@ -38,6 +38,14 @@ defmodule KithWeb.DAV.TestHelpers do
   end
 
   def build_vcard(first_name, last_name, opts \\ []) do
+    do_build_vcard(first_name, last_name, "3.0", opts)
+  end
+
+  def build_vcard_v40(first_name, last_name, opts \\ []) do
+    do_build_vcard(first_name, last_name, "4.0", opts)
+  end
+
+  defp do_build_vcard(first_name, last_name, version, opts) do
     middle = opts[:middle_name] || ""
 
     n_line =
@@ -47,7 +55,7 @@ defmodule KithWeb.DAV.TestHelpers do
 
     lines = [
       "BEGIN:VCARD",
-      "VERSION:3.0",
+      "VERSION:#{version}",
       "FN:#{first_name} #{last_name}",
       n_line
     ]
@@ -68,32 +76,7 @@ defmodule KithWeb.DAV.TestHelpers do
         lines
       end
 
-    lines =
-      if opts[:gender] do
-        lines ++ ["X-GENDER:#{opts[:gender]}"]
-      else
-        lines
-      end
-
-    lines =
-      if opts[:photo_b64] do
-        lines ++ ["PHOTO;ENCODING=b;TYPE=JPEG:#{opts[:photo_b64]}"]
-      else
-        lines
-      end
-
-    lines =
-      if opts[:related] do
-        Enum.reduce(opts[:related], lines, fn rel, acc ->
-          acc ++
-            [
-              "item#{System.unique_integer([:positive])}.X-ABRELATEDNAMES:#{rel.uid}",
-              "item#{System.unique_integer([:positive])}.X-ABLabel:#{rel.type}"
-            ]
-        end)
-      else
-        lines
-      end
+    lines = add_version_specific_fields(lines, version, opts)
 
     lines =
       if opts[:impp] do
@@ -108,37 +91,35 @@ defmodule KithWeb.DAV.TestHelpers do
     Enum.join(lines, "\r\n") <> "\r\n"
   end
 
-  def build_vcard_v40(first_name, last_name, opts \\ []) do
-    middle = opts[:middle_name] || ""
-
-    n_line =
-      if middle != "",
-        do: "N:#{last_name};#{first_name};#{middle};;",
-        else: "N:#{last_name};#{first_name};;;"
-
-    lines = [
-      "BEGIN:VCARD",
-      "VERSION:4.0",
-      "FN:#{first_name} #{last_name}",
-      n_line
-    ]
-
-    lines = if opts[:uid], do: lines ++ ["UID:#{opts[:uid]}"], else: lines
-    lines = if opts[:nickname], do: lines ++ ["NICKNAME:#{opts[:nickname]}"], else: lines
-    lines = if opts[:company], do: lines ++ ["ORG:#{opts[:company]}"], else: lines
-    lines = if opts[:occupation], do: lines ++ ["TITLE:#{opts[:occupation]}"], else: lines
-    lines = if opts[:birthdate], do: lines ++ ["BDAY:#{opts[:birthdate]}"], else: lines
-    lines = if opts[:email], do: lines ++ ["EMAIL;TYPE=HOME:#{opts[:email]}"], else: lines
-    lines = if opts[:phone], do: lines ++ ["TEL;TYPE=CELL:#{opts[:phone]}"], else: lines
-    lines = if opts[:note], do: lines ++ ["NOTE:#{opts[:note]}"], else: lines
-
+  defp add_version_specific_fields(lines, "3.0", opts) do
     lines =
-      if opts[:categories] do
-        lines ++ ["CATEGORIES:" <> Enum.join(opts[:categories], ",")]
+      if opts[:gender] do
+        lines ++ ["X-GENDER:#{opts[:gender]}"]
       else
         lines
       end
 
+    lines =
+      if opts[:photo_b64] do
+        lines ++ ["PHOTO;ENCODING=b;TYPE=JPEG:#{opts[:photo_b64]}"]
+      else
+        lines
+      end
+
+    if opts[:related] do
+      Enum.reduce(opts[:related], lines, fn rel, acc ->
+        acc ++
+          [
+            "item#{System.unique_integer([:positive])}.X-ABRELATEDNAMES:#{rel.uid}",
+            "item#{System.unique_integer([:positive])}.X-ABLabel:#{rel.type}"
+          ]
+      end)
+    else
+      lines
+    end
+  end
+
+  defp add_version_specific_fields(lines, "4.0", opts) do
     lines =
       if opts[:gender] do
         lines ++ ["GENDER:#{opts[:gender]}"]
@@ -146,26 +127,13 @@ defmodule KithWeb.DAV.TestHelpers do
         lines
       end
 
-    lines =
-      if opts[:related] do
-        Enum.reduce(opts[:related], lines, fn rel, acc ->
-          acc ++ ["RELATED;TYPE=#{String.downcase(rel.type)}:urn:uuid:#{rel.uid}"]
-        end)
-      else
-        lines
-      end
-
-    lines =
-      if opts[:impp] do
-        Enum.reduce(opts[:impp], lines, fn impp, acc ->
-          acc ++ ["IMPP:#{impp}"]
-        end)
-      else
-        lines
-      end
-
-    lines = lines ++ ["END:VCARD"]
-    Enum.join(lines, "\r\n") <> "\r\n"
+    if opts[:related] do
+      Enum.reduce(opts[:related], lines, fn rel, acc ->
+        acc ++ ["RELATED;TYPE=#{String.downcase(rel.type)}:urn:uuid:#{rel.uid}"]
+      end)
+    else
+      lines
+    end
   end
 
   def contact_uid(contact), do: "kith-contact-#{contact.id}.vcf"

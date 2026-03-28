@@ -205,7 +205,7 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp handle_addressbook_propfind_depth(conn, request_type, depth) do
-    contacts = list_contacts_for_dav(conn)
+    contacts = list_contacts_for_propfind(conn)
     responses = [addressbook_response(conn, request_type, contacts)]
 
     responses =
@@ -347,7 +347,7 @@ defmodule Kith.DAV.CardDAVPlug do
 
   defp sync_contact_response(contact, version) do
     etag = compute_etag(contact)
-    vcard = VCardAdapter.contact_to_vcard(contact, version: version)
+    vcard = VCardAdapter.contact_to_vcard(contact, version: version, include_photo: false)
 
     XMLBuilder.response(
       "/dav/addressbooks/default/kith-contact-#{contact.id}.vcf",
@@ -583,19 +583,21 @@ defmodule Kith.DAV.CardDAVPlug do
   end
 
   defp list_contacts_for_dav(conn) do
-    Contacts.list_contacts(account_id(conn),
-      preload: [
-        :addresses,
-        :gender,
-        :tags,
-        contact_fields: :contact_field_type,
-        relationships: [:relationship_type, :related_contact]
-      ]
-    )
+    Contacts.list_contacts(account_id(conn), preload: Contacts.dav_preloads())
   end
 
-  defp compute_etag(%Contact{} = contact) do
-    data = "#{contact.id}-#{DateTime.to_unix(contact.updated_at)}"
+  defp list_contacts_for_propfind(conn) do
+    import Ecto.Query
+
+    Contact
+    |> Kith.Scope.scope_active(account_id(conn))
+    |> where([c], c.is_archived == false)
+    |> select([c], map(c, [:id, :updated_at]))
+    |> Kith.Repo.all()
+  end
+
+  defp compute_etag(%{id: id, updated_at: updated_at}) do
+    data = "#{id}-#{DateTime.to_unix(updated_at)}"
 
     :crypto.hash(:md5, data)
     |> Base.encode16(case: :lower)

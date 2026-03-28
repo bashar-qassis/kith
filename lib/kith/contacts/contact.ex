@@ -63,6 +63,8 @@ defmodule Kith.Contacts.Contact do
     many_to_many :tags, Kith.Contacts.Tag, join_through: "contact_tags"
     many_to_many :activities, Kith.Activities.Activity, join_through: "activity_contacts"
 
+    field :avatar_data, :map, virtual: true
+
     timestamps(type: :utc_datetime)
   end
 

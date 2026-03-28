@@ -149,7 +149,10 @@ defmodule Kith.VCard.Serializer do
     value
     |> String.replace("\\", "\\\\")
     |> String.replace(";", "\\;")
+    |> String.replace(",", "\\,")
+    |> String.replace("\r\n", "\\n")
     |> String.replace("\n", "\\n")
+    |> String.replace("\r", "\\n")
   end
 
   # ── RELATED (version-aware) ─────────────────────────────────────────

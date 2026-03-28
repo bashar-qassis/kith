@@ -274,6 +274,28 @@ defmodule Kith.VCard.SerializerTest do
       assert String.contains?(vcard, "CATEGORIES:Family,VIP\r\n")
     end
 
+    test "escapes commas in CATEGORIES tag names (RFC 2426 §3.6.1)" do
+      contact = %{
+        display_name: "Alice",
+        first_name: "Alice",
+        last_name: nil,
+        middle_name: nil,
+        nickname: nil,
+        birthdate: nil,
+        company: nil,
+        occupation: nil,
+        description: nil,
+        addresses: [],
+        contact_fields: [],
+        gender: nil,
+        tags: [%{name: "Music, Art"}, %{name: "VIP"}],
+        relationships: []
+      }
+
+      vcard = Serializer.serialize(contact)
+      assert String.contains?(vcard, "CATEGORIES:Music\\, Art,VIP\r\n")
+    end
+
     test "omits CATEGORIES when tags is empty" do
       contact = %{
         display_name: "Alice",

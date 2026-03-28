@@ -834,6 +834,8 @@ defmodule KithWeb.DAV.AddressObjectTest do
       assert conn.status == 200
       assert conn.resp_body =~ "VERSION:4.0"
       refute conn.resp_body =~ "VERSION:3.0"
+      [ct] = get_resp_header(conn, "content-type")
+      assert ct =~ "version=4.0"
     end
 
     test "GET without version preference defaults to vCard 3.0",
@@ -1113,7 +1115,7 @@ defmodule KithWeb.DAV.AddressObjectTest do
 
       # IMPP should be stored as a contact field and re-serialized
       # The exact property name depends on the serializer's handling of the field type
-      assert conn_get.resp_body =~ "alice@chat.example.com"
+      assert conn_get.resp_body =~ ~r/IMPP.*alice@chat\.example\.com/
     end
   end
 

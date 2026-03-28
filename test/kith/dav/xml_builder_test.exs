@@ -18,5 +18,13 @@ defmodule Kith.DAV.XMLBuilderTest do
       assert result =~ "\r\n"
       refute result =~ "&amp;"
     end
+
+    test "escapes ]]> in vCard content to prevent CDATA injection" do
+      vcard = "BEGIN:VCARD\r\nNOTE:Has ]]> in it\r\nEND:VCARD\r\n"
+      result = XMLBuilder.address_data(vcard)
+
+      refute result =~ "NOTE:Has ]]>"
+      assert result =~ "]]]]><![CDATA[>"
+    end
   end
 end

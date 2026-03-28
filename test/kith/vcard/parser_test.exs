@@ -357,6 +357,44 @@ defmodule Kith.VCard.ParserTest do
       {:ok, [contact]} = Parser.parse(vcard)
       assert contact.photo == nil
     end
+
+    test "parses CATEGORIES with escaped commas (RFC 2426 §3.6.1)" do
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nCATEGORIES:Music\\,Art,Sports\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.categories == ["Music,Art", "Sports"]
+    end
+
+    test "rejects dangerous PHOTO content types (SVG XSS)" do
+      b64 = Base.encode64("fake")
+
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nPHOTO;ENCODING=b;TYPE=svg+xml:#{b64}\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo.content_type == "image/jpeg"
+    end
+
+    test "parses GENDER:O without text component" do
+      vcard = "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Alex\r\nN:Alex;;;;\r\nGENDER:O\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.gender == "O"
+      assert contact.gender_text == nil
+    end
+
+    test "parses PHOTO with ENCODING=BASE64 uppercase (compatibility)" do
+      b64 = Base.encode64("fake-jpeg-data")
+
+      vcard =
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nN:Test;;;;\r\nPHOTO;ENCODING=BASE64;TYPE=JPEG:#{b64}\r\nEND:VCARD\r\n"
+
+      {:ok, [contact]} = Parser.parse(vcard)
+      assert contact.photo != nil
+      assert contact.photo.content_type == "image/jpeg"
+      assert contact.photo.encoding == :base64
+    end
   end
 
   describe "unescape/1" do
