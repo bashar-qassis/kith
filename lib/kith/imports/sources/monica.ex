@@ -468,8 +468,8 @@ defmodule Kith.Imports.Sources.Monica do
     gender_name = get_in(contact_data, ["gender", "data", "name"])
     gender_id = if gender_name, do: Map.get(ref_data.genders, gender_name)
 
-    birthdate_info = parse_special_date(get_in(contact_data, ["birthdate", "data"]))
-    first_met_info = parse_special_date(get_in(contact_data, ["first_met_date", "data"]))
+    birthdate_info = parse_special_date(unwrap_data(contact_data["birthdate"]))
+    first_met_info = parse_special_date(unwrap_data(contact_data["first_met_date"]))
 
     is_active = contact_data["is_active"]
     is_archived = if is_active == false, do: true, else: false
@@ -528,6 +528,11 @@ defmodule Kith.Imports.Sources.Monica do
         end
     end
   end
+
+  # Monica v2 API wraps in {"data": {...}}, but export files use flat objects.
+  defp unwrap_data(%{"data" => inner}) when is_map(inner), do: inner
+  defp unwrap_data(%{} = map), do: map
+  defp unwrap_data(_), do: nil
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
