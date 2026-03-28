@@ -61,7 +61,7 @@ defmodule Kith.DAV.XMLBuilder do
       ~s(</card:supported-address-data>)
   end
 
-  def address_data(vcard), do: "<card:address-data>#{escape(vcard)}</card:address-data>"
+  def address_data(vcard), do: "<card:address-data><![CDATA[#{vcard}]]></card:address-data>"
 
   # ── CalendarServer extensions (CTag) ───────────────────────────────────
 

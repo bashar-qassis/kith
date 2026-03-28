@@ -42,6 +42,21 @@ defmodule KithWeb.DAV.ReportTest do
       assert conn.resp_body =~ "Quinn"
     end
 
+    test "MUST include BDAY property when contact has birthdate (RFC 2426 §3.1.5)",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Alice",
+          birthdate: ~D[1990-06-15]
+        })
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "BDAY:1990-06-15"
+    end
+
     test "MUST include getetag in each response", %{account_id: account_id} = context do
       contact = ContactsFixtures.contact_fixture(account_id)
 
@@ -107,6 +122,21 @@ defmodule KithWeb.DAV.ReportTest do
       assert conn.resp_body =~ "getetag"
       assert conn.resp_body =~ "address-data"
       assert conn.resp_body =~ "BEGIN:VCARD"
+    end
+
+    test "MUST include BDAY property in sync-collection when contact has birthdate",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{
+        first_name: "BirthdaySync",
+        birthdate: ~D[1985-12-25]
+      })
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "BirthdaySync"
+      assert conn.resp_body =~ "BDAY:1985-12-25"
     end
 
     test "MUST NOT include deleted or archived members",
@@ -336,6 +366,84 @@ defmodule KithWeb.DAV.ReportTest do
 
       conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
       assert conn.status == 400
+    end
+  end
+
+  # ── CDATA wrapping — vCard byte preservation in XML responses ──────────
+
+  describe "CDATA wrapping — vCard byte preservation" do
+    test "multiget response wraps vCard in CDATA to preserve CRLF line endings",
+         %{account_id: account_id} = context do
+      contact = ContactsFixtures.contact_fixture(account_id)
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.resp_body =~ "<![CDATA["
+      assert conn.resp_body =~ "]]>"
+      assert conn.resp_body =~ "BEGIN:VCARD\r\n"
+    end
+
+    test "sync-collection response wraps vCard in CDATA to preserve CRLF line endings",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id)
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.resp_body =~ "<![CDATA["
+      assert conn.resp_body =~ "BEGIN:VCARD\r\n"
+    end
+  end
+
+  # ── Thunderbird CardDAV sync flow — full property coverage ─────────────
+
+  describe "Thunderbird CardDAV sync flow — full property coverage" do
+    test "initial sync-collection returns all scalar properties",
+         %{account_id: account_id} = context do
+      ContactsFixtures.contact_fixture(account_id, %{
+        first_name: "Thunder",
+        last_name: "Bird",
+        nickname: "TB",
+        birthdate: ~D[1990-06-15],
+        company: "Mozilla",
+        occupation: "Email Client"
+      })
+
+      conn =
+        authed_dav(context, "REPORT", "/dav/addressbooks/default/", sync_collection_body())
+
+      assert conn.status == 207
+      assert conn.resp_body =~ "N:Bird;Thunder"
+      assert conn.resp_body =~ "NICKNAME:TB"
+      assert conn.resp_body =~ "BDAY:1990-06-15"
+      assert conn.resp_body =~ "ORG:Mozilla"
+      assert conn.resp_body =~ "TITLE:Email Client"
+    end
+
+    test "multiget returns complete vCard with BDAY inside CDATA",
+         %{account_id: account_id} = context do
+      contact =
+        ContactsFixtures.contact_fixture(account_id, %{
+          first_name: "Thunder",
+          last_name: "Test",
+          birthdate: ~D[2000-01-01]
+        })
+
+      body = multiget_body([contact_path(contact)])
+      conn = authed_dav(context, "REPORT", "/dav/addressbooks/default/", body)
+
+      assert conn.status == 207
+
+      # Extract CDATA content and verify vCard integrity
+      [cdata_content] =
+        Regex.run(~r/<!\[CDATA\[(.*?)\]\]>/s, conn.resp_body, capture: :all_but_first)
+
+      assert cdata_content =~ "BEGIN:VCARD"
+      assert cdata_content =~ "BDAY:2000-01-01"
+      assert cdata_content =~ "END:VCARD"
+      # CRLF must be preserved for RFC 2426 compliance
+      assert cdata_content =~ "\r\n"
     end
   end
 end
