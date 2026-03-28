@@ -1201,9 +1201,11 @@ defmodule Kith.Imports.Sources.Monica do
     end
   end
 
+  defp parse_v4_birthdate(%{"birthdate" => %{"date" => _} = bd}), do: bd
   defp parse_v4_birthdate(%{"birthdate" => bd}) when is_binary(bd), do: %{"date" => bd}
   defp parse_v4_birthdate(_), do: nil
 
+  defp parse_v4_first_met(%{"first_met_date" => %{"date" => _} = d}), do: d
   defp parse_v4_first_met(%{"first_met_date" => d}) when is_binary(d), do: %{"date" => d}
   defp parse_v4_first_met(_), do: nil
 
