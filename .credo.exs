@@ -20,77 +20,74 @@
       checks: %{
         enabled: [
           #
-          # Consistency — reported but non-blocking (exit_status: 0)
+          # Consistency
           #
-          {Credo.Check.Consistency.ExceptionNames, [exit_status: 0]},
-          {Credo.Check.Consistency.LineEndings, [exit_status: 0]},
-          {Credo.Check.Consistency.ParameterPatternMatching, [exit_status: 0]},
-          {Credo.Check.Consistency.SpaceAroundOperators, [exit_status: 0]},
-          {Credo.Check.Consistency.SpaceInParentheses, [exit_status: 0]},
-          {Credo.Check.Consistency.TabsOrSpaces, [exit_status: 0]},
+          {Credo.Check.Consistency.ExceptionNames, []},
+          {Credo.Check.Consistency.LineEndings, []},
+          {Credo.Check.Consistency.ParameterPatternMatching, []},
+          {Credo.Check.Consistency.SpaceAroundOperators, []},
+          {Credo.Check.Consistency.SpaceInParentheses, []},
+          {Credo.Check.Consistency.TabsOrSpaces, []},
 
           #
-          # Design — reported but non-blocking (exit_status: 0)
+          # Design
           #
           {Credo.Check.Design.AliasUsage,
            [
              priority: :low,
              if_nested_deeper_than: 2,
-             if_called_more_often_than: 0,
-             exit_status: 0
+             if_called_more_often_than: 0
            ]},
-          {Credo.Check.Design.TagTODO, [exit_status: 0]},
-          {Credo.Check.Design.TagFIXME, [exit_status: 0]},
+          {Credo.Check.Design.TagTODO, []},
+          {Credo.Check.Design.TagFIXME, []},
 
           #
-          # Readability — reported but non-blocking (exit_status: 0)
+          # Readability
           #
-          {Credo.Check.Readability.AliasOrder, [exit_status: 0]},
-          {Credo.Check.Readability.FunctionNames, [exit_status: 0]},
-          {Credo.Check.Readability.LargeNumbers, [exit_status: 0]},
-          {Credo.Check.Readability.MaxLineLength,
-           [priority: :low, max_length: 120, exit_status: 0]},
-          {Credo.Check.Readability.ModuleAttributeNames, [exit_status: 0]},
+          {Credo.Check.Readability.AliasOrder, []},
+          {Credo.Check.Readability.FunctionNames, []},
+          {Credo.Check.Readability.LargeNumbers, []},
+          {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 120]},
+          {Credo.Check.Readability.ModuleAttributeNames, []},
           # ModuleDoc disabled — Phoenix projects have many small modules where @moduledoc is noise
           {Credo.Check.Readability.ModuleDoc, false},
-          {Credo.Check.Readability.ModuleNames, [exit_status: 0]},
-          {Credo.Check.Readability.ParenthesesInCondition, [exit_status: 0]},
-          {Credo.Check.Readability.ParenthesesOnZeroArityDefs, [exit_status: 0]},
-          {Credo.Check.Readability.PipeIntoAnonymousFunctions, [exit_status: 0]},
-          {Credo.Check.Readability.PredicateFunctionNames, [exit_status: 0]},
-          {Credo.Check.Readability.PreferImplicitTry, [exit_status: 0]},
-          {Credo.Check.Readability.RedundantBlankLines, [exit_status: 0]},
-          {Credo.Check.Readability.Semicolons, [exit_status: 0]},
-          {Credo.Check.Readability.SpaceAfterCommas, [exit_status: 0]},
-          {Credo.Check.Readability.StringSigils, [exit_status: 0]},
-          {Credo.Check.Readability.TrailingBlankLine, [exit_status: 0]},
-          {Credo.Check.Readability.TrailingWhiteSpace, [exit_status: 0]},
-          {Credo.Check.Readability.UnnecessaryAliasExpansion, [exit_status: 0]},
-          {Credo.Check.Readability.VariableNames, [exit_status: 0]},
-          {Credo.Check.Readability.WithSingleClause, [exit_status: 0]},
+          {Credo.Check.Readability.ModuleNames, []},
+          {Credo.Check.Readability.ParenthesesInCondition, []},
+          {Credo.Check.Readability.ParenthesesOnZeroArityDefs, []},
+          {Credo.Check.Readability.PipeIntoAnonymousFunctions, []},
+          {Credo.Check.Readability.PredicateFunctionNames, []},
+          {Credo.Check.Readability.PreferImplicitTry, []},
+          {Credo.Check.Readability.RedundantBlankLines, []},
+          {Credo.Check.Readability.Semicolons, []},
+          {Credo.Check.Readability.SpaceAfterCommas, []},
+          {Credo.Check.Readability.StringSigils, []},
+          {Credo.Check.Readability.TrailingBlankLine, []},
+          {Credo.Check.Readability.TrailingWhiteSpace, []},
+          {Credo.Check.Readability.UnnecessaryAliasExpansion, []},
+          {Credo.Check.Readability.VariableNames, []},
+          {Credo.Check.Readability.WithSingleClause, []},
 
           #
-          # Refactoring — reported but non-blocking (exit_status: 0)
+          # Refactoring
           #
-          {Credo.Check.Refactor.Apply, [exit_status: 0]},
-          {Credo.Check.Refactor.CondStatements, [exit_status: 0]},
-          {Credo.Check.Refactor.CyclomaticComplexity, [exit_status: 0]},
-          {Credo.Check.Refactor.FunctionArity, [exit_status: 0]},
-          {Credo.Check.Refactor.LongQuoteBlocks, [exit_status: 0]},
-          {Credo.Check.Refactor.MatchInCondition, [exit_status: 0]},
-          {Credo.Check.Refactor.MapJoin, [exit_status: 0]},
-          {Credo.Check.Refactor.NegatedConditionsInUnless, [exit_status: 0]},
-          {Credo.Check.Refactor.NegatedConditionsWithElse, [exit_status: 0]},
-          {Credo.Check.Refactor.Nesting, [exit_status: 0]},
-          {Credo.Check.Refactor.UnlessWithElse, [exit_status: 0]},
-          {Credo.Check.Refactor.WithClauses, [exit_status: 0]},
-          {Credo.Check.Refactor.FilterFilter, [exit_status: 0]},
-          {Credo.Check.Refactor.RejectReject, [exit_status: 0]},
-          {Credo.Check.Refactor.RedundantWithClauseResult, [exit_status: 0]},
+          {Credo.Check.Refactor.Apply, []},
+          {Credo.Check.Refactor.CondStatements, []},
+          {Credo.Check.Refactor.CyclomaticComplexity, []},
+          {Credo.Check.Refactor.FunctionArity, []},
+          {Credo.Check.Refactor.LongQuoteBlocks, []},
+          {Credo.Check.Refactor.MatchInCondition, []},
+          {Credo.Check.Refactor.MapJoin, []},
+          {Credo.Check.Refactor.NegatedConditionsInUnless, []},
+          {Credo.Check.Refactor.NegatedConditionsWithElse, []},
+          {Credo.Check.Refactor.Nesting, []},
+          {Credo.Check.Refactor.UnlessWithElse, []},
+          {Credo.Check.Refactor.WithClauses, []},
+          {Credo.Check.Refactor.FilterFilter, []},
+          {Credo.Check.Refactor.RejectReject, []},
+          {Credo.Check.Refactor.RedundantWithClauseResult, []},
 
           #
-          # Warnings — BLOCKING (default exit_status)
-          # These catch debug statements, unsafe patterns, and real mistakes
+          # Warnings
           #
           {Credo.Check.Warning.ApplicationConfigInModuleAttribute, []},
           {Credo.Check.Warning.BoolOperationOnSameValues, []},
@@ -98,7 +95,7 @@
           {Credo.Check.Warning.ExpensiveEmptyEnumCheck, []},
           {Credo.Check.Warning.IExPry, []},
           {Credo.Check.Warning.IoInspect, []},
-          {Credo.Check.Warning.MissedMetadataKeyInLoggerConfig, [exit_status: 0]},
+          {Credo.Check.Warning.MissedMetadataKeyInLoggerConfig, []},
           {Credo.Check.Warning.OperationOnSameValues, []},
           {Credo.Check.Warning.OperationWithConstantResult, []},
           {Credo.Check.Warning.RaiseInsideRescue, []},
