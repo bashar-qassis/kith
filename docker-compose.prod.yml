@@ -188,6 +188,12 @@ services:
         reservations:
           memory: 256M
           cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "/app/bin/kith", "ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
