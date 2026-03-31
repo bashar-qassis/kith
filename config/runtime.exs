@@ -211,6 +211,7 @@ if config_env() == :prod do
         app_version: to_string(Application.spec(:kith, :vsn) || "dev"),
         kith_mode: System.get_env("KITH_MODE", "web")
       },
+      client: Sentry.FinchClient,
       filter: Kith.SentryFilter,
       before_send: {Kith.SentryEventHandler, :before_send},
       enable_source_code_context: true
