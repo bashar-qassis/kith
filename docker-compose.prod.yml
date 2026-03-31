@@ -44,6 +44,15 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      CLOAK_KEY: ${CLOAK_KEY}
+      AUTH_TOKEN_SALT: ${AUTH_TOKEN_SALT}
+      METRICS_TOKEN: ${METRICS_TOKEN}
+      MAILER_ADAPTER: ${MAILER_ADAPTER:-smtp}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     restart: "no"
 
   # ---------------------------------------------------------------------------
@@ -69,6 +78,7 @@ services:
       KITH_MODE: web
       POOL_SIZE: ${POOL_SIZE:-10}
       PORT: 4000
+      PHX_SERVER: "true"
       STORAGE_PATH: /app/uploads
       METRICS_TOKEN: ${METRICS_TOKEN}
       # Auth
@@ -133,6 +143,8 @@ services:
     tmpfs:
       - /tmp:size=64M
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
@@ -140,6 +152,7 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       KITH_HOSTNAME: ${KITH_HOSTNAME:-localhost}
       KITH_MODE: worker
+      PHX_SERVER: "false"
       POOL_SIZE: ${POOL_SIZE:-10}
       STORAGE_PATH: /app/uploads
       CLOAK_KEY: ${CLOAK_KEY}
@@ -164,6 +177,7 @@ services:
       IMMICH_BASE_URL: ${IMMICH_BASE_URL:-}
       IMMICH_API_KEY: ${IMMICH_API_KEY:-}
       IMMICH_SYNC_INTERVAL_HOURS: ${IMMICH_SYNC_INTERVAL_HOURS:-24}
+      METRICS_TOKEN: ${METRICS_TOKEN}
     volumes:
       - uploads:/app/uploads
     deploy:
@@ -174,6 +188,12 @@ services:
         reservations:
           memory: 256M
           cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "/app/bin/kith", "ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
