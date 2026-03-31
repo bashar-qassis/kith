@@ -178,27 +178,31 @@ if config_env() == :prod do
       raise "Invalid MAILER_ADAPTER: #{inspect(invalid)}. Must be smtp, mailgun, ses, or postmark."
   end
 
-  # S3 storage (optional — falls back to local disk)
-  if bucket = System.get_env("AWS_S3_BUCKET") do
-    config :ex_aws,
-      access_key_id: Kith.ConfigHelpers.read_secret("AWS_ACCESS_KEY_ID"),
-      secret_access_key: Kith.ConfigHelpers.read_secret("AWS_SECRET_ACCESS_KEY"),
-      region: System.get_env("AWS_REGION", "us-east-1")
+  # Storage backend — set STORAGE_BACKEND=s3 to use S3/S3-compatible storage,
+  # defaults to local disk.
+  case System.get_env("STORAGE_BACKEND", "local") do
+    "s3" ->
+      config :ex_aws,
+        http_client: ExAws.Request.Req,
+        access_key_id: Kith.ConfigHelpers.read_secret("AWS_ACCESS_KEY_ID"),
+        secret_access_key: Kith.ConfigHelpers.read_secret("AWS_SECRET_ACCESS_KEY"),
+        region: System.get_env("AWS_REGION", "us-east-1")
 
-    if endpoint = System.get_env("AWS_S3_ENDPOINT") do
-      config :ex_aws, :s3,
-        scheme: "http://",
-        host: URI.parse(endpoint).host,
-        port: URI.parse(endpoint).port
-    end
+      if endpoint = System.get_env("AWS_S3_ENDPOINT") do
+        config :ex_aws, :s3,
+          scheme: "http://",
+          host: URI.parse(endpoint).host,
+          port: URI.parse(endpoint).port
+      end
 
-    config :kith, Kith.Storage,
-      backend: :s3,
-      bucket: bucket
-  else
-    config :kith, Kith.Storage,
-      backend: :local,
-      path: System.get_env("STORAGE_PATH", "/app/uploads")
+      config :kith, Kith.Storage,
+        backend: :s3,
+        bucket: System.fetch_env!("AWS_S3_BUCKET")
+
+    _ ->
+      config :kith, Kith.Storage,
+        backend: :local,
+        path: System.get_env("STORAGE_PATH", "/app/uploads")
   end
 
   # Rate limiting — optional Redis backend
