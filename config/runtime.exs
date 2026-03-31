@@ -140,8 +140,8 @@ if config_env() == :prod do
         username: System.get_env("SMTP_USERNAME", ""),
         password: Kith.ConfigHelpers.read_secret("SMTP_PASSWORD") || "",
         ssl: System.get_env("SMTP_SSL") == "true",
-        tls: :if_available,
-        auth: :if_available
+        tls: :always,
+        auth: :always
 
     "mailgun" ->
       config :kith, Kith.Mailer,
@@ -242,5 +242,6 @@ if config_env() == :prod do
 
   # Structured JSON logging in production
   config :logger, :default_handler,
-    formatter: {LoggerJSON.Formatters.Basic, metadata: [:request_id, :user_id, :account_id]}
+    formatter:
+      {LoggerJSON.Formatters.Basic, metadata: [:request_id, :user_id, :account_id, :reason]}
 end
