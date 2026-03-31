@@ -12,9 +12,6 @@ defmodule Kith.Workers.ReminderSchedulerWorkerTest do
     seed_reference_data!()
     user = user_fixture()
     account_id = user.account_id
-    # Set account send_hour to 23 to ensure jobs are always scheduled in the future
-    account = Kith.Repo.get!(Kith.Accounts.Account, account_id)
-    Ecto.Changeset.change(account, send_hour: 23) |> Kith.Repo.update!()
     contact = contact_fixture(account_id)
     seed_reminder_rules!(account_id)
     %{user: user, account_id: account_id, contact: contact}
@@ -26,10 +23,10 @@ defmodule Kith.Workers.ReminderSchedulerWorkerTest do
       contact: contact,
       user: user
     } do
-      # Create a reminder due today
+      # Create a reminder due tomorrow (always within the scheduler's window and always in the future)
       r =
         reminder_fixture(account_id, contact.id, user.id, %{
-          next_reminder_date: Date.utc_today()
+          next_reminder_date: Date.add(Date.utc_today(), 1)
         })
 
       assert r.enqueued_oban_job_ids == []
@@ -49,7 +46,7 @@ defmodule Kith.Workers.ReminderSchedulerWorkerTest do
     } do
       r =
         reminder_fixture(account_id, contact.id, user.id, %{
-          next_reminder_date: Date.utc_today()
+          next_reminder_date: Date.add(Date.utc_today(), 1)
         })
 
       # Manually set job IDs to simulate already-enqueued
@@ -68,7 +65,11 @@ defmodule Kith.Workers.ReminderSchedulerWorkerTest do
       user: user
     } do
       r = stay_in_touch_reminder_fixture(account_id, contact.id, user.id)
-      r |> Ecto.Changeset.change(next_reminder_date: Date.utc_today()) |> Repo.update!()
+
+      r
+      |> Ecto.Changeset.change(next_reminder_date: Date.add(Date.utc_today(), 1))
+      |> Repo.update!()
+
       _i = reminder_instance_fixture(r)
 
       assert :ok = ReminderSchedulerWorker.perform(%Oban.Job{args: %{}})
