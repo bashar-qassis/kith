@@ -4,10 +4,12 @@ defmodule Kith.Accounts.UserNotifier do
   alias Kith.Mailer
 
   defp deliver(recipient, subject, body) do
+    mail_from = Application.get_env(:kith, Kith.Mailer)[:from] || "noreply@localhost"
+
     email =
       new()
       |> to(recipient)
-      |> from({"Kith", "contact@example.com"})
+      |> from({"Kith", mail_from})
       |> subject(subject)
       |> text_body(body)
 

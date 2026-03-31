@@ -137,7 +137,7 @@ defmodule Kith.Workers.ReminderNotificationWorker do
     Enum.map(users, fn user ->
       Swoosh.Email.new()
       |> Swoosh.Email.to({user.email, user.email})
-      |> Swoosh.Email.from({"Kith", "noreply@kith.app"})
+      |> Swoosh.Email.from({"Kith", Application.get_env(:kith, Kith.Mailer)[:from] || "noreply@localhost"})
       |> Swoosh.Email.subject(subject)
       |> Swoosh.Email.text_body("#{subject}\n\nContact: #{name}")
     end)

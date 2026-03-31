@@ -21,6 +21,7 @@ defmodule Kith.Application do
     [
       Kith.Vault,
       Kith.Repo,
+      {Finch, name: Swoosh.Finch, pools: %{:default => [size: 10]}},
       {Oban, Application.fetch_env!(:kith, Oban)},
       {Cachex, name: :kith_cache, expiration: expiration(default: :timer.hours(24))},
       {Task.Supervisor, name: Kith.TaskSupervisor}
