@@ -45,12 +45,14 @@ defmodule Kith.Workers.ReminderSchedulerWorker do
   end
 
   defp process_account(account) do
-    tomorrow = Date.add(Date.utc_today(), 1)
+    today = Date.utc_today()
+    tomorrow = Date.add(today, 1)
 
     reminders =
       from(r in Reminder,
         where: r.account_id == ^account.id,
         where: r.active == true,
+        where: r.next_reminder_date >= ^today,
         where: r.next_reminder_date <= ^tomorrow
       )
       |> Repo.all()

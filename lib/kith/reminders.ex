@@ -509,7 +509,12 @@ defmodule Kith.Reminders do
       days_before: 0
     }
 
-    jobs = [{on_day_args, on_day_at}]
+    on_day_jobs =
+      if DateTime.compare(on_day_at, DateTime.utc_now()) == :gt do
+        [{on_day_args, on_day_at}]
+      else
+        []
+      end
 
     # Pre-notification jobs only for birthday and one_time types
     pre_jobs =
@@ -537,7 +542,7 @@ defmodule Kith.Reminders do
         []
       end
 
-    all_jobs = jobs ++ pre_jobs
+    all_jobs = on_day_jobs ++ pre_jobs
 
     job_ids =
       Enum.map(all_jobs, fn {args, scheduled_at} ->
