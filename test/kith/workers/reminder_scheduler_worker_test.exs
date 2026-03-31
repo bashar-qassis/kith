@@ -12,6 +12,9 @@ defmodule Kith.Workers.ReminderSchedulerWorkerTest do
     seed_reference_data!()
     user = user_fixture()
     account_id = user.account_id
+    # Set account send_hour to 23 to ensure jobs are always scheduled in the future
+    account = Kith.Repo.get!(Kith.Accounts.Account, account_id)
+    Ecto.Changeset.change(account, send_hour: 23) |> Kith.Repo.update!()
     contact = contact_fixture(account_id)
     seed_reminder_rules!(account_id)
     %{user: user, account_id: account_id, contact: contact}
