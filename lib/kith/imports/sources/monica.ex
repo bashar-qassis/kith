@@ -633,39 +633,42 @@ defmodule Kith.Imports.Sources.Monica do
 
   defp import_reminders(contact, user_id, contact_data, import_record) do
     reminders = get_in(contact_data, ["reminders", "data"]) || []
-
     Enum.each(reminders, fn rem_data ->
-      next_date = rem_data["next_expected_date"]
-
-      with true <- is_binary(next_date),
-           {:ok, parsed_date} <- Date.from_iso8601(next_date),
-           true <- Date.compare(parsed_date, Date.utc_today()) in [:gt, :eq] do
-        attrs = %{
-          type: "one_time",
-          title: rem_data["title"],
-          next_reminder_date: next_date,
-          contact_id: contact.id
-        }
-
-        case Kith.Reminders.create_reminder(contact.account_id, user_id, attrs) do
-          {:ok, reminder} ->
-            maybe_record_entity(
-              import_record,
-              "reminder",
-              rem_data["uuid"],
-              "reminder",
-              reminder.id
-            )
-
-          {:error, reason} ->
-            Logger.warning(
-              "[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}"
-            )
-        end
-      else
-        _ -> :skip
-      end
+      handle_reminder_import(contact, user_id, rem_data, import_record)
     end)
+  end
+
+  defp handle_reminder_import(contact, user_id, rem_data, import_record) do
+    next_date = rem_data["next_expected_date"]
+
+    with true <- is_binary(next_date),
+         {:ok, parsed_date} <- Date.from_iso8601(next_date),
+         true <- Date.compare(parsed_date, Date.utc_today()) in [:gt, :eq] do
+      attrs = %{
+        type: "one_time",
+        title: rem_data["title"],
+        next_reminder_date: next_date,
+        contact_id: contact.id
+      }
+
+      case Kith.Reminders.create_reminder(contact.account_id, user_id, attrs) do
+        {:ok, reminder} ->
+          maybe_record_entity(
+            import_record,
+            "reminder",
+            rem_data["uuid"],
+            "reminder",
+            reminder.id
+          )
+
+        {:error, reason} ->
+          Logger.warning(
+            "[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}"
+          )
+      end
+    else
+      _ -> :skip
+    end
   end
 
   defp import_pets(contact, contact_data, import_record) do
