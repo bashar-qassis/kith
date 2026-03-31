@@ -189,7 +189,7 @@ services:
           memory: 256M
           cpus: "0.5"
     healthcheck:
-      test: ["CMD", "/app/bin/kith", "ping"]
+      test: ["CMD", "/app/bin/kith", "rpc", ":ok"]
       interval: 30s
       timeout: 10s
       start_period: 60s
