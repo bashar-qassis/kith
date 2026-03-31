@@ -662,9 +662,7 @@ defmodule Kith.Imports.Sources.Monica do
           )
 
         {:error, reason} ->
-          Logger.warning(
-            "[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}"
-          )
+          Logger.warning("[Monica Import] Reminder for #{contact.first_name}: #{inspect(reason)}")
       end
     else
       _ -> :skip
