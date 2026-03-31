@@ -146,7 +146,10 @@ if config_env() == :prod do
           verify: :verify_peer,
           cacerts: :public_key.cacerts_get(),
           depth: 3,
-          server_name_indication: String.to_charlist(System.get_env("SMTP_HOST") || "")
+          server_name_indication: String.to_charlist(System.get_env("SMTP_HOST") || ""),
+          customize_hostname_check: [
+            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+          ]
         ]
 
     "mailgun" ->
