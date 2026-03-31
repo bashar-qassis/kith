@@ -128,6 +128,7 @@ if config_env() == :prod do
   # Email (production) — adapter selected via MAILER_ADAPTER env var
   mail_from = System.get_env("MAIL_FROM", "noreply@#{host}")
   config :kith, Kith.Mailer, from: mail_from
+  config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
   case System.get_env("MAILER_ADAPTER", "smtp") do
     "smtp" ->
