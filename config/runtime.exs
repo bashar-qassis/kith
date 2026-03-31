@@ -207,7 +207,6 @@ if config_env() == :prod do
     config :sentry,
       dsn: sentry_dsn,
       environment_name: System.get_env("SENTRY_ENVIRONMENT", "production"),
-      included_environments: [:prod],
       tags: %{
         app_version: to_string(Application.spec(:kith, :vsn) || "dev"),
         kith_mode: System.get_env("KITH_MODE", "web")
