@@ -633,6 +633,7 @@ defmodule Kith.Imports.Sources.Monica do
 
   defp import_reminders(contact, user_id, contact_data, import_record) do
     reminders = get_in(contact_data, ["reminders", "data"]) || []
+
     Enum.each(reminders, fn rem_data ->
       handle_reminder_import(contact, user_id, rem_data, import_record)
     end)
