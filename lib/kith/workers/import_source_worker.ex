@@ -96,19 +96,21 @@ defmodule Kith.Workers.ImportSourceWorker do
 
   defp maybe_enqueue_first_met_jobs(import, import_records) do
     if import.api_options["first_met_details"] || import.api_options[:first_met_details] do
-      contacts_with_first_met = extract_first_met_uuids(import)
+      # Map of %{uuid => monica_integer_id_string} for contacts that have a first_met_date.
+      # The integer ID is required by Monica's REST API (/api/contacts/:id).
+      contacts_with_first_met = extract_first_met_api_ids(import)
 
       contact_records =
         Enum.filter(import_records, fn rec ->
           rec.source_entity_type == "contact" and
-            MapSet.member?(contacts_with_first_met, rec.source_entity_id)
+            Map.has_key?(contacts_with_first_met, rec.source_entity_id)
         end)
 
       enqueue_batched_jobs(contact_records, fn rec, delay ->
         %{
           import_id: import.id,
           contact_id: rec.local_entity_id,
-          source_contact_id: rec.source_entity_id,
+          source_contact_id: contacts_with_first_met[rec.source_entity_id],
           key: "first_met_details"
         }
         |> ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
@@ -117,17 +119,23 @@ defmodule Kith.Workers.ImportSourceWorker do
     end
   end
 
-  defp extract_first_met_uuids(import) do
+  # Returns %{uuid => monica_api_id_string} for contacts that have a first_met_date.
+  # Contacts without a Monica integer ID (e.g. partial v4 exports) are excluded.
+  defp extract_first_met_api_ids(import) do
     with {:ok, data} <- Storage.read(import.file_storage_key),
          {:ok, parsed} <- Jason.decode(data) do
       Monica.contacts_from_parsed(parsed)
       |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
-      |> Enum.map(& &1["uuid"])
-      |> MapSet.new()
+      |> Enum.reduce(%{}, &collect_api_id/2)
     else
-      _ -> MapSet.new()
+      _ -> %{}
     end
   end
+
+  defp collect_api_id(%{"id" => id, "uuid" => uuid}, acc) when not is_nil(id),
+    do: Map.put(acc, uuid, to_string(id))
+
+  defp collect_api_id(_contact, acc), do: acc
 
   defp enqueue_batched_jobs(records, enqueue_fn) do
     records

@@ -1182,6 +1182,7 @@ defmodule Kith.Imports.Sources.Monica do
 
     %{
       "uuid" => v4["uuid"],
+      "id" => v4["id"],
       "first_name" => props["first_name"],
       "last_name" => props["last_name"],
       "middle_name" => props["middle_name"],
