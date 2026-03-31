@@ -119,7 +119,11 @@ if config_env() == :prod do
   config :kith, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # Force SSL behind reverse proxy
-  config :kith, KithWeb.Endpoint, force_ssl: [rewrite_on: [:x_forwarded_proto]]
+  config :kith, KithWeb.Endpoint,
+    force_ssl: [
+      rewrite_on: [:x_forwarded_proto],
+      exclude: [hosts: ["localhost", "127.0.0.1"]]
+    ]
 
   # Email (production) — adapter selected via MAILER_ADAPTER env var
   mail_from = System.get_env("MAIL_FROM", "noreply@#{host}")
