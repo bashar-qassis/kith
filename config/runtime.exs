@@ -141,7 +141,13 @@ if config_env() == :prod do
         password: Kith.ConfigHelpers.read_secret("SMTP_PASSWORD") || "",
         ssl: System.get_env("SMTP_SSL") == "true",
         tls: :always,
-        auth: :always
+        auth: :always,
+        tls_options: [
+          verify: :verify_peer,
+          cacerts: :public_key.cacerts_get(),
+          depth: 3,
+          server_name_indication: String.to_charlist(System.get_env("SMTP_HOST") || "")
+        ]
 
     "mailgun" ->
       config :kith, Kith.Mailer,
