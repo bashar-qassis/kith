@@ -17,6 +17,8 @@ defmodule Kith.Application do
     Kith.Weather.install_fuse()
     # Attach Sentry telemetry handler for Oban job failures
     Kith.SentryEventHandler.attach()
+    # Capture crashes via Erlang logger handler (Sentry v10+, replaces PlugCapture)
+    :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{})
 
     [
       Kith.Vault,
