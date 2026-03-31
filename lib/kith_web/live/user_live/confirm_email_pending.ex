@@ -74,7 +74,7 @@ defmodule KithWeb.UserLive.ConfirmEmailPending do
       {:error, reason} ->
         Logger.error("Failed to deliver confirmation email",
           user_id: socket.assigns.current_scope.user.id,
-          error: inspect(reason)
+          reason: inspect(reason)
         )
 
         {:noreply,

@@ -1,0 +1,17 @@
+# Elixir source files — always LF
+*.ex    text eol=lf
+*.exs   text eol=lf
+*.heex  text eol=lf
+
+# Config / data files — LF
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.toml  text eol=lf
+
+# Shell scripts — LF
+*.sh    text eol=lf
+
+# Windows scripts — CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
