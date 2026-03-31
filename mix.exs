@@ -85,6 +85,7 @@ defmodule Kith.MixProject do
 
       # HTTP Client
       {:req, "~> 0.5"},
+      {:finch, "~> 0.18"},
 
       # Auth
       {:pot, "~> 1.0"},

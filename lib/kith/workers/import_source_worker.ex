@@ -10,6 +10,7 @@ defmodule Kith.Workers.ImportSourceWorker do
   require Logger
 
   alias Kith.Imports
+  alias Kith.Imports.Sources.Monica
   alias Kith.Storage
   alias Kith.Workers.ApiSupplementWorker
   alias Kith.Workers.PhotoBatchSyncWorker
@@ -119,7 +120,7 @@ defmodule Kith.Workers.ImportSourceWorker do
   defp extract_first_met_uuids(import) do
     with {:ok, data} <- Storage.read(import.file_storage_key),
          {:ok, parsed} <- Jason.decode(data) do
-      (get_in(parsed, ["contacts", "data"]) || [])
+      Monica.contacts_from_parsed(parsed)
       |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
       |> Enum.map(& &1["uuid"])
       |> MapSet.new()

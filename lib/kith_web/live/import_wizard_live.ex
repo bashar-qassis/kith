@@ -154,6 +154,10 @@ defmodule KithWeb.ImportWizardLive do
      |> assign(:results, results)}
   end
 
+  def handle_info({:sync_complete, _summary}, socket) do
+    {:noreply, socket}
+  end
+
   # ── Private helpers ─────────────────────────────────────────────────────────
 
   defp validate_step(socket) do

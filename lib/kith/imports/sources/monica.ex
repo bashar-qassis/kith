@@ -147,7 +147,8 @@ defmodule Kith.Imports.Sources.Monica do
         {:ok,
          %{
            first_met_where: contact_data["first_met_where"],
-           first_met_additional_info: contact_data["first_met_additional_information"]
+           first_met_additional_info: contact_data["first_met_additional_information"],
+           first_met_through_uuid: get_in(contact_data, ["first_met_through", "data", "uuid"])
          }}
 
       {:ok, %{status: 429}} ->
@@ -163,6 +164,18 @@ defmodule Kith.Imports.Sources.Monica do
 
   def fetch_supplement(_credential, _contact_source_id, _key) do
     {:error, :unsupported_supplement}
+  end
+
+  @doc """
+  Decodes and normalizes raw Monica JSON, returning the flat list of contact maps
+  in v2 format regardless of whether the source file was v2 or v4.
+  Used by workers that need to re-inspect the file after import.
+  """
+  def contacts_from_parsed(parsed) do
+    parsed
+    |> normalize()
+    |> get_in(["contacts", "data"])
+    |> Kernel.||([])
   end
 
   # ── Import orchestration ──────────────────────────────────────────────
@@ -564,30 +577,48 @@ defmodule Kith.Imports.Sources.Monica do
     Enum.each(fields, fn field_data ->
       cft_name = get_in(field_data, ["contact_field_type", "data", "name"])
       cft_id = Map.get(ref_data.contact_field_types, cft_name)
+      value = field_data["content"]
+      attrs = %{"value" => value, "contact_field_type_id" => cft_id}
+      import_contact_field(contact, field_data["uuid"], attrs, import_record)
+    end)
 
-      attrs = %{
-        "value" => field_data["content"],
-        "contact_field_type_id" => cft_id
-      }
+    length(fields)
+  end
 
+  defp import_contact_field(
+         contact,
+         uuid,
+         %{"value" => value, "contact_field_type_id" => cft_id} = attrs,
+         import_record
+       ) do
+    if contact_field_duplicate?(contact.id, cft_id, value) do
+      Logger.debug(
+        "[Monica Import] Skipping duplicate contact field '#{value}' for #{contact.first_name}"
+      )
+    else
       case Contacts.create_contact_field(contact, attrs) do
         {:ok, cf} ->
-          maybe_record_entity(
-            import_record,
-            "contact_field",
-            field_data["uuid"],
-            "contact_field",
-            cf.id
-          )
+          maybe_record_entity(import_record, "contact_field", uuid, "contact_field", cf.id)
 
         {:error, reason} ->
           Logger.warning(
             "[Monica Import] Contact field for #{contact.first_name}: #{inspect(reason)}"
           )
       end
-    end)
+    end
+  end
 
-    length(fields)
+  defp contact_field_duplicate?(_contact_id, nil, _value), do: false
+  defp contact_field_duplicate?(_contact_id, _cft_id, nil), do: false
+
+  defp contact_field_duplicate?(contact_id, cft_id, value) do
+    Repo.exists?(
+      from cf in Contacts.ContactField,
+        where:
+          cf.contact_id == ^contact_id and
+            cf.contact_field_type_id == ^cft_id and
+            fragment("lower(?)", cf.value) == fragment("lower(?)", ^value)
+    )
   end
 
   defp import_addresses(contact, contact_data, import_record) do

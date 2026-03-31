@@ -26,7 +26,11 @@ defmodule Kith.Workers.ApiSupplementWorker do
 
       case source_mod.fetch_supplement(credential, source_contact_id, key_atom) do
         {:ok, data} ->
-          attrs = Map.take(data, [:first_met_where, :first_met_additional_info])
+          attrs =
+            data
+            |> Map.take([:first_met_where, :first_met_additional_info])
+            |> maybe_add_first_met_through_id(import, data[:first_met_through_uuid])
+
           Kith.Contacts.update_contact(contact, attrs)
           maybe_cleanup_api_key(import)
           :ok
@@ -49,6 +53,15 @@ defmodule Kith.Workers.ApiSupplementWorker do
     end
   catch
     :cancelled -> {:discard, "Import cancelled"}
+  end
+
+  defp maybe_add_first_met_through_id(attrs, _import, nil), do: attrs
+
+  defp maybe_add_first_met_through_id(attrs, import, through_uuid) do
+    case Imports.find_import_record(import.account_id, import.source, "contact", through_uuid) do
+      %{local_entity_id: id} when not is_nil(id) -> Map.put(attrs, :first_met_through_id, id)
+      _ -> attrs
+    end
   end
 
   defp safe_to_atom(str) do
