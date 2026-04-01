@@ -24,7 +24,7 @@ config :kith, KithWeb.Endpoint,
   server: !!System.get_env("WALLABY")
 
 # Disable Oban in tests (use Oban.Testing)
-config :kith, Oban, testing: :inline
+config :kith, Oban, testing: :manual
 
 # Disable PromEx in tests (its Ecto poller conflicts with sandbox ownership)
 config :kith, Kith.PromEx, disabled: true

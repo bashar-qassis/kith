@@ -24,12 +24,20 @@ defmodule Kith.AccountsFixtures do
   end
 
   def user_fixture(attrs \\ %{}) do
+    {role, attrs} = Map.pop(attrs, :role, "admin")
+
     {:ok, user} =
       attrs
       |> valid_user_attributes()
       |> Accounts.register_user()
 
-    user
+    if role != "admin" do
+      user
+      |> Ecto.Changeset.change(%{role: role})
+      |> Kith.Repo.update!()
+    else
+      user
+    end
   end
 
   def user_scope_fixture do

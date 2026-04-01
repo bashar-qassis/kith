@@ -21,6 +21,7 @@ defmodule KithWeb.SettingsLive.Account do
      |> assign(:rules, [])
      |> assign(:account_form, nil)
      |> assign(:delete_confirmation, "")
+     |> assign(:reset_confirmation, "")
      |> assign(:feature_flags, %{})}
   end
 
@@ -105,9 +106,42 @@ defmodule KithWeb.SettingsLive.Account do
     account = socket.assigns.account
 
     if socket.assigns.delete_confirmation == account.name do
-      {:noreply, put_flash(socket, :error, "Account deletion is not yet available.")}
+      case Accounts.request_account_deletion(account.id, account.name) do
+        {:ok, :queued} ->
+          {:noreply, push_navigate(socket, to: ~p"/")}
+
+        {:error, _} ->
+          {:noreply,
+           put_flash(socket, :error, "Failed to initiate account deletion. Please try again.")}
+      end
     else
       {:noreply, put_flash(socket, :error, "Account name does not match.")}
+    end
+  end
+
+  def handle_event("validate-reset", %{"confirmation" => value}, socket) do
+    {:noreply, assign(socket, :reset_confirmation, value)}
+  end
+
+  def handle_event("reset-account", _params, socket) do
+    account = socket.assigns.account
+
+    if socket.assigns.reset_confirmation == "RESET" do
+      case Accounts.request_account_reset(account.id, "RESET") do
+        {:ok, :queued} ->
+          {:noreply,
+           socket
+           |> assign(:reset_confirmation, "")
+           |> put_flash(
+             :info,
+             "Account data reset has been queued. All contacts and data will be deleted shortly."
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to initiate reset. Please try again.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Type RESET exactly to confirm.")}
     end
   end
 
@@ -244,6 +278,41 @@ defmodule KithWeb.SettingsLive.Account do
                 </button>
               </div>
             </div>
+          </div>
+
+          <%!-- Account Reset --%>
+          <div class="mt-6 bg-[var(--color-surface-elevated)] border border-[var(--color-warning)]/30 rounded-[var(--radius-lg)] p-6">
+            <h2 class="text-lg font-semibold text-[var(--color-warning)] mb-1">
+              Reset Account Data
+            </h2>
+            <p class="text-sm text-[var(--color-text-tertiary)] mb-4">
+              Delete all contacts and data while keeping your account and users.
+              This cannot be undone.
+            </p>
+
+            <form phx-submit="reset-account" phx-change="validate-reset">
+              <label class="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
+                Type <span class="font-semibold">RESET</span> to confirm
+              </label>
+              <input
+                type="text"
+                name="confirmation"
+                value={@reset_confirmation}
+                placeholder="RESET"
+                autocomplete="off"
+                class="w-full max-w-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/20 transition-colors duration-150"
+              />
+              <div class="mt-4">
+                <UI.button
+                  type="submit"
+                  variant="danger"
+                  size="sm"
+                  disabled={@reset_confirmation != "RESET"}
+                >
+                  Reset Account Data
+                </UI.button>
+              </div>
+            </form>
           </div>
 
           <%!-- Account Deletion --%>
