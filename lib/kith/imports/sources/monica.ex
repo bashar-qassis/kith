@@ -137,10 +137,15 @@ defmodule Kith.Imports.Sources.Monica do
   end
 
   @impl true
-  def fetch_supplement(%{url: url, api_key: api_key}, contact_source_id, :first_met_details) do
+  def fetch_supplement(
+        %{url: url, api_key: api_key} = credential,
+        contact_source_id,
+        :first_met_details
+      ) do
     headers = [{"Authorization", "Bearer #{api_key}"}, {"Accept", "application/json"}]
+    req_options = Map.get(credential, :req_options, [])
 
-    case Req.get("#{url}/api/contacts/#{contact_source_id}", headers: headers) do
+    case Req.get("#{url}/api/contacts/#{contact_source_id}", [headers: headers] ++ req_options) do
       {:ok, %{status: 200, body: body}} ->
         contact_data = body["data"] || body
 

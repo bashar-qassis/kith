@@ -3,10 +3,17 @@ defmodule Kith.SentryReqClient do
   @behaviour Sentry.HTTPClient
 
   @impl Sentry.HTTPClient
+  def child_spec do
+    Supervisor.child_spec({Finch, name: __MODULE__}, id: __MODULE__)
+  end
+
+  @impl Sentry.HTTPClient
   def post(url, headers, body) do
-    case Req.post(url, headers: headers, body: body, decode_body: false, retry: false) do
-      {:ok, response} ->
-        {:ok, response.status, Enum.to_list(response.headers), response.body}
+    request = Finch.build(:post, url, headers, body)
+
+    case Finch.request(request, __MODULE__) do
+      {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
+        {:ok, status, headers, body}
 
       {:error, exception} ->
         {:error, exception}

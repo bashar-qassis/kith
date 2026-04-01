@@ -22,7 +22,7 @@ defmodule Kith.Workers.ApiSupplementWorker do
          {:key, {:ok, key_atom}} <- {:key, safe_to_atom(key)} do
       if import.status == "cancelled", do: throw(:cancelled)
 
-      credential = %{url: import.api_url, api_key: import.api_key_encrypted}
+      credential = credential_for(import)
 
       case source_mod.fetch_supplement(credential, source_contact_id, key_atom) do
         {:ok, data} ->
@@ -68,6 +68,15 @@ defmodule Kith.Workers.ApiSupplementWorker do
     {:ok, String.to_existing_atom(str)}
   rescue
     ArgumentError -> {:error, :unknown_atom}
+  end
+
+  defp credential_for(import) do
+    base = %{url: import.api_url, api_key: import.api_key_encrypted}
+
+    case Process.get({__MODULE__, :req_options}) do
+      nil -> base
+      opts -> Map.put(base, :req_options, opts)
+    end
   end
 
   defp maybe_cleanup_api_key(import) do

@@ -125,7 +125,12 @@ defmodule Kith.Workers.ImportSourceWorker do
     with {:ok, data} <- Storage.read(import.file_storage_key),
          {:ok, parsed} <- Jason.decode(data) do
       Monica.contacts_from_parsed(parsed)
-      |> Enum.filter(fn c -> get_in(c, ["first_met_date", "data", "date"]) != nil end)
+      |> Enum.filter(fn c ->
+        # v2 export: first_met_date.date; v4 (after normalise): first_met_date.data.date
+        date_obj = c["first_met_date"] || %{}
+        date_inner = date_obj["data"] || date_obj
+        date_inner["date"] != nil
+      end)
       |> Enum.reduce(%{}, &collect_api_id/2)
     else
       _ -> %{}

@@ -371,6 +371,70 @@ defmodule Kith.Imports.Sources.MonicaTest do
       reminder = Repo.get!(Kith.Reminders.Reminder, reminder_rec.local_entity_id)
       assert reminder.title == "Alice's birthday"
     end
+
+    test "skips duplicate contact fields with the same type and value", %{
+      account_id: account_id,
+      user: user
+    } do
+      import_rec = import_fixture(account_id, user.id)
+
+      data =
+        Jason.encode!(%{
+          "version" => "2.20.0",
+          "account" => %{"data" => %{"id" => 1, "uuid" => "acct-dedup"}},
+          "contacts" => %{
+            "data" => [
+              %{
+                "id" => 201,
+                "uuid" => "contact-uuid-dedup",
+                "first_name" => "Dedup",
+                "last_name" => "Test",
+                "contact_fields" => %{
+                  "data" => [
+                    %{
+                      "uuid" => "cf-uuid-dup-1",
+                      "content" => "+1-555-0100",
+                      "contact_field_type" => %{
+                        "data" => %{
+                          "id" => 2,
+                          "uuid" => "cft-uuid-phone",
+                          "name" => "Phone",
+                          "type" => "phone"
+                        }
+                      }
+                    },
+                    %{
+                      "uuid" => "cf-uuid-dup-2",
+                      "content" => "+1-555-0100",
+                      "contact_field_type" => %{
+                        "data" => %{
+                          "id" => 2,
+                          "uuid" => "cft-uuid-phone",
+                          "name" => "Phone",
+                          "type" => "phone"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "relationships" => %{"data" => []}
+        })
+
+      {:ok, _} = MonicaSource.import(account_id, user.id, data, %{import: import_rec})
+
+      dedup_rec =
+        Imports.find_import_record(account_id, "monica", "contact", "contact-uuid-dedup")
+
+      assert dedup_rec
+
+      # Only one phone field should be created despite two identical entries in the export
+      phone_fields = Contacts.list_contact_fields(dedup_rec.local_entity_id)
+      assert length(phone_fields) == 1
+      assert hd(phone_fields).value == "+1-555-0100"
+    end
   end
 
   describe "v4 format import with duplicate contact entries" do
@@ -482,6 +546,111 @@ defmodule Kith.Imports.Sources.MonicaTest do
       keys = Enum.map(options, & &1.key)
       assert :photos in keys
       assert :first_met_details in keys
+    end
+  end
+
+  describe "contacts_from_parsed/1" do
+    test "returns contacts from v2 format with id and uuid fields" do
+      parsed = Jason.decode!(File.read!(@fixture_path))
+      contacts = MonicaSource.contacts_from_parsed(parsed)
+      assert length(contacts) == 2
+      alice = Enum.find(contacts, &(&1["uuid"] == "contact-uuid-alice"))
+      assert alice["id"] == 101
+      assert alice["uuid"] == "contact-uuid-alice"
+    end
+
+    test "normalises v4 format and returns contacts including id key" do
+      parsed = Jason.decode!(File.read!(@v4_fixture_path))
+      contacts = MonicaSource.contacts_from_parsed(parsed)
+      # Three unique contacts after v4 deduplication
+      assert length(contacts) == 3
+      # v4 exports carry no integer id; transform_v4_contact sets "id" => nil
+      assert Enum.all?(contacts, &Map.has_key?(&1, "id"))
+      assert Enum.all?(contacts, &is_nil(&1["id"]))
+    end
+
+    test "returns empty list for empty contacts data" do
+      parsed = %{"contacts" => %{"data" => []}, "account" => %{"data" => %{}}}
+      assert MonicaSource.contacts_from_parsed(parsed) == []
+    end
+  end
+
+  describe "fetch_supplement/3 :first_met_details" do
+    @stub_name :monica_fetch_supplement_stub
+
+    test "returns first_met fields and first_met_through_uuid from nested API response" do
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, %{
+          "data" => %{
+            "first_met_where" => "At a coffee shop",
+            "first_met_additional_information" => "Through mutual friends",
+            "first_met_through" => %{"data" => %{"uuid" => "contact-uuid-alice"}}
+          }
+        })
+      end)
+
+      credential = %{
+        url: "https://monica.test",
+        api_key: "test-key",
+        req_options: [plug: {Req.Test, @stub_name}]
+      }
+
+      assert {:ok, data} = MonicaSource.fetch_supplement(credential, "101", :first_met_details)
+      assert data.first_met_where == "At a coffee shop"
+      assert data.first_met_additional_info == "Through mutual friends"
+      assert data.first_met_through_uuid == "contact-uuid-alice"
+    end
+
+    test "returns nil first_met_through_uuid when first_met_through is null" do
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, %{
+          "data" => %{
+            "first_met_where" => "At the gym",
+            "first_met_additional_information" => nil,
+            "first_met_through" => nil
+          }
+        })
+      end)
+
+      credential = %{
+        url: "https://monica.test",
+        api_key: "test-key",
+        req_options: [plug: {Req.Test, @stub_name}]
+      }
+
+      assert {:ok, data} = MonicaSource.fetch_supplement(credential, "101", :first_met_details)
+      assert data.first_met_where == "At the gym"
+      assert is_nil(data.first_met_through_uuid)
+    end
+
+    test "returns :rate_limited on 429" do
+      Req.Test.stub(@stub_name, fn conn ->
+        Plug.Conn.send_resp(conn, 429, "")
+      end)
+
+      credential = %{
+        url: "https://monica.test",
+        api_key: "test-key",
+        req_options: [plug: {Req.Test, @stub_name}, retry: false]
+      }
+
+      assert {:error, :rate_limited} =
+               MonicaSource.fetch_supplement(credential, "101", :first_met_details)
+    end
+
+    test "returns error tuple for non-200 status" do
+      Req.Test.stub(@stub_name, fn conn ->
+        Plug.Conn.send_resp(conn, 404, "not found")
+      end)
+
+      credential = %{
+        url: "https://monica.test",
+        api_key: "test-key",
+        req_options: [plug: {Req.Test, @stub_name}, retry: false]
+      }
+
+      assert {:error, "Unexpected status: 404"} =
+               MonicaSource.fetch_supplement(credential, "101", :first_met_details)
     end
   end
 end
