@@ -301,18 +301,27 @@ defmodule Kith.Contacts do
     Repo.delete(contact)
   end
 
+  @doc """
+  Cancels reminder jobs for all trashed contacts in the given account, bulk-deletes them,
+  and returns `{:ok, count}` where `count` is the number of contacts permanently deleted.
+
+  The DB read and bulk-delete are wrapped in a transaction so concurrent purge workers
+  cannot interleave. Oban job cancellations inside are best-effort.
+  """
   def empty_trash(account_id) do
-    trashed = list_trashed_contacts(account_id)
+    Repo.transaction(fn ->
+      trashed = list_trashed_contacts(account_id)
 
-    Enum.each(trashed, fn contact ->
-      Kith.Reminders.cancel_all_for_contact(contact.id, account_id)
+      Enum.each(trashed, fn contact ->
+        Kith.Reminders.cancel_all_for_contact(contact.id, account_id)
+      end)
+
+      {count, _} =
+        from(c in Contact, where: c.account_id == ^account_id and not is_nil(c.deleted_at))
+        |> Repo.delete_all()
+
+      count
     end)
-
-    {count, _} =
-      from(c in Contact, where: c.account_id == ^account_id and not is_nil(c.deleted_at))
-      |> Repo.delete_all()
-
-    {:ok, count}
   end
 
   ## Addresses
