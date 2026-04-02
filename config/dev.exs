@@ -104,5 +104,8 @@ config :phoenix_live_view,
   # Changing this configuration will require mix clean and a full recompile.
   debug_heex_annotations: true,
   debug_attributes: true,
-  # Enable helpful, but potentially expensive runtime checks
-  enable_expensive_runtime_checks: true
+  # Enable helpful, but potentially expensive runtime checks.
+  # Set PHX_EXPENSIVE_CHECKS=false (e.g. in docker-compose.dev.yml) to turn
+  # these off in constrained environments like Docker on Windows where they
+  # noticeably slow down LiveView renders.
+  enable_expensive_runtime_checks: System.get_env("PHX_EXPENSIVE_CHECKS", "true") == "true"

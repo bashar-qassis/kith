@@ -58,6 +58,13 @@ services:
       DB_PORT: "5432"
       SMTP_HOST: mailpit
       PHX_IP: "0.0.0.0"
+      # Disable BEAM scheduler busy-waiting. By default idle schedulers spin on
+      # their vCPU rather than sleeping, starving other threads in WSL2's shared
+      # VM environment and adding latency to every request.
+      ERL_FLAGS: "+sbwt none +sbwtdcpu none +sbwtdio none"
+      # Disable expensive LiveView runtime checks (assign validation, slot checks,
+      # etc.) which add overhead on every render cycle — too costly in Docker on Windows.
+      PHX_EXPENSIVE_CHECKS: "false"
     volumes:
       # No Windows bind-mount for source — use `docker compose watch` instead.
       # deps/_build/node_modules stay as named volumes for fast recompilation.
