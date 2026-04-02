@@ -11,6 +11,7 @@ defmodule Kith.AuditLogs.AuditLog do
     account_data_reset account_deleted
     immich_linked immich_unlinked
     data_exported data_imported
+    trash_emptied
   )
 
   schema "audit_logs" do
