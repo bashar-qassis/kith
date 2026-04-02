@@ -65,17 +65,17 @@ defmodule KithWeb.API.StatisticsControllerTest do
 
     test "all roles can access statistics", %{conn: _conn} do
       # Create a viewer-role user
-      user = user_fixture(%{role: :viewer})
+      user = user_fixture(%{role: "viewer"})
       conn = build_conn() |> authed_conn(user) |> get(~p"/api/statistics")
       assert %{"data" => _} = json_response(conn, 200)
 
       # Create an editor-role user
-      user2 = user_fixture(%{role: :editor})
+      user2 = user_fixture(%{role: "editor"})
       conn2 = build_conn() |> authed_conn(user2) |> get(~p"/api/statistics")
       assert %{"data" => _} = json_response(conn2, 200)
 
       # Create an admin-role user
-      user3 = user_fixture(%{role: :admin})
+      user3 = user_fixture(%{role: "admin"})
       conn3 = build_conn() |> authed_conn(user3) |> get(~p"/api/statistics")
       assert %{"data" => _} = json_response(conn3, 200)
     end

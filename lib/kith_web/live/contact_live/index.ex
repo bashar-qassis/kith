@@ -311,6 +311,29 @@ defmodule KithWeb.ContactLive.Index do
      |> assign(:trashed_contacts, Contacts.list_trashed_contacts(account_id))}
   end
 
+  def handle_event("empty-trash", _params, socket) do
+    account_id = socket.assigns.account_id
+    user = socket.assigns.current_scope.user
+
+    if Policy.can?(user, :manage, :contact) do
+      {:ok, count} = Contacts.empty_trash(account_id)
+
+      if count > 0 do
+        AuditLogs.log_event(account_id, user, :trash_emptied)
+      end
+
+      {:noreply,
+       socket
+       |> assign(:trashed_contacts, [])
+       |> put_flash(
+         :info,
+         "#{count} contact#{if count == 1, do: "", else: "s"} permanently deleted."
+       )}
+    else
+      {:noreply, put_flash(socket, :error, "You are not authorized to empty the trash.")}
+    end
+  end
+
   defp perform_bulk_action(socket, action_fn, event, flash_label) do
     account_id = socket.assigns.account_id
     user = socket.assigns.current_scope.user
