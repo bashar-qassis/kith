@@ -10,7 +10,8 @@
 *.toml  text eol=lf
 
 # Shell scripts — LF
-*.sh    text eol=lf
+*.sh          text eol=lf
+.husky/*      text eol=lf
 
 # Windows scripts — CRLF
 *.bat   text eol=crlf

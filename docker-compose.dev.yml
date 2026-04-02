@@ -58,20 +58,66 @@ services:
       DB_PORT: "5432"
       SMTP_HOST: mailpit
       PHX_IP: "0.0.0.0"
+      # Disable BEAM scheduler busy-waiting. By default idle schedulers spin on
+      # their vCPU rather than sleeping, starving other threads in WSL2's shared
+      # VM environment and adding latency to every request.
+      ERL_FLAGS: "+sbwt none +sbwtdcpu none +sbwtdio none"
+      # Disable expensive LiveView runtime checks (assign validation, slot checks,
+      # etc.) which add overhead on every render cycle — too costly in Docker on Windows.
+      PHX_EXPENSIVE_CHECKS: "false"
     volumes:
-      - .:/app
+      # No Windows bind-mount for source — use `docker compose watch` instead.
+      # deps/_build/node_modules stay as named volumes for fast recompilation.
       - deps:/app/deps
       - build:/app/_build
       - node_modules:/app/assets/node_modules
+    develop:
+      watch:
+        # Sync Elixir source, config, migrations, and static assets into the
+        # container via Docker's internal protocol — bypasses the slow WSL2↔Windows
+        # filesystem bridge that makes `- .:/app` bind-mounts sluggish on Windows.
+        - action: sync
+          path: lib
+          target: /app/lib
+        - action: sync
+          path: config
+          target: /app/config
+        - action: sync
+          path: priv
+          target: /app/priv
+          ignore:
+            # Tailwind/esbuild compile into priv/static/assets/ inside the
+            # container. Syncing the host copy (which may be stale or absent)
+            # would overwrite freshly-built CSS/JS with wrong files.
+            - static/assets/
+        - action: sync
+          path: test
+          target: /app/test
+        - action: sync
+          path: assets
+          target: /app/assets
+          ignore:
+            - node_modules/
+        # Dependency or tooling changes require a full image rebuild.
+        - action: rebuild
+          path: mix.exs
+        - action: rebuild
+          path: mix.lock
+        - action: rebuild
+          path: assets/package.json
+        - action: rebuild
+          path: assets/package-lock.json
     depends_on:
       postgres:
         condition: service_healthy
     command: >
       sh -c "
         mix deps.get &&
+        mix assets.vendor &&
         cd assets && npm install && cd .. &&
         mix tailwind.install --if-missing &&
         mix esbuild.install --if-missing &&
+        mix assets.build &&
         mix ecto.create &&
         mix ecto.migrate &&
         exec mix phx.server
