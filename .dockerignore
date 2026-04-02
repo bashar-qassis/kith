@@ -1,6 +1,7 @@
 # Version control
 .git
 .gitignore
+.worktrees
 
 # Environment secrets — NEVER include in build context
 .env
@@ -19,7 +20,8 @@ node_modules
 *.swp
 *.swo
 
-# Documentation and tests (not needed in production image)
+# Documentation and tests (not needed in built images)
+# Note: test/ is synced into the dev container at runtime via `docker compose watch`.
 docs/
 test/
 *.md

@@ -59,10 +59,42 @@ services:
       SMTP_HOST: mailpit
       PHX_IP: "0.0.0.0"
     volumes:
-      - .:/app
+      # No Windows bind-mount for source — use `docker compose watch` instead.
+      # deps/_build/node_modules stay as named volumes for fast recompilation.
       - deps:/app/deps
       - build:/app/_build
       - node_modules:/app/assets/node_modules
+    develop:
+      watch:
+        # Sync Elixir source, config, migrations, and static assets into the
+        # container via Docker's internal protocol — bypasses the slow WSL2↔Windows
+        # filesystem bridge that makes `- .:/app` bind-mounts sluggish on Windows.
+        - action: sync
+          path: lib
+          target: /app/lib
+        - action: sync
+          path: config
+          target: /app/config
+        - action: sync
+          path: priv
+          target: /app/priv
+        - action: sync
+          path: test
+          target: /app/test
+        - action: sync
+          path: assets
+          target: /app/assets
+          ignore:
+            - node_modules/
+        # Dependency or tooling changes require a full image rebuild.
+        - action: rebuild
+          path: mix.exs
+        - action: rebuild
+          path: mix.lock
+        - action: rebuild
+          path: assets/package.json
+        - action: rebuild
+          path: assets/package-lock.json
     depends_on:
       postgres:
         condition: service_healthy
