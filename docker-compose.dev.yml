@@ -113,6 +113,7 @@ services:
     command: >
       sh -c "
         mix deps.get &&
+        mix assets.vendor &&
         cd assets && npm install && cd .. &&
         mix tailwind.install --if-missing &&
         mix esbuild.install --if-missing &&
