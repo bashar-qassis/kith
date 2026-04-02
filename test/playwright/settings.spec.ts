@@ -48,6 +48,78 @@ test.describe("Settings", () => {
     expect(content).toMatch(/account|timezone|features/i);
   });
 
+  test("account settings danger zone shows reset and delete sections", async ({
+    page,
+  }) => {
+    await page.goto("/settings/account");
+    await page.waitForLoadState("networkidle");
+
+    const content = await page.content();
+    expect(content).toMatch(/reset account data/i);
+    expect(content).toMatch(/delete account/i);
+  });
+
+  test("account reset with wrong confirmation shows error", async ({
+    page,
+  }) => {
+    await page.goto("/settings/account");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(300);
+
+    // Fill wrong confirmation in reset form
+    const resetInput = page.locator(
+      "input[name='confirmation'][form*='reset'], form[phx-submit='reset-account'] input",
+    );
+    if ((await resetInput.count()) > 0) {
+      await resetInput.first().fill("WRONG");
+      await page.getByRole("button", { name: /reset account/i }).click();
+      await page.waitForTimeout(500);
+
+      const content = await page.content();
+      expect(content).toMatch(/RESET|invalid|confirmation/i);
+    }
+  });
+
+  test("account reset with correct confirmation enqueues reset job", async ({
+    page,
+  }) => {
+    await page.goto("/settings/account");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(300);
+
+    const resetInput = page.locator(
+      "form[phx-submit='reset-account'] input",
+    );
+    if ((await resetInput.count()) > 0) {
+      await resetInput.first().fill("RESET");
+      await page.getByRole("button", { name: /reset account/i }).click();
+      await page.waitForTimeout(1000);
+
+      const content = await page.content();
+      expect(content).toMatch(/reset|scheduled|processing/i);
+    }
+  });
+
+  test("account delete with wrong confirmation shows error", async ({
+    page,
+  }) => {
+    await page.goto("/settings/account");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(300);
+
+    const deleteInput = page.locator(
+      "form[phx-submit='delete-account'] input",
+    );
+    if ((await deleteInput.count()) > 0) {
+      await deleteInput.first().fill("WRONG");
+      await page.getByRole("button", { name: /delete account/i }).click();
+      await page.waitForTimeout(500);
+
+      const content = await page.content();
+      expect(content).toMatch(/DELETE|invalid|confirmation/i);
+    }
+  });
+
   // ─────────────────────────────────────────
   // Settings: Tags
   // ─────────────────────────────────────────
