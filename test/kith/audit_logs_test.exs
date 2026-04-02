@@ -1,5 +1,6 @@
 defmodule Kith.AuditLogsTest do
   use Kith.DataCase, async: true
+  use Oban.Testing, repo: Kith.Repo
 
   alias Kith.AuditLogs
 
@@ -18,6 +19,8 @@ defmodule Kith.AuditLogsTest do
                  contact_name: "Jane Doe"
                )
 
+      Oban.drain_queue(queue: :default)
+
       {entries, _meta} = AuditLogs.list_audit_logs(account_id)
       assert length(entries) == 1
       entry = hd(entries)
@@ -29,12 +32,14 @@ defmodule Kith.AuditLogsTest do
 
     test "accepts atom events", %{user: user, account_id: account_id} do
       assert {:ok, _job} = AuditLogs.log_event(account_id, user, :contact_updated)
+      Oban.drain_queue(queue: :default)
       {entries, _meta} = AuditLogs.list_audit_logs(account_id)
       assert hd(entries).event == "contact_updated"
     end
 
     test "accepts string events", %{user: user, account_id: account_id} do
       assert {:ok, _job} = AuditLogs.log_event(account_id, user, "contact_deleted")
+      Oban.drain_queue(queue: :default)
       {entries, _meta} = AuditLogs.list_audit_logs(account_id)
       assert hd(entries).event == "contact_deleted"
     end
@@ -48,6 +53,7 @@ defmodule Kith.AuditLogsTest do
     test "captures user_name from display_name", %{account_id: account_id} do
       user = %{id: 1, display_name: "Alice Smith", email: "alice@example.com"}
       {:ok, _} = AuditLogs.log_event(account_id, user, :contact_created)
+      Oban.drain_queue(queue: :default)
       {[entry], _} = AuditLogs.list_audit_logs(account_id)
       assert entry.user_name == "Alice Smith"
     end
@@ -55,6 +61,7 @@ defmodule Kith.AuditLogsTest do
     test "falls back to email for user_name", %{account_id: account_id} do
       user = %{id: 1, display_name: nil, email: "bob@example.com"}
       {:ok, _} = AuditLogs.log_event(account_id, user, :contact_created)
+      Oban.drain_queue(queue: :default)
       {[entry], _} = AuditLogs.list_audit_logs(account_id)
       assert entry.user_name == "bob@example.com"
     end
