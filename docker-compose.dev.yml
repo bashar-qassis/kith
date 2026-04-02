@@ -85,6 +85,11 @@ services:
         - action: sync
           path: priv
           target: /app/priv
+          ignore:
+            # Tailwind/esbuild compile into priv/static/assets/ inside the
+            # container. Syncing the host copy (which may be stale or absent)
+            # would overwrite freshly-built CSS/JS with wrong files.
+            - static/assets/
         - action: sync
           path: test
           target: /app/test
@@ -111,6 +116,7 @@ services:
         cd assets && npm install && cd .. &&
         mix tailwind.install --if-missing &&
         mix esbuild.install --if-missing &&
+        mix assets.build &&
         mix ecto.create &&
         mix ecto.migrate &&
         exec mix phx.server
