@@ -42,7 +42,7 @@ defmodule Kith.Imports.Import do
       :user_id
     ])
     |> validate_required([:source, :account_id, :user_id])
-    |> validate_inclusion(:source, ["monica", "vcard"])
+    |> validate_inclusion(:source, ["monica", "monica_api", "vcard"])
     |> foreign_key_constraint(:account_id)
     |> foreign_key_constraint(:user_id)
     |> unique_constraint(:account_id,

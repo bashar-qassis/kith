@@ -10,6 +10,7 @@ defmodule Kith.Imports do
 
   @sources %{
     "monica" => Kith.Imports.Sources.Monica,
+    "monica_api" => Kith.Imports.Sources.MonicaApi,
     "vcard" => Kith.Imports.Sources.VCard
   }
 
