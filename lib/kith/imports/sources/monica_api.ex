@@ -647,9 +647,9 @@ defmodule Kith.Imports.Sources.MonicaApi do
             update_import_records_after_merge(account_id, import_job, candidate.id, survivor.id)
             {c + 1, e, MapSet.put(s, candidate.id)}
 
-          {:error, step, _changeset, _changes} ->
+          {:error, reason} ->
             msg =
-              "Failed to merge #{candidate.first_name} #{candidate.last_name} (#{candidate.id}): #{step}"
+              "Failed to merge #{candidate.first_name} #{candidate.last_name} (#{candidate.id}): #{inspect(reason)}"
 
             Logger.warning("[MonicaApi] #{msg}")
             {c, e ++ [msg], s}
