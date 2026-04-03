@@ -108,15 +108,15 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Contact Info</h3>
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-semibold text-xs text-[var(--color-text-primary)]">Contact</span>
         <%= if @can_edit do %>
           <button
             phx-click="show-form"
             phx-target={@myself}
-            class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+            class="text-[var(--color-accent)] text-xs font-medium cursor-pointer"
           >
-            <.icon name="hero-plus" class="size-4" />
+            + Add
           </button>
         <% end %>
       </div>
@@ -186,22 +186,7 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
       <% end %>
 
       <%= if @fields == [] and not @show_form do %>
-        <KithUI.empty_state
-          size={:compact}
-          icon="hero-identification"
-          title="No contact info"
-          message="Add phone numbers, emails, and social profiles."
-        >
-          <:actions :if={@can_edit}>
-            <button
-              phx-click="show-form"
-              phx-target={@myself}
-              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
-            >
-              Add Info
-            </button>
-          </:actions>
-        </KithUI.empty_state>
+        <p class="text-xs text-[var(--color-text-disabled)]">No contact info added.</p>
       <% end %>
 
       <div class="space-y-2">
@@ -258,39 +243,30 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
               </div>
             </.form>
           <% else %>
-            <div class="flex items-center justify-between py-2">
-              <div class="flex items-center gap-3">
-                <.icon name={field_icon(field)} class="size-5 text-[var(--color-text-disabled)]" />
-                <div>
-                  <div class="flex items-center gap-2">
-                    <%= if link = field_link(field) do %>
-                      <a
-                        href={link}
-                        class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
-                      >
-                        {field.value}
-                      </a>
-                    <% else %>
-                      <span>{field.value}</span>
-                    <% end %>
-                    <%= if field.label do %>
-                      <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                        {field.label}
-                      </span>
-                    <% end %>
-                  </div>
-                  <div class="text-xs text-[var(--color-text-tertiary)]">
-                    {field.contact_field_type.name}
-                  </div>
-                </div>
-              </div>
+            <div class="group flex items-center gap-2 py-1.5 text-sm">
+              <span class="text-[var(--color-text-tertiary)] w-4 text-center shrink-0">
+                <.icon name={field_icon(field)} class="size-4" />
+              </span>
+              <span class="flex-1 min-w-0 truncate">
+                <%= if link = field_link(field) do %>
+                  <a href={link} class="text-[var(--color-accent)] hover:underline">{field.value}</a>
+                <% else %>
+                  {field.value}
+                <% end %>
+              </span>
+              <span :if={field.label} class="text-[10px] text-[var(--color-text-disabled)] shrink-0">
+                {field.label}
+              </span>
+              <span :if={!field.label} class="text-[10px] text-[var(--color-text-disabled)] shrink-0">
+                {field.contact_field_type.name}
+              </span>
               <%= if @can_edit do %>
-                <div class="flex gap-2 text-xs shrink-0">
+                <div class="opacity-0 group-hover:opacity-100 flex gap-1.5 text-[10px] shrink-0 transition-opacity">
                   <button
                     phx-click="edit"
                     phx-value-id={field.id}
                     phx-target={@myself}
-                    class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+                    class="text-[var(--color-accent)] cursor-pointer"
                   >
                     Edit
                   </button>
@@ -299,9 +275,9 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
                     phx-value-id={field.id}
                     phx-target={@myself}
                     data-confirm="Delete this field?"
-                    class="text-[var(--color-error)] hover:text-[var(--color-error)] transition-colors"
+                    class="text-[var(--color-error)] cursor-pointer"
                   >
-                    Delete
+                    Del
                   </button>
                 </div>
               <% end %>
