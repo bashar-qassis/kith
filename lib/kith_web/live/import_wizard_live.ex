@@ -30,7 +30,18 @@ defmodule KithWeb.ImportWizardLive do
      |> assign(:source, "vcard")
      |> assign(:api_url, "")
      |> assign(:api_key, "")
-     |> assign(:api_options, %{"photos" => false})
+     |> assign(:api_options, %{
+       "photos" => false,
+       "auto_merge_duplicates" => false,
+       "pets" => true,
+       "calls" => true,
+       "activities" => true,
+       "gifts" => true,
+       "debts" => true,
+       "tasks" => true,
+       "reminders" => true,
+       "conversations" => true
+     })
      |> assign(:api_testing, false)
      |> assign(:current_import, nil)
      |> assign(:progress, nil)
@@ -135,7 +146,18 @@ defmodule KithWeb.ImportWizardLive do
      |> assign(:source, "vcard")
      |> assign(:api_url, "")
      |> assign(:api_key, "")
-     |> assign(:api_options, %{"photos" => false})
+     |> assign(:api_options, %{
+       "photos" => false,
+       "auto_merge_duplicates" => false,
+       "pets" => true,
+       "calls" => true,
+       "activities" => true,
+       "gifts" => true,
+       "debts" => true,
+       "tasks" => true,
+       "reminders" => true,
+       "conversations" => true
+     })
      |> assign(:api_testing, false)
      |> assign(:current_import, nil)
      |> assign(:progress, nil)
@@ -519,6 +541,55 @@ defmodule KithWeb.ImportWizardLive do
                         Fetch all notes (for contacts with more than 3)
                       </span>
                     </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={@api_options["auto_merge_duplicates"]}
+                        phx-click="toggle_option"
+                        phx-value-option="auto_merge_duplicates"
+                        class="rounded border-[var(--color-border)]"
+                      />
+                      <div>
+                        <span class="text-sm text-[var(--color-text-primary)]">
+                          Auto-merge definite duplicates
+                        </span>
+                        <p class="text-xs text-[var(--color-text-tertiary)]">
+                          Merge contacts with identical name + email or name + phone
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                  <div class="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
+                    <span class="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
+                      Data to import
+                    </span>
+                    <div class="mt-2 space-y-2">
+                      <label
+                        :for={
+                          {key, label} <- [
+                            {"pets", "Pets"},
+                            {"calls", "Calls"},
+                            {"activities", "Activities"},
+                            {"gifts", "Gifts"},
+                            {"debts", "Debts"},
+                            {"tasks", "Tasks"},
+                            {"reminders", "Reminders"},
+                            {"conversations", "Conversations"},
+                            {"documents", "Documents (async)"}
+                          ]
+                        }
+                        class="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={@api_options[key] != false}
+                          phx-click="toggle_option"
+                          phx-value-option={key}
+                          class="rounded border-[var(--color-border)]"
+                        />
+                        <span class="text-sm text-[var(--color-text-primary)]">{label}</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -655,6 +726,13 @@ defmodule KithWeb.ImportWizardLive do
                 class="text-[var(--color-warning)] text-sm"
               >
                 {@results["duplicate_message"] || @results[:duplicate_message]}
+              </p>
+              <p
+                :if={(@results["merged"] || @results[:merged] || 0) > 0}
+                class="text-[var(--color-accent)]"
+              >
+                <span class="font-semibold">{@results["merged"] || @results[:merged]}</span>
+                duplicate contacts auto-merged
               </p>
             </div>
 

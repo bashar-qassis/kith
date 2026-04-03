@@ -925,7 +925,7 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
         |> Enum.map(& &1.value)
         |> Enum.sort()
 
-      assert fields == ["555-1234", "fieldy@test.com"]
+      assert fields == ["+5551234", "fieldy@test.com"]
     end
   end
 
@@ -954,6 +954,441 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
 
     test "import/4 returns error" do
       assert {:error, _} = MonicaApi.import(1, 1, "data", %{})
+    end
+  end
+
+  # ── Sub-record deduplication ─────────────────────────────────────────
+
+  describe "crawl/5 — address deduplication" do
+    test "skips duplicate addresses within the same contact", %{
+      user: user,
+      account_id: account_id
+    } do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Dupe",
+          last_name: "Addr",
+          addresses: [
+            address_json(street: "100 Oak Ave", city: "Denver", country: %{"name" => "US"}),
+            address_json(street: "100 Oak Ave", city: "Denver", country: %{"name" => "US"}),
+            address_json(street: "100 Oak Ave", city: "denver", country: %{"name" => "us"})
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
+
+      contact =
+        Repo.one!(
+          from(c in Contacts.Contact,
+            where: c.first_name == "Dupe" and c.account_id == ^account_id
+          )
+        )
+
+      addresses = Repo.all(from(a in Contacts.Address, where: a.contact_id == ^contact.id))
+      assert length(addresses) == 1
+      assert hd(addresses).line1 == "100 Oak Ave"
+    end
+
+    test "allows addresses with different fields", %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Multi",
+          last_name: "Addr",
+          addresses: [
+            address_json(street: "100 Oak Ave", city: "Denver"),
+            address_json(street: "200 Elm St", city: "Denver"),
+            address_json(street: "100 Oak Ave", city: "Portland")
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
+
+      contact =
+        Repo.one!(
+          from(c in Contacts.Contact,
+            where: c.first_name == "Multi" and c.account_id == ^account_id
+          )
+        )
+
+      addresses = Repo.all(from(a in Contacts.Address, where: a.contact_id == ^contact.id))
+      assert length(addresses) == 3
+    end
+  end
+
+  describe "crawl/5 — note deduplication" do
+    test "skips duplicate notes within the same contact", %{
+      user: user,
+      account_id: account_id
+    } do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Dupe",
+          last_name: "Note",
+          number_of_notes: 2,
+          notes: [
+            note_json(body: "Hello world"),
+            note_json(body: "Hello world"),
+            note_json(body: "  Hello world  ")
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
+
+      contact =
+        Repo.one!(
+          from(c in Contacts.Contact,
+            where: c.first_name == "Dupe" and c.account_id == ^account_id
+          )
+        )
+
+      notes = Repo.all(from(n in Contacts.Note, where: n.contact_id == ^contact.id))
+      assert length(notes) == 1
+      assert hd(notes).body == "Hello world"
+    end
+
+    test "allows notes with different bodies", %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Multi",
+          last_name: "Note",
+          number_of_notes: 2,
+          notes: [
+            note_json(body: "First note"),
+            note_json(body: "Second note")
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
+
+      contact =
+        Repo.one!(
+          from(c in Contacts.Contact,
+            where: c.first_name == "Multi" and c.account_id == ^account_id
+          )
+        )
+
+      notes = Repo.all(from(n in Contacts.Note, where: n.contact_id == ^contact.id))
+      assert length(notes) == 2
+    end
+
+    test "skips duplicate notes in extra_notes phase", %{user: user, account_id: account_id} do
+      # Contact has 5 notes total — 3 embedded + 2 extra
+      # One extra note duplicates an embedded one
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Extra",
+          last_name: "Notes",
+          number_of_notes: 5,
+          notes: [
+            note_json(id: 1, body: "Note A"),
+            note_json(id: 2, body: "Note B"),
+            note_json(id: 3, body: "Note C")
+          ]
+        )
+      ]
+
+      request_count = :counters.new(1, [:atomics])
+
+      Req.Test.stub(@stub_name, fn conn ->
+        :counters.add(request_count, 1, 1)
+        count = :counters.get(request_count, 1)
+
+        if count == 1 do
+          # First request: contacts page
+          Req.Test.json(conn, contacts_page_json(contacts))
+        else
+          # Notes request: includes a duplicate of "Note A" and a new "Note D"
+          Req.Test.json(
+            conn,
+            notes_page_json([
+              note_json(id: 1, body: "Note A"),
+              note_json(id: 2, body: "Note B"),
+              note_json(id: 3, body: "Note C"),
+              note_json(id: 4, body: "Note A"),
+              note_json(id: 5, body: "Note D")
+            ])
+          )
+        end
+      end)
+
+      import_job =
+        api_import_fixture(account_id, user.id, %{
+          api_options: %{"photos" => false, "extra_notes" => true}
+        })
+
+      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
+
+      contact =
+        Repo.one!(
+          from(c in Contacts.Contact,
+            where: c.first_name == "Extra" and c.account_id == ^account_id
+          )
+        )
+
+      notes = Repo.all(from(n in Contacts.Note, where: n.contact_id == ^contact.id))
+      # Should have A, B, C, D — not a second A
+      assert length(notes) == 4
+
+      bodies = Enum.map(notes, & &1.body) |> Enum.sort()
+      assert bodies == ["Note A", "Note B", "Note C", "Note D"]
+    end
+  end
+
+  # ── Auto-merge duplicate contacts ───────────────────────────────────
+
+  describe "crawl/5 — auto-merge duplicates" do
+    test "merges contacts with same name and email when enabled", %{
+      user: user,
+      account_id: account_id
+    } do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "John",
+          last_name: "Doe",
+          contact_fields: [contact_field_json(content: "john@example.com", type_name: "Email")],
+          notes: [note_json(body: "From source A")]
+        ),
+        contact_json(
+          id: 2,
+          first_name: "John",
+          last_name: "Doe",
+          contact_fields: [contact_field_json(content: "john@example.com", type_name: "Email")],
+          notes: [note_json(body: "From source B")]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 2))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "auto_merge_duplicates" => true
+               })
+
+      assert summary.merged == 1
+
+      # Only 1 active contact should remain
+      active =
+        Repo.all(
+          from(c in Contacts.Contact,
+            where:
+              c.first_name == "John" and c.last_name == "Doe" and
+                c.account_id == ^account_id and is_nil(c.deleted_at)
+          )
+        )
+
+      assert length(active) == 1
+      survivor = hd(active)
+
+      # Survivor should have notes from both contacts
+      notes = Repo.all(from(n in Contacts.Note, where: n.contact_id == ^survivor.id))
+      assert length(notes) >= 2
+    end
+
+    test "does not merge when disabled", %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Jane",
+          last_name: "Doe",
+          contact_fields: [contact_field_json(content: "jane@example.com", type_name: "Email")]
+        ),
+        contact_json(
+          id: 2,
+          first_name: "Jane",
+          last_name: "Doe",
+          contact_fields: [contact_field_json(content: "jane@example.com", type_name: "Email")]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 2))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "auto_merge_duplicates" => false
+               })
+
+      assert summary.merged == 0
+
+      active =
+        Repo.all(
+          from(c in Contacts.Contact,
+            where:
+              c.first_name == "Jane" and c.last_name == "Doe" and
+                c.account_id == ^account_id and is_nil(c.deleted_at)
+          )
+        )
+
+      assert length(active) == 2
+    end
+
+    test "does not merge contacts with same name but different email/phone", %{
+      user: user,
+      account_id: account_id
+    } do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Bob",
+          last_name: "Smith",
+          contact_fields: [contact_field_json(content: "bob1@example.com", type_name: "Email")]
+        ),
+        contact_json(
+          id: 2,
+          first_name: "Bob",
+          last_name: "Smith",
+          contact_fields: [contact_field_json(content: "bob2@example.com", type_name: "Email")]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 2))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "auto_merge_duplicates" => true
+               })
+
+      assert summary.merged == 0
+
+      active =
+        Repo.all(
+          from(c in Contacts.Contact,
+            where:
+              c.first_name == "Bob" and c.last_name == "Smith" and
+                c.account_id == ^account_id and is_nil(c.deleted_at)
+          )
+        )
+
+      assert length(active) == 2
+    end
+
+    test "merges contacts with same name and phone", %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Alice",
+          last_name: "Wang",
+          contact_fields: [contact_field_json(content: "+15551234567", type_name: "Phone")]
+        ),
+        contact_json(
+          id: 2,
+          first_name: "Alice",
+          last_name: "Wang",
+          contact_fields: [contact_field_json(content: "+15551234567", type_name: "Phone")]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 2))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "auto_merge_duplicates" => true
+               })
+
+      assert summary.merged == 1
+
+      active =
+        Repo.all(
+          from(c in Contacts.Contact,
+            where:
+              c.first_name == "Alice" and c.last_name == "Wang" and
+                c.account_id == ^account_id and is_nil(c.deleted_at)
+          )
+        )
+
+      assert length(active) == 1
+    end
+
+    test "handles triple duplicates", %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Triple",
+          last_name: "Test",
+          contact_fields: [contact_field_json(content: "triple@test.com", type_name: "Email")]
+        ),
+        contact_json(
+          id: 2,
+          first_name: "Triple",
+          last_name: "Test",
+          contact_fields: [contact_field_json(content: "triple@test.com", type_name: "Email")]
+        ),
+        contact_json(
+          id: 3,
+          first_name: "Triple",
+          last_name: "Test",
+          contact_fields: [contact_field_json(content: "triple@test.com", type_name: "Email")]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 3))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "auto_merge_duplicates" => true
+               })
+
+      assert summary.merged == 2
+
+      active =
+        Repo.all(
+          from(c in Contacts.Contact,
+            where:
+              c.first_name == "Triple" and c.last_name == "Test" and
+                c.account_id == ^account_id and is_nil(c.deleted_at)
+          )
+        )
+
+      assert length(active) == 1
     end
   end
 end

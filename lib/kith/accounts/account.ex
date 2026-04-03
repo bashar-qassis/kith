@@ -11,6 +11,7 @@ defmodule Kith.Accounts.Account do
     field :timezone, :string, default: "Etc/UTC"
     field :locale, :string, default: "en"
     field :send_hour, :integer, default: 9
+    field :phone_format, :string, default: "e164"
     field :feature_flags, :map, default: %{}
 
     # Immich integration
@@ -41,10 +42,11 @@ defmodule Kith.Accounts.Account do
   """
   def settings_changeset(account, attrs) do
     account
-    |> cast(attrs, [:name, :timezone, :locale, :send_hour, :feature_flags])
+    |> cast(attrs, [:name, :timezone, :locale, :send_hour, :phone_format, :feature_flags])
     |> validate_required([:name])
     |> validate_length(:name, max: 255)
     |> validate_number(:send_hour, greater_than_or_equal_to: 0, less_than_or_equal_to: 23)
+    |> validate_inclusion(:phone_format, ~w(e164 national international raw))
     |> validate_timezone()
   end
 
