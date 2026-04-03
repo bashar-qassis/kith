@@ -53,9 +53,12 @@ erl_crash.dump
 
 # Git worktrees
 .worktrees/
+/.claude/worktrees/
 
 # Claude Code local overrides
 .claude.local.md
+# Temporary claude files
+/claude-docs/
 
 # Superpowers brainstorm mockups
 .superpowers/
@@ -63,6 +66,5 @@ erl_crash.dump
 # Dialyzer PLTs
 /priv/plts/
 
-# Temporary claude files
-/claude-docs/
+
 .worktrees/

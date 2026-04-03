@@ -200,6 +200,20 @@ defmodule KithWeb.SettingsLive.Account do
               <p class="text-xs text-[var(--color-text-tertiary)] -mt-2">
                 Changing timezone affects when reminders are sent. Changes take effect starting the following day.
               </p>
+              <UI.input
+                field={@account_form[:phone_format]}
+                type="select"
+                label="Phone Number Format"
+                options={[
+                  {"E.164 (+12345678901)", "e164"},
+                  {"National ((234) 567-8901)", "national"},
+                  {"International (+1 234-567-8901)", "international"},
+                  {"Raw (no formatting)", "raw"}
+                ]}
+              />
+              <p class="text-xs text-[var(--color-text-tertiary)] -mt-2">
+                Controls how phone numbers are displayed. Numbers are stored in normalized form.
+              </p>
               <:actions>
                 <UI.button>Save</UI.button>
               </:actions>

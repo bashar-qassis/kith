@@ -4,7 +4,7 @@ defmodule Kith.ImportsFixtures do
   alias Kith.Imports
 
   def import_fixture(account_id, user_id, attrs \\ %{}) do
-    attrs = Enum.into(attrs, %{source: "monica", file_name: "export.json", file_size: 1024})
+    attrs = Enum.into(attrs, %{source: "vcard", file_name: "export.vcf", file_size: 1024})
     {:ok, import} = Imports.create_import(account_id, user_id, attrs)
     import
   end

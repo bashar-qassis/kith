@@ -1,0 +1,8 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:PhoneTest User
+N:User;PhoneTest;;;
+TEL;TYPE=CELL:(234) 567-8901
+TEL;TYPE=HOME:+44 20 7946 0958
+EMAIL:phonetest@example.com
+END:VCARD

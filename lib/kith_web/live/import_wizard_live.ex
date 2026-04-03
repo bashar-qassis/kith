@@ -3,7 +3,7 @@ defmodule KithWeb.ImportWizardLive do
   Multi-step import wizard LiveView.
 
   Steps:
-    1. source — Choose source (vCard or Monica) and upload/configure
+    1. source — Choose source (vCard or Monica API) and upload/configure
     2. confirm — Review summary before starting
     3. progress — Real-time progress bar during import
     4. complete — Results summary
@@ -12,9 +12,10 @@ defmodule KithWeb.ImportWizardLive do
   use KithWeb, :live_view
 
   alias Kith.Imports
+  alias Kith.Imports.Sources.MonicaApi
   alias Kith.Policy
   alias Kith.Storage
-  alias Kith.Workers.ImportSourceWorker
+  alias Kith.Workers.{ImportSourceWorker, MonicaApiCrawlWorker}
 
   import KithWeb.SettingsLive.SettingsLayout
 
@@ -29,7 +30,19 @@ defmodule KithWeb.ImportWizardLive do
      |> assign(:source, "vcard")
      |> assign(:api_url, "")
      |> assign(:api_key, "")
-     |> assign(:api_options, %{"photos" => false, "first_met_details" => false})
+     |> assign(:api_options, %{
+       "photos" => false,
+       "auto_merge_duplicates" => false,
+       "pets" => true,
+       "calls" => true,
+       "activities" => true,
+       "gifts" => true,
+       "debts" => true,
+       "tasks" => true,
+       "reminders" => true,
+       "conversations" => true
+     })
+     |> assign(:api_testing, false)
      |> assign(:current_import, nil)
      |> assign(:progress, nil)
      |> assign(:results, nil)
@@ -68,7 +81,7 @@ defmodule KithWeb.ImportWizardLive do
   end
 
   def handle_event("set_source", %{"source" => source}, socket)
-      when source in ["vcard", "monica"] do
+      when source in ["vcard", "monica_api"] do
     {:noreply, assign(socket, :source, source)}
   end
 
@@ -89,10 +102,11 @@ defmodule KithWeb.ImportWizardLive do
   def handle_event("next_step", _params, socket) do
     case validate_step(socket) do
       :ok ->
-        {:noreply, socket |> assign(:error, nil) |> assign(:step, :confirm)}
+        {:noreply,
+         socket |> assign(:error, nil) |> assign(:api_testing, false) |> assign(:step, :confirm)}
 
       {:error, msg} ->
-        {:noreply, assign(socket, :error, msg)}
+        {:noreply, socket |> assign(:error, msg) |> assign(:api_testing, false)}
     end
   end
 
@@ -132,7 +146,19 @@ defmodule KithWeb.ImportWizardLive do
      |> assign(:source, "vcard")
      |> assign(:api_url, "")
      |> assign(:api_key, "")
-     |> assign(:api_options, %{"photos" => false, "first_met_details" => false})
+     |> assign(:api_options, %{
+       "photos" => false,
+       "auto_merge_duplicates" => false,
+       "pets" => true,
+       "calls" => true,
+       "activities" => true,
+       "gifts" => true,
+       "debts" => true,
+       "tasks" => true,
+       "reminders" => true,
+       "conversations" => true
+     })
+     |> assign(:api_testing, false)
      |> assign(:current_import, nil)
      |> assign(:progress, nil)
      |> assign(:results, nil)
@@ -162,34 +188,55 @@ defmodule KithWeb.ImportWizardLive do
 
   defp validate_step(socket) do
     case socket.assigns.source do
-      "vcard" ->
-        if socket.assigns.uploads.import_file.entries == [] do
-          {:error, "Please select a .vcf file to upload."}
-        else
-          :ok
-        end
+      "vcard" -> validate_vcard_step(socket)
+      "monica_api" -> validate_monica_api_step(socket)
+    end
+  end
 
-      "monica" ->
-        url = String.trim(socket.assigns.api_url)
-        key = String.trim(socket.assigns.api_key)
+  defp validate_vcard_step(socket) do
+    if socket.assigns.uploads.import_file.entries == [] do
+      {:error, "Please select a .vcf file to upload."}
+    else
+      :ok
+    end
+  end
 
-        cond do
-          url == "" ->
-            {:error, "Monica URL is required."}
+  defp validate_monica_api_step(socket) do
+    with :ok <- validate_api_credentials(socket) do
+      test_api_connection(socket)
+    end
+  end
 
-          key == "" ->
-            {:error, "Monica API key is required."}
+  defp validate_api_credentials(socket) do
+    url = String.trim(socket.assigns.api_url)
+    key = String.trim(socket.assigns.api_key)
 
-          socket.assigns.uploads.import_file.entries == [] ->
-            {:error, "Please select your Monica export (.json) file."}
+    cond do
+      url == "" -> {:error, "Monica URL is required."}
+      key == "" -> {:error, "Monica API key is required."}
+      true -> :ok
+    end
+  end
 
-          true ->
-            :ok
-        end
+  defp test_api_connection(socket) do
+    url = String.trim(socket.assigns.api_url)
+    key = String.trim(socket.assigns.api_key)
+
+    case MonicaApi.test_connection(%{url: url, api_key: key}) do
+      :ok -> :ok
+      {:error, msg} -> {:error, "Connection failed: #{msg}"}
     end
   end
 
   defp do_start_import(socket, scope) do
+    if socket.assigns.source == "monica_api" do
+      do_start_api_import(socket, scope)
+    else
+      do_start_file_import(socket, scope)
+    end
+  end
+
+  defp do_start_file_import(socket, scope) do
     account_id = scope.account.id
     user_id = scope.user.id
     source = socket.assigns.source
@@ -215,7 +262,7 @@ defmodule KithWeb.ImportWizardLive do
         {:error, "No file uploaded.", socket}
 
       {storage_key, file_name, file_size} ->
-        create_and_enqueue_import(
+        create_and_enqueue_file_import(
           socket,
           account_id,
           user_id,
@@ -227,7 +274,39 @@ defmodule KithWeb.ImportWizardLive do
     end
   end
 
-  defp create_and_enqueue_import(
+  defp do_start_api_import(socket, scope) do
+    account_id = scope.account.id
+    user_id = scope.user.id
+
+    import_attrs = %{
+      source: "monica_api",
+      api_url: String.trim(socket.assigns.api_url),
+      api_key_encrypted: String.trim(socket.assigns.api_key),
+      api_options: build_api_options(socket)
+    }
+
+    case Imports.create_import(account_id, user_id, import_attrs) do
+      {:ok, import_job} ->
+        %{import_id: import_job.id} |> MonicaApiCrawlWorker.new() |> Oban.insert()
+
+        socket =
+          socket
+          |> assign(:current_import, import_job)
+          |> assign(:step, :progress)
+          |> assign(:progress, %{current: 0, total: 0})
+          |> assign(:error, nil)
+
+        {:ok, socket}
+
+      {:error, :import_in_progress} ->
+        {:error, "An import is already in progress. Please wait for it to finish.", socket}
+
+      {:error, _changeset} ->
+        {:error, "Failed to create import job. Please try again.", socket}
+    end
+  end
+
+  defp create_and_enqueue_file_import(
          socket,
          account_id,
          user_id,
@@ -236,15 +315,12 @@ defmodule KithWeb.ImportWizardLive do
          file_name,
          file_size
        ) do
-    import_attrs =
-      %{
-        source: source,
-        file_name: file_name,
-        file_size: file_size,
-        file_storage_key: storage_key,
-        api_options: build_api_options(socket)
-      }
-      |> maybe_add_api_credentials(source, socket)
+    import_attrs = %{
+      source: source,
+      file_name: file_name,
+      file_size: file_size,
+      file_storage_key: storage_key
+    }
 
     case Imports.create_import(account_id, user_id, import_attrs) do
       {:ok, import_job} ->
@@ -267,14 +343,6 @@ defmodule KithWeb.ImportWizardLive do
     end
   end
 
-  defp maybe_add_api_credentials(attrs, "monica", socket) do
-    attrs
-    |> Map.put(:api_url, String.trim(socket.assigns.api_url))
-    |> Map.put(:api_key_encrypted, String.trim(socket.assigns.api_key))
-  end
-
-  defp maybe_add_api_credentials(attrs, _source, _socket), do: attrs
-
   defp build_api_options(socket) do
     socket.assigns.api_options
     |> Enum.filter(fn {_k, v} -> v end)
@@ -295,7 +363,7 @@ defmodule KithWeb.ImportWizardLive do
       <.settings_shell current_path={@current_path} current_scope={@current_scope}>
         <UI.header>
           Import Contacts
-          <:subtitle>Import contacts from a vCard or Monica export</:subtitle>
+          <:subtitle>Import contacts from a vCard file or Monica CRM API</:subtitle>
         </UI.header>
 
         <%!-- Step 1: Source selection --%>
@@ -333,36 +401,39 @@ defmodule KithWeb.ImportWizardLive do
 
                 <label class={[
                   "flex items-start gap-3 p-3 rounded-[var(--radius-md)] border cursor-pointer transition-colors",
-                  @source == "monica" && "border-[var(--color-accent)] bg-[var(--color-accent)]/5",
-                  @source != "monica" &&
+                  @source == "monica_api" &&
+                    "border-[var(--color-accent)] bg-[var(--color-accent)]/5",
+                  @source != "monica_api" &&
                     "border-[var(--color-border)] hover:border-[var(--color-text-tertiary)]"
                 ]}>
                   <input
                     type="radio"
                     name="source"
-                    value="monica"
-                    checked={@source == "monica"}
+                    value="monica_api"
+                    checked={@source == "monica_api"}
                     phx-click="set_source"
-                    phx-value-source="monica"
+                    phx-value-source="monica_api"
                     class="mt-0.5"
                   />
                   <div>
-                    <p class="font-medium text-sm text-[var(--color-text-primary)]">Monica CRM</p>
+                    <p class="font-medium text-sm text-[var(--color-text-primary)]">
+                      Monica CRM (API)
+                    </p>
                     <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
-                      Import from a Monica JSON export file. Optionally connect to your Monica instance
-                      to sync photos and additional details.
+                      Import directly from your Monica instance via API. No file export needed.
                     </p>
                   </div>
                 </label>
               </div>
             </div>
 
-            <%!-- File upload --%>
-            <div class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4">
+            <%!-- File upload (vCard only) --%>
+            <div
+              :if={@source != "monica_api"}
+              class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4"
+            >
               <p class="text-sm font-medium text-[var(--color-text-primary)] mb-3">
-                {if @source == "vcard",
-                  do: "Upload vCard file (.vcf)",
-                  else: "Upload Monica export (.json)"}
+                Upload vCard file (.vcf)
               </p>
 
               <div
@@ -371,10 +442,7 @@ defmodule KithWeb.ImportWizardLive do
               >
                 <.live_file_input upload={@uploads.import_file} class="hidden" />
                 <p class="text-[var(--color-text-tertiary)]">
-                  Drag and drop your
-                  <span class="font-semibold">
-                    {if @source == "vcard", do: ".vcf", else: ".json"}
-                  </span>
+                  Drag and drop your <span class="font-semibold">.vcf</span>
                   file here, or
                   <label
                     for={@uploads.import_file.ref}
@@ -404,18 +472,16 @@ defmodule KithWeb.ImportWizardLive do
               </p>
             </div>
 
-            <%!-- Monica API connection (optional) --%>
+            <%!-- Monica API connection --%>
             <div
-              :if={@source == "monica"}
+              :if={@source == "monica_api"}
               class="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 mb-4"
             >
               <p class="text-sm font-medium text-[var(--color-text-primary)] mb-1">
                 Monica API connection
-                <span class="text-[var(--color-text-tertiary)] font-normal">(optional)</span>
               </p>
               <p class="text-xs text-[var(--color-text-secondary)] mb-4">
-                Connect to your Monica instance to sync photos and first-met details that
-                are not included in the JSON export.
+                Enter your Monica instance URL and API key. Connection will be verified before import.
               </p>
 
               <div class="space-y-3">
@@ -450,7 +516,7 @@ defmodule KithWeb.ImportWizardLive do
                 <%!-- API options --%>
                 <div :if={String.trim(@api_url) != "" && String.trim(@api_key) != ""}>
                   <p class="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
-                    What to sync via API:
+                    Options:
                   </p>
                   <div class="space-y-2">
                     <label class="flex items-center gap-2 cursor-pointer">
@@ -461,20 +527,69 @@ defmodule KithWeb.ImportWizardLive do
                         phx-value-option="photos"
                         class="rounded border-[var(--color-border)]"
                       />
-                      <span class="text-sm text-[var(--color-text-primary)]">Contact photos</span>
+                      <span class="text-sm text-[var(--color-text-primary)]">Import photos</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={@api_options["first_met_details"]}
+                        checked={@api_options["extra_notes"] != false}
                         phx-click="toggle_option"
-                        phx-value-option="first_met_details"
+                        phx-value-option="extra_notes"
                         class="rounded border-[var(--color-border)]"
                       />
                       <span class="text-sm text-[var(--color-text-primary)]">
-                        First-met details (where/how you met)
+                        Fetch all notes (for contacts with more than 3)
                       </span>
                     </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={@api_options["auto_merge_duplicates"]}
+                        phx-click="toggle_option"
+                        phx-value-option="auto_merge_duplicates"
+                        class="rounded border-[var(--color-border)]"
+                      />
+                      <div>
+                        <span class="text-sm text-[var(--color-text-primary)]">
+                          Auto-merge definite duplicates
+                        </span>
+                        <p class="text-xs text-[var(--color-text-tertiary)]">
+                          Merge contacts with identical name + email or name + phone
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                  <div class="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
+                    <span class="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
+                      Data to import
+                    </span>
+                    <div class="mt-2 space-y-2">
+                      <label
+                        :for={
+                          {key, label} <- [
+                            {"pets", "Pets"},
+                            {"calls", "Calls"},
+                            {"activities", "Activities"},
+                            {"gifts", "Gifts"},
+                            {"debts", "Debts"},
+                            {"tasks", "Tasks"},
+                            {"reminders", "Reminders"},
+                            {"conversations", "Conversations"},
+                            {"documents", "Documents (async)"}
+                          ]
+                        }
+                        class="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={@api_options[key] != false}
+                          phx-click="toggle_option"
+                          phx-value-option={key}
+                          class="rounded border-[var(--color-border)]"
+                        />
+                        <span class="text-sm text-[var(--color-text-primary)]">{label}</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -500,7 +615,7 @@ defmodule KithWeb.ImportWizardLive do
               <div class="flex justify-between">
                 <dt class="text-[var(--color-text-secondary)]">Source</dt>
                 <dd class="font-medium text-[var(--color-text-primary)]">
-                  {if @source == "vcard", do: "vCard (.vcf)", else: "Monica CRM (.json)"}
+                  {source_label(@source)}
                 </dd>
               </div>
 
@@ -512,7 +627,7 @@ defmodule KithWeb.ImportWizardLive do
               </div>
 
               <div
-                :if={@source == "monica" && String.trim(@api_url) != ""}
+                :if={@source == "monica_api" && String.trim(@api_url) != ""}
                 class="flex justify-between"
               >
                 <dt class="text-[var(--color-text-secondary)]">Monica URL</dt>
@@ -522,10 +637,10 @@ defmodule KithWeb.ImportWizardLive do
               </div>
 
               <div
-                :if={@source == "monica" && String.trim(@api_url) != ""}
+                :if={@source == "monica_api" && String.trim(@api_url) != ""}
                 class="flex justify-between"
               >
-                <dt class="text-[var(--color-text-secondary)]">API sync</dt>
+                <dt class="text-[var(--color-text-secondary)]">Options</dt>
                 <dd class="font-medium text-[var(--color-text-primary)]">
                   {api_sync_description(@api_options)}
                 </dd>
@@ -578,7 +693,7 @@ defmodule KithWeb.ImportWizardLive do
               <div class="w-full bg-[var(--color-border)] rounded-full h-2">
                 <div class="bg-[var(--color-accent)] h-2 rounded-full w-1/3 animate-pulse"></div>
               </div>
-              <span class="text-sm text-[var(--color-text-tertiary)] shrink-0">Processing…</span>
+              <span class="text-sm text-[var(--color-text-tertiary)] shrink-0">Processing...</span>
             </div>
           </div>
 
@@ -611,6 +726,13 @@ defmodule KithWeb.ImportWizardLive do
                 class="text-[var(--color-warning)] text-sm"
               >
                 {@results["duplicate_message"] || @results[:duplicate_message]}
+              </p>
+              <p
+                :if={(@results["merged"] || @results[:merged] || 0) > 0}
+                class="text-[var(--color-accent)]"
+              >
+                <span class="font-semibold">{@results["merged"] || @results[:merged]}</span>
+                duplicate contacts auto-merged
               </p>
             </div>
 
@@ -653,13 +775,17 @@ defmodule KithWeb.ImportWizardLive do
   defp upload_error_message(:too_many_files), do: "Only one file at a time"
   defp upload_error_message(other), do: "Upload error: #{inspect(other)}"
 
+  defp source_label("vcard"), do: "vCard (.vcf)"
+  defp source_label("monica_api"), do: "Monica CRM (API)"
+  defp source_label(other), do: other
+
   defp api_sync_description(options) do
     selected =
       options
       |> Enum.filter(fn {_k, v} -> v end)
       |> Enum.map(fn
         {"photos", _} -> "photos"
-        {"first_met_details", _} -> "first-met details"
+        {"extra_notes", _} -> "all notes"
         {k, _} -> k
       end)
 

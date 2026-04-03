@@ -188,7 +188,7 @@ defmodule KithWeb.DAV.AddressObjectTest do
       conn = authed_dav(context, "GET", contact_path(contact))
 
       assert conn.resp_body =~ ~r/^TEL/m
-      assert conn.resp_body =~ "+1-555-0123"
+      assert conn.resp_body =~ "+15550123"
     end
   end
 

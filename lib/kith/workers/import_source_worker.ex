@@ -1,6 +1,6 @@
 defmodule Kith.Workers.ImportSourceWorker do
   @moduledoc """
-  Generic Oban worker that orchestrates any import source.
+  Generic Oban worker that orchestrates any file-based import source.
   Loads the import job, resolves the source module, loads the file from
   Storage, and delegates to `source.import/4`.
   """
@@ -10,12 +10,7 @@ defmodule Kith.Workers.ImportSourceWorker do
   require Logger
 
   alias Kith.Imports
-  alias Kith.Imports.Sources.Monica
   alias Kith.Storage
-  alias Kith.Workers.ApiSupplementWorker
-  alias Kith.Workers.PhotoBatchSyncWorker
-
-  @dialyzer {:nowarn_function, maybe_enqueue_first_met_jobs: 2}
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"import_id" => import_id}}) do
@@ -34,14 +29,6 @@ defmodule Kith.Workers.ImportSourceWorker do
         summary: summary_map,
         completed_at: now
       })
-
-      if import.api_url && import.api_key_encrypted && import.api_options do
-        enqueue_async_jobs(import)
-      else
-        Logger.info(
-          "Import #{import_id}: skipping async jobs (api_url=#{inspect(!!import.api_url)}, api_key=#{inspect(!!import.api_key_encrypted)}, api_options=#{inspect(import.api_options)})"
-        )
-      end
 
       topic = "import:#{import.account_id}"
       Phoenix.PubSub.broadcast(Kith.PubSub, topic, {:import_complete, summary_map})
@@ -72,82 +59,4 @@ defmodule Kith.Workers.ImportSourceWorker do
 
   defp ensure_map(%{__struct__: _} = s), do: Map.from_struct(s)
   defp ensure_map(m) when is_map(m), do: m
-
-  defp enqueue_async_jobs(import) do
-    import_records = Imports.list_import_records(import.id)
-
-    Logger.info(
-      "Import #{import.id}: #{length(import_records)} import records, api_options=#{inspect(import.api_options)}"
-    )
-
-    maybe_enqueue_photo_sync_job(import)
-    maybe_enqueue_first_met_jobs(import, import_records)
-  end
-
-  defp maybe_enqueue_photo_sync_job(import) do
-    if import.api_options["photos"] || import.api_options[:photos] do
-      Logger.info("Import #{import.id}: enqueuing batch photo sync job")
-
-      %{import_id: import.id}
-      |> PhotoBatchSyncWorker.new()
-      |> Oban.insert()
-    end
-  end
-
-  defp maybe_enqueue_first_met_jobs(import, import_records) do
-    if import.api_options["first_met_details"] || import.api_options[:first_met_details] do
-      # Map of %{uuid => monica_integer_id_string} for contacts that have a first_met_date.
-      # The integer ID is required by Monica's REST API (/api/contacts/:id).
-      contacts_with_first_met = extract_first_met_api_ids(import)
-
-      contact_records =
-        Enum.filter(import_records, fn rec ->
-          rec.source_entity_type == "contact" and
-            Map.has_key?(contacts_with_first_met, rec.source_entity_id)
-        end)
-
-      enqueue_batched_jobs(contact_records, fn rec, delay ->
-        %{
-          import_id: import.id,
-          contact_id: rec.local_entity_id,
-          source_contact_id: contacts_with_first_met[rec.source_entity_id],
-          key: "first_met_details"
-        }
-        |> ApiSupplementWorker.new(scheduled_at: DateTime.add(DateTime.utc_now(), delay, :second))
-        |> Oban.insert()
-      end)
-    end
-  end
-
-  # Returns %{uuid => monica_api_id_string} for contacts that have a first_met_date.
-  # Contacts without a Monica integer ID (e.g. partial v4 exports) are excluded.
-  defp extract_first_met_api_ids(import) do
-    with {:ok, data} <- Storage.read(import.file_storage_key),
-         {:ok, parsed} <- Jason.decode(data) do
-      Monica.contacts_from_parsed(parsed)
-      |> Enum.filter(fn c ->
-        # v2 export: first_met_date.date; v4 (after normalise): first_met_date.data.date
-        date_obj = c["first_met_date"] || %{}
-        date_inner = date_obj["data"] || date_obj
-        date_inner["date"] != nil
-      end)
-      |> Enum.reduce(%{}, &collect_api_id/2)
-    else
-      _ -> %{}
-    end
-  end
-
-  defp collect_api_id(%{"id" => id, "uuid" => uuid}, acc) when not is_nil(id),
-    do: Map.put(acc, uuid, to_string(id))
-
-  defp collect_api_id(_contact, acc), do: acc
-
-  defp enqueue_batched_jobs(records, enqueue_fn) do
-    records
-    |> Enum.with_index()
-    |> Enum.each(fn {rec, idx} ->
-      delay = div(idx, 50) * 60
-      enqueue_fn.(rec, delay)
-    end)
-  end
 end

@@ -2,6 +2,7 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
   use KithWeb, :live_component
 
   alias Kith.Contacts
+  alias Kith.Contacts.PhoneFormatter
 
   @impl true
   def mount(socket) do
@@ -91,6 +92,16 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
       "tel:" -> "tel:#{field.value}"
       proto when is_binary(proto) and proto != "" -> "#{proto}#{field.value}"
       _ -> nil
+    end
+  end
+
+  defp display_value(field, phone_format) do
+    case field.contact_field_type.protocol do
+      proto when proto in ["tel", "tel:"] ->
+        PhoneFormatter.format(field.value, phone_format)
+
+      _ ->
+        field.value
     end
   end
 
@@ -249,9 +260,11 @@ defmodule KithWeb.ContactLive.ContactFieldsComponent do
               </span>
               <span class="flex-1 min-w-0 truncate">
                 <%= if link = field_link(field) do %>
-                  <a href={link} class="text-[var(--color-accent)] hover:underline">{field.value}</a>
+                  <a href={link} class="text-[var(--color-accent)] hover:underline">
+                    {display_value(field, @phone_format)}
+                  </a>
                 <% else %>
-                  {field.value}
+                  {display_value(field, @phone_format)}
                 <% end %>
               </span>
               <span :if={field.label} class="text-[10px] text-[var(--color-text-disabled)] shrink-0">

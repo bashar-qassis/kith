@@ -221,6 +221,7 @@
               id={"mobile-contact-fields-#{@contact.id}"}
               contact_id={@contact.id}
               account_id={@account_id}
+              phone_format={@current_scope.account.phone_format || "e164"}
               can_edit={can?(assigns, :create, :contact_field)}
             />
             <div class="border-t border-[var(--color-border-subtle)] mt-3 pt-3">
@@ -346,6 +347,7 @@
             id={"contact-fields-#{@contact.id}"}
             contact_id={@contact.id}
             account_id={@account_id}
+            phone_format={@current_scope.account.phone_format || "e164"}
             can_edit={can?(assigns, :create, :contact_field)}
           />
           <div class="border-t border-[var(--color-border-subtle)] mt-2 pt-2">
