@@ -1,0 +1,15 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:DupTest Contact
+N:Contact;DupTest;;;
+TEL;TYPE=CELL:+12025551234
+TEL;TYPE=CELL:+12025551234
+TEL;TYPE=HOME:+12025559999
+ADR;TYPE=HOME:;;100 Oak Ave;Denver;CO;80201;US
+ADR;TYPE=HOME:;;100 Oak Ave;Denver;CO;80201;US
+ADR;TYPE=WORK:;;200 Elm St;Portland;OR;97201;US
+NOTE:This is a test note for dedup checking
+NOTE:This is a test note for dedup checking
+NOTE:This is a different note
+EMAIL:duptest@example.com
+END:VCARD

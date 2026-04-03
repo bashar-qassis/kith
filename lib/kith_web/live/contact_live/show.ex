@@ -163,6 +163,14 @@ defmodule KithWeb.ContactLive.Show do
     {:noreply, assign(socket, :contact, updated_contact)}
   end
 
+  @impl true
+  def handle_info({:first_met_updated, updated_contact}, socket) do
+    contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply, assign(socket, :contact, contact)}
+  end
+
   defp compute_age(birthdate) when is_struct(birthdate, Date) do
     today = Date.utc_today()
     years = today.year - birthdate.year
@@ -188,13 +196,6 @@ defmodule KithWeb.ContactLive.Show do
   defp tab_label(:gifts), do: "Gifts"
   defp tab_label(:conversations), do: "Conversations"
   defp tab_label(:photos), do: "Photos"
-
-  defp has_first_met_data?(contact) do
-    contact.first_met_at != nil or
-      contact.first_met_where not in [nil, ""] or
-      contact.first_met_through_id != nil or
-      contact.first_met_additional_info not in [nil, ""]
-  end
 
   defp filtered_tags(tags, contact_tags, search) do
     contact_tag_ids = Enum.map(contact_tags, & &1.id) |> MapSet.new()

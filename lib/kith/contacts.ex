@@ -22,6 +22,7 @@ defmodule Kith.Contacts do
     ImmichCandidate,
     LifeEventType,
     Note,
+    PhoneFormatter,
     Photo,
     Relationship,
     RelationshipType,
@@ -387,12 +388,16 @@ defmodule Kith.Contacts do
   end
 
   def create_contact_field(%Contact{} = contact, attrs) do
+    attrs = maybe_normalize_phone(attrs)
+
     %ContactField{contact_id: contact.id, account_id: contact.account_id}
     |> ContactField.changeset(attrs)
     |> Repo.insert()
   end
 
   def update_contact_field(%ContactField{} = field, attrs) do
+    attrs = maybe_normalize_phone(attrs)
+
     field
     |> ContactField.changeset(attrs)
     |> Repo.update()
@@ -400,6 +405,26 @@ defmodule Kith.Contacts do
 
   def delete_contact_field(%ContactField{} = field) do
     Repo.delete(field)
+  end
+
+  defp maybe_normalize_phone(attrs) do
+    cft_id = attrs["contact_field_type_id"] || attrs[:contact_field_type_id]
+    value = attrs["value"] || attrs[:value]
+
+    with cft_id when not is_nil(cft_id) <- cft_id,
+         %ContactFieldType{protocol: protocol} when protocol in ["tel", "tel:"] <-
+           Repo.get(ContactFieldType, cft_id),
+         value when is_binary(value) and value != "" <- value,
+         {:ok, normalized} when not is_nil(normalized) <-
+           PhoneFormatter.normalize(value) do
+      if Map.has_key?(attrs, "value") do
+        Map.put(attrs, "value", normalized)
+      else
+        Map.put(attrs, :value, normalized)
+      end
+    else
+      _ -> attrs
+    end
   end
 
   ## Tags
