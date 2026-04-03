@@ -9,7 +9,6 @@ defmodule Kith.Imports do
   alias Kith.Repo
 
   @sources %{
-    "monica" => Kith.Imports.Sources.Monica,
     "monica_api" => Kith.Imports.Sources.MonicaApi,
     "vcard" => Kith.Imports.Sources.VCard
   }
@@ -153,12 +152,5 @@ defmodule Kith.Imports do
     import
     |> Ecto.Changeset.change(api_key_encrypted: nil)
     |> Repo.update()
-  end
-
-  def pending_async_jobs_count(import_id) do
-    Oban.Job
-    |> where([j], fragment("? ->> 'import_id' = ?", j.args, ^to_string(import_id)))
-    |> where([j], j.state in ["available", "scheduled", "executing", "retryable"])
-    |> Repo.aggregate(:count)
   end
 end

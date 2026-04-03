@@ -2,7 +2,7 @@ defmodule Kith.Imports.Source do
   @moduledoc """
   Behaviour for import source plugins.
 
-  Each source (VCard, Monica, etc.) implements this behaviour to define
+  Each source (VCard, MonicaApi, etc.) implements this behaviour to define
   how to validate, parse, and import data from that source.
   """
 
@@ -25,18 +25,8 @@ defmodule Kith.Imports.Source do
   @callback supports_api?() :: boolean()
 
   @callback test_connection(credential()) :: :ok | {:error, String.t()}
-  @callback list_photos(credential(), page :: pos_integer()) ::
-              {:ok, [map()]} | {:error, term()}
-  @callback api_supplement_options() :: [
-              %{key: atom(), label: String.t(), description: String.t()}
-            ]
-  @callback fetch_supplement(credential(), contact_source_id :: String.t(), key :: atom()) ::
-              {:ok, map()} | {:error, term()}
 
   @optional_callbacks [
-    test_connection: 1,
-    list_photos: 2,
-    api_supplement_options: 0,
-    fetch_supplement: 3
+    test_connection: 1
   ]
 end

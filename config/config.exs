@@ -41,8 +41,7 @@ config :kith, Oban,
     imports: 2,
     immich: 3,
     purge: 1,
-    photo_sync: 5,
-    api_supplement: 3
+    photo_sync: 5
   ],
   plugins: [
     Oban.Plugins.Pruner,
