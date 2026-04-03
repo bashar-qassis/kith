@@ -213,6 +213,7 @@ defmodule KithWeb.ContactLive.Show do
         "Birthday #{label}"
     end
   end
+
   defp filtered_tags(tags, contact_tags, search) do
     contact_tag_ids = Enum.map(contact_tags, & &1.id) |> MapSet.new()
 
