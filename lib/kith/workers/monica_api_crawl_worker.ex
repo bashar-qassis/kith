@@ -15,6 +15,7 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
 
   alias Kith.Imports
   alias Kith.Imports.Sources.MonicaApi
+  alias Kith.Workers.DuplicateDetectionWorker
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"import_id" => import_id}}) do
@@ -46,6 +47,9 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
 
       topic = "import:#{import_job.account_id}"
       Phoenix.PubSub.broadcast(Kith.PubSub, topic, {:import_complete, summary_map})
+
+      # Trigger duplicate detection for newly imported contacts
+      Oban.insert(DuplicateDetectionWorker.new(%{account_id: import_job.account_id}))
 
       Logger.info("MonicaApi import #{import_id} completed: #{inspect(summary_map)}")
       :ok
