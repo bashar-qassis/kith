@@ -1740,14 +1740,28 @@ defmodule Kith.Contacts do
         end,
         set: [contact_id: survivor.id]
       )
-      # Remap photos
-      |> Ecto.Multi.update_all(
-        :remap_photos,
-        fn _changes ->
+      # Remap photos (delete duplicates by content_hash first, then move remaining)
+      |> Ecto.Multi.run(:remap_photos, fn repo, _changes ->
+        # Delete photos from non-survivor that already exist on survivor (same content_hash)
+        repo.query(
+          """
+          DELETE FROM photos
+          WHERE contact_id = $1
+            AND content_hash IS NOT NULL
+            AND content_hash IN (
+              SELECT content_hash FROM photos WHERE contact_id = $2 AND content_hash IS NOT NULL
+            )
+          """,
+          [non_survivor.id, survivor.id]
+        )
+
+        # Move remaining photos
+        {count, _} =
           from(p in Photo, where: p.contact_id == ^non_survivor.id)
-        end,
-        set: [contact_id: survivor.id]
-      )
+          |> repo.update_all(set: [contact_id: survivor.id])
+
+        {:ok, count}
+      end)
       # Remap addresses
       |> Ecto.Multi.update_all(
         :remap_addresses,
