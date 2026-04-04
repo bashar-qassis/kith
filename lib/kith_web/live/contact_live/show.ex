@@ -1,7 +1,6 @@
 defmodule KithWeb.ContactLive.Show do
   @moduledoc """
-  Contact profile page with two-column layout: sidebar metadata + tabbed content.
-  Each tab is a Level 2 LiveComponent that loads its own data.
+  Contact profile page with hero banner, grouped sidebar, and unified activity stream.
   """
 
   use KithWeb, :live_view
@@ -10,19 +9,26 @@ defmodule KithWeb.ContactLive.Show do
   alias Kith.Contacts
   alias Kith.DuplicateDetection
 
-  @tabs ~w(notes life_events activities calls tasks gifts conversations photos)a
-
   @impl true
   def mount(_params, _session, socket) do
     # No DB queries in mount — mount is called twice (HTTP + WebSocket).
     {:ok,
      socket
      |> assign(:contact, nil)
-     |> assign(:active_tab, :notes)
      |> assign(:tags, [])
      |> assign(:tag_search, "")
      |> assign(:show_tag_dropdown, false)
-     |> assign(:duplicate_candidates, [])}
+     |> assign(:show_more_drawer, false)
+     |> assign(:mobile_sidebar_tab, "basic-info")
+     |> assign(:duplicate_candidates, [])
+     |> assign(:next_reminder, nil)
+     |> assign(:show_avatar_picker, false)
+     |> assign(:avatar_photos, [])
+     |> allow_upload(:avatar,
+       accept: ~w(.jpg .jpeg .png .gif .webp),
+       max_entries: 1,
+       max_file_size: 10_000_000
+     )}
   end
 
   @impl true
@@ -34,6 +40,8 @@ defmodule KithWeb.ContactLive.Show do
       Contacts.get_contact!(account_id, String.to_integer(id))
       |> Kith.Repo.preload([:tags, :gender, :first_met_through])
 
+    next_reminder = compute_next_birthday_badge(contact)
+
     {:noreply,
      socket
      |> assign(:page_title, contact.display_name)
@@ -41,6 +49,7 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:current_user_id, user_id)
      |> assign(:contact, contact)
      |> assign(:tags, Contacts.list_tags(account_id))
+     |> assign(:next_reminder, next_reminder)
      |> assign(
        :duplicate_candidates,
        DuplicateDetection.pending_candidates_for_contact(account_id, contact.id)
@@ -110,14 +119,12 @@ defmodule KithWeb.ContactLive.Show do
      |> push_navigate(to: ~p"/contacts")}
   end
 
-  def handle_event("switch-tab", %{"tab" => tab}, socket) do
-    tab_atom = String.to_existing_atom(tab)
+  def handle_event("toggle-more-drawer", _params, socket) do
+    {:noreply, update(socket, :show_more_drawer, &(!&1))}
+  end
 
-    if tab_atom in @tabs do
-      {:noreply, assign(socket, :active_tab, tab_atom)}
-    else
-      {:noreply, socket}
-    end
+  def handle_event("switch-mobile-tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :mobile_sidebar_tab, tab)}
   end
 
   def handle_event("toggle-tag-dropdown", _params, socket) do
@@ -145,6 +152,62 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:tag_search, "")}
   end
 
+  def handle_event("toggle-avatar-picker", _params, socket) do
+    show = !socket.assigns.show_avatar_picker
+    photos = if show, do: Contacts.list_photos(socket.assigns.contact.id), else: []
+    {:noreply, socket |> assign(:show_avatar_picker, show) |> assign(:avatar_photos, photos)}
+  end
+
+  def handle_event("pick-avatar-photo", %{"id" => id}, socket) do
+    contact = socket.assigns.contact
+    photo = Contacts.get_photo!(contact.account_id, String.to_integer(id))
+    {:ok, updated_contact} = Contacts.set_avatar(contact, photo)
+
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:show_avatar_picker, false)
+     |> put_flash(:info, "Avatar updated.")}
+  end
+
+  def handle_event("validate-avatar", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("upload-avatar", _params, socket) do
+    contact = socket.assigns.contact
+
+    [photo] =
+      consume_uploaded_entries(socket, :avatar, fn %{path: path}, entry ->
+        key = "contacts/#{contact.id}/photos/#{entry.uuid}-#{entry.client_name}"
+        {:ok, _} = Kith.Storage.upload(path, key)
+
+        {:ok, photo} =
+          Contacts.create_photo(contact, %{
+            file_name: entry.client_name,
+            storage_key: key,
+            file_size: entry.client_size,
+            content_type: entry.client_type
+          })
+
+        {:ok, photo}
+      end)
+
+    {:ok, updated_contact} = Contacts.set_avatar(contact, photo)
+
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:show_avatar_picker, false)
+     |> put_flash(:info, "Avatar updated.")}
+  end
+
   def handle_event("remove-tag", %{"tag_id" => tag_id}, socket) do
     account_id = socket.assigns.account_id
     contact = socket.assigns.contact
@@ -160,11 +223,16 @@ defmodule KithWeb.ContactLive.Show do
 
   @impl true
   def handle_info({:avatar_updated, updated_contact}, socket) do
-    {:noreply, assign(socket, :contact, updated_contact)}
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:avatar_photos, Contacts.list_photos(updated_contact.id))}
   end
 
-  @impl true
-  def handle_info({:first_met_updated, updated_contact}, socket) do
+  def handle_info({:contact_updated, updated_contact}, socket) do
     contact =
       Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
 
@@ -188,14 +256,32 @@ defmodule KithWeb.ContactLive.Show do
     Kith.Policy.can?(assigns.current_scope.user, action, resource)
   end
 
-  defp tab_label(:notes), do: "Notes"
-  defp tab_label(:life_events), do: "Life Events"
-  defp tab_label(:activities), do: "Activities"
-  defp tab_label(:calls), do: "Calls"
-  defp tab_label(:tasks), do: "Tasks"
-  defp tab_label(:gifts), do: "Gifts"
-  defp tab_label(:conversations), do: "Conversations"
-  defp tab_label(:photos), do: "Photos"
+  defp compute_next_birthday_badge(contact) do
+    case contact.birthdate do
+      nil ->
+        nil
+
+      birthdate ->
+        today = Date.utc_today()
+        this_year = Date.new!(today.year, birthdate.month, birthdate.day)
+
+        next_birthday =
+          if Date.compare(this_year, today) in [:gt, :eq],
+            do: this_year,
+            else: Date.new!(today.year + 1, birthdate.month, birthdate.day)
+
+        days = Date.diff(next_birthday, today)
+
+        label =
+          cond do
+            days == 0 -> "today"
+            days == 1 -> "tomorrow"
+            true -> "in #{days} days"
+          end
+
+        "Birthday #{label}"
+    end
+  end
 
   defp filtered_tags(tags, contact_tags, search) do
     contact_tag_ids = Enum.map(contact_tags, & &1.id) |> MapSet.new()

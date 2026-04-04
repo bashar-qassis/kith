@@ -1085,4 +1085,214 @@ defmodule KithWeb.UI do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  # ==========================================================================
+  # Timeline Components
+  # ==========================================================================
+
+  @type_colors %{
+    note: %{dot: "bg-amber-600", badge_bg: "bg-amber-50", badge_text: "text-amber-800"},
+    call: %{dot: "bg-blue-500", badge_bg: "bg-blue-50", badge_text: "text-blue-800"},
+    life_event: %{
+      dot: "bg-emerald-500",
+      badge_bg: "bg-emerald-50",
+      badge_text: "text-emerald-800"
+    },
+    activity: %{dot: "bg-teal-500", badge_bg: "bg-teal-50", badge_text: "text-teal-800"},
+    task: %{dot: "bg-violet-500", badge_bg: "bg-violet-50", badge_text: "text-violet-800"},
+    gift: %{dot: "bg-rose-500", badge_bg: "bg-rose-50", badge_text: "text-rose-800"},
+    photo: %{dot: "bg-indigo-500", badge_bg: "bg-indigo-50", badge_text: "text-indigo-800"},
+    conversation: %{dot: "bg-pink-500", badge_bg: "bg-pink-50", badge_text: "text-pink-800"}
+  }
+
+  @doc """
+  Renders a colored dot for the activity timeline.
+
+  ## Attributes
+
+    * `:type` - atom, the entry type (e.g. `:note`, `:call`)
+  """
+  attr :type, :atom, required: true
+
+  def timeline_dot(assigns) do
+    colors = Map.get(@type_colors, assigns.type, %{dot: "bg-stone-400"})
+    assigns = assign(assigns, :dot_class, colors.dot)
+
+    ~H"""
+    <div class={[
+      "absolute -start-[21px] top-[16px] size-3.5 rounded-full",
+      "border-[2.5px] border-[var(--color-surface)]",
+      "shadow-[0_0_0_1px_var(--color-border-subtle)]",
+      @dot_class
+    ]} />
+    """
+  end
+
+  @doc """
+  Renders a colored badge for an activity entry type.
+
+  ## Attributes
+
+    * `:type` - atom, the entry type (e.g. `:note`, `:call`)
+  """
+  attr :type, :atom, required: true
+
+  def type_badge(assigns) do
+    colors =
+      Map.get(@type_colors, assigns.type, %{
+        badge_bg: "bg-stone-100",
+        badge_text: "text-stone-600"
+      })
+
+    label = type_label(assigns.type)
+
+    assigns =
+      assign(assigns, badge_bg: colors.badge_bg, badge_text: colors.badge_text, label: label)
+
+    ~H"""
+    <span class={[
+      "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium",
+      @badge_bg,
+      @badge_text
+    ]}>
+      {@label}
+    </span>
+    """
+  end
+
+  defp type_label(:note), do: "Note"
+  defp type_label(:call), do: "Call"
+  defp type_label(:life_event), do: "Life Event"
+  defp type_label(:activity), do: "Activity"
+  defp type_label(:task), do: "Task"
+  defp type_label(:gift), do: "Gift"
+  defp type_label(:photo), do: "Photo"
+  defp type_label(:conversation), do: "Conversation"
+  defp type_label(_), do: "Entry"
+
+  @doc """
+  Renders a multi-select filter dropdown for the activity stream.
+
+  Uses Alpine.js for open/close state and selection management.
+
+  ## Attributes
+
+    * `:active_filters` - MapSet of active filter type atoms
+    * `:all_types` - list of all available type atoms
+  """
+  attr :active_filters, :any, required: true
+  attr :all_types, :list, required: true
+  attr :target, :any, default: nil
+
+  def filter_dropdown(assigns) do
+    assigns = assign(assigns, :type_colors, @type_colors)
+
+    ~H"""
+    <div x-data="{ open: false }" class="relative">
+      <button
+        @click="open = !open"
+        class={[
+          "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs",
+          "border-[var(--color-border)] text-[var(--color-text-secondary)]",
+          "hover:bg-[var(--color-surface-elevated)] transition-colors duration-200"
+        ]}
+      >
+        <.icon name="hero-funnel-mini" class="size-3 opacity-50" /> Filter
+        <span
+          :if={MapSet.size(@active_filters) > 0}
+          class="bg-[var(--color-accent)] text-white text-[10px] rounded-full size-4 inline-flex items-center justify-center"
+        >
+          {MapSet.size(@active_filters)}
+        </span>
+      </button>
+
+      <%!-- Dropdown panel --%>
+      <div
+        x-show="open"
+        x-transition
+        @click.outside="open = false"
+        class={[
+          "absolute start-0 top-full mt-1 z-10 w-52 rounded-lg",
+          "bg-[var(--color-surface-elevated)] border border-[var(--color-border)]",
+          "shadow-[var(--shadow-dropdown)]"
+        ]}
+      >
+        <div class="p-1">
+          <button
+            :for={type <- @all_types}
+            phx-click="filter-toggle"
+            phx-value-type={type}
+            phx-target={@target}
+            class={[
+              "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs",
+              "hover:bg-[var(--color-surface)] transition-colors duration-150",
+              if(MapSet.member?(@active_filters, type), do: "bg-[var(--color-surface)]", else: "")
+            ]}
+          >
+            <span class={[
+              "size-3.5 rounded border flex items-center justify-center text-[9px]",
+              if(MapSet.member?(@active_filters, type),
+                do: "border-[var(--color-accent)] bg-[var(--color-accent)] text-white",
+                else: "border-[var(--color-border)]"
+              )
+            ]}>
+              <span :if={MapSet.member?(@active_filters, type)}>&#10003;</span>
+            </span>
+            <.type_badge type={type} />
+          </button>
+        </div>
+        <div
+          :if={MapSet.size(@active_filters) > 0}
+          class="border-t border-[var(--color-border-subtle)] p-1"
+        >
+          <button
+            phx-click="filter-clear"
+            phx-target={@target}
+            class="w-full rounded-md px-2.5 py-1.5 text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] text-start"
+          >
+            Clear all
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders removable filter chips for active filters.
+
+  ## Attributes
+
+    * `:active_filters` - MapSet of active filter type atoms
+  """
+  attr :active_filters, :any, required: true
+  attr :target, :any, default: nil
+
+  def filter_chips(assigns) do
+    ~H"""
+    <div :if={MapSet.size(@active_filters) > 0} class="flex flex-wrap items-center gap-1.5">
+      <span
+        :for={type <- MapSet.to_list(@active_filters)}
+        class="inline-flex items-center gap-1 rounded-md bg-[var(--color-surface)] px-2 py-1 text-[10px] font-medium text-[var(--color-text-secondary)]"
+      >
+        <.type_badge type={type} />
+        <button
+          phx-click="filter-toggle"
+          phx-value-type={type}
+          phx-target={@target}
+          class="opacity-50 hover:opacity-100"
+        >
+          &times;
+        </button>
+      </span>
+      <button
+        phx-click="filter-clear"
+        phx-target={@target}
+        class="text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
+      >
+        Clear all
+      </button>
+    </div>
+    """
+  end
 end

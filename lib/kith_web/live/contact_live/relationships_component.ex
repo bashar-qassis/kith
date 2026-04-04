@@ -110,15 +110,15 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold text-[var(--color-text-primary)]">Relationships</h3>
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-semibold text-xs text-[var(--color-text-primary)]">Relationships</span>
         <%= if @can_edit do %>
           <button
             phx-click="show-form"
             phx-target={@myself}
-            class="rounded-[var(--radius-md)] p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-colors cursor-pointer"
+            class="text-[var(--color-accent)] text-xs font-medium cursor-pointer"
           >
-            <.icon name="hero-plus" class="size-4" />
+            + Add
           </button>
         <% end %>
       </div>
@@ -200,41 +200,24 @@ defmodule KithWeb.ContactLive.RelationshipsComponent do
       <% end %>
 
       <%= if @relationships == [] and not @show_form do %>
-        <KithUI.empty_state
-          size={:compact}
-          icon="hero-users"
-          title="No relationships"
-          message="Link family members, friends, and other connections."
-        >
-          <:actions :if={@can_edit}>
-            <button
-              phx-click="show-form"
-              phx-target={@myself}
-              class="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
-            >
-              Add Relationship
-            </button>
-          </:actions>
-        </KithUI.empty_state>
+        <p class="text-xs text-[var(--color-text-disabled)]">No relationships added.</p>
       <% end %>
 
-      <div class="space-y-2">
+      <div class="space-y-2.5">
         <%= for rel <- @relationships do %>
-          <div class="flex items-center justify-between py-2">
-            <div class="flex items-center gap-3">
-              <.icon name="hero-users" class="size-5 text-[var(--color-text-disabled)]" />
+          <div class="group flex items-center justify-between">
+            <.link
+              navigate={~p"/contacts/#{rel.related_contact.id}"}
+              class="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            >
+              <KithUI.avatar name={rel.related_contact.display_name} size={:sm} />
               <div>
-                <.link
-                  navigate={~p"/contacts/#{rel.related_contact.id}"}
-                  class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors font-medium"
-                >
+                <div class="text-sm font-medium text-[var(--color-text-primary)]">
                   {rel.related_contact.display_name}
-                </.link>
-                <span class="inline-flex items-center rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-sunken)] text-[var(--color-text-secondary)] border border-[var(--color-border)] ms-2">
-                  {rel.label}
-                </span>
+                </div>
+                <div class="text-[11px] text-[var(--color-text-tertiary)]">{rel.label}</div>
               </div>
-            </div>
+            </.link>
             <%= if @can_edit do %>
               <%= if @confirming_delete_id == rel.relationship.id do %>
                 <div class="flex items-center gap-1.5">

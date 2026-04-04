@@ -123,7 +123,7 @@ defmodule KithWeb.ContactLive.Edit do
 
     case Contacts.update_contact(contact, contact_params) do
       {:ok, updated_contact} ->
-        Kith.AuditLogs.log_event(account_id, user, "Contact updated",
+        Kith.AuditLogs.log_event(account_id, user, :contact_updated,
           contact_id: updated_contact.id,
           contact_name: updated_contact.display_name
         )
