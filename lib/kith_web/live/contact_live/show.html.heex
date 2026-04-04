@@ -37,8 +37,72 @@
     <%!-- ========== HERO BANNER ========== --%>
     <div class="bg-gradient-to-br from-[var(--color-accent-subtle)] to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 rounded-[var(--radius-lg)] p-5 lg:p-6 mb-4 relative border border-[var(--color-accent-subtle)]">
       <div class="flex items-center gap-4 lg:gap-5">
-        <%!-- Avatar --%>
-        <KithUI.avatar name={@contact.display_name} src={avatar_url(@contact)} size={:xl} />
+        <%!-- Avatar with change overlay --%>
+        <div class="relative group shrink-0">
+          <KithUI.avatar name={@contact.display_name} src={avatar_url(@contact)} size={:xl} />
+          <%= if can?(assigns, :update, :contact) do %>
+            <button
+              phx-click="toggle-avatar-picker"
+              class="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/40 transition-colors cursor-pointer"
+              title="Change avatar"
+            >
+              <.icon
+                name="hero-camera"
+                class="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </button>
+          <% end %>
+          <%!-- Avatar picker popover --%>
+          <%= if @show_avatar_picker do %>
+            <div
+              phx-click-away="toggle-avatar-picker"
+              class="absolute top-full start-0 mt-2 z-20 w-64 rounded-[var(--radius-lg)] bg-[var(--color-surface-overlay)] border border-[var(--color-border)] shadow-[var(--shadow-dropdown)] p-3"
+            >
+              <p class="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
+                Change avatar
+              </p>
+              <form phx-submit="upload-avatar" phx-change="validate-avatar" class="mb-3">
+                <.live_file_input
+                  upload={@uploads.avatar}
+                  class="w-full text-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-2 py-1.5 file:me-2 file:rounded-[var(--radius-md)] file:border-0 file:bg-[var(--color-surface-sunken)] file:px-2 file:py-0.5 file:text-xs file:font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={@uploads.avatar.entries == []}
+                  class="mt-1.5 w-full inline-flex items-center justify-center gap-1 rounded-[var(--radius-md)] bg-[var(--color-accent)] text-[var(--color-accent-foreground)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Upload &amp; set as avatar
+                </button>
+              </form>
+              <%= if @avatar_photos != [] do %>
+                <p class="text-xs text-[var(--color-text-tertiary)] mb-1.5">
+                  Or choose from photos
+                </p>
+                <div class="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto">
+                  <%= for photo <- @avatar_photos do %>
+                    <button
+                      phx-click="pick-avatar-photo"
+                      phx-value-id={photo.id}
+                      class={[
+                        "aspect-square rounded-[var(--radius-md)] overflow-hidden cursor-pointer ring-2 transition-all hover:ring-[var(--color-accent)]",
+                        if(@contact.avatar == photo.storage_key,
+                          do: "ring-[var(--color-accent)]",
+                          else: "ring-transparent"
+                        )
+                      ]}
+                    >
+                      <img
+                        src={Kith.Storage.url(photo.storage_key)}
+                        alt={photo.file_name}
+                        class="w-full h-full object-cover"
+                      />
+                    </button>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
 
         <%!-- Info --%>
         <div class="flex-1 min-w-0">
@@ -182,9 +246,9 @@
           <%!-- Basic Info --%>
           <div :if={@mobile_sidebar_tab == "basic-info"}>
             <dl class="space-y-2.5 text-sm">
-              <div :if={@contact.birthdate} class="flex justify-between">
-                <dt class="text-[var(--color-text-tertiary)]">Birthday</dt>
-                <dd>
+              <div :if={@contact.birthdate} class="flex justify-between gap-4">
+                <dt class="text-[var(--color-text-tertiary)] shrink-0">Birthday</dt>
+                <dd class="text-end">
                   <KithUI.date_display date={@contact.birthdate} />
                   <span
                     :if={age = compute_age(@contact.birthdate)}
@@ -194,21 +258,21 @@
                   </span>
                 </dd>
               </div>
-              <div :if={@contact.gender} class="flex justify-between">
-                <dt class="text-[var(--color-text-tertiary)]">Gender</dt>
-                <dd>{@contact.gender.name}</dd>
+              <div :if={@contact.gender} class="flex justify-between gap-4">
+                <dt class="text-[var(--color-text-tertiary)] shrink-0">Gender</dt>
+                <dd class="text-end">{@contact.gender.name}</dd>
               </div>
-              <div :if={@contact.occupation} class="flex justify-between">
-                <dt class="text-[var(--color-text-tertiary)]">Occupation</dt>
-                <dd>{@contact.occupation}</dd>
+              <div :if={@contact.occupation} class="flex justify-between gap-4">
+                <dt class="text-[var(--color-text-tertiary)] shrink-0">Occupation</dt>
+                <dd class="text-end min-w-0 truncate">{@contact.occupation}</dd>
               </div>
-              <div :if={@contact.company} class="flex justify-between">
-                <dt class="text-[var(--color-text-tertiary)]">Company</dt>
-                <dd>{@contact.company}</dd>
+              <div :if={@contact.company} class="flex justify-between gap-4">
+                <dt class="text-[var(--color-text-tertiary)] shrink-0">Company</dt>
+                <dd class="text-end min-w-0 truncate">{@contact.company}</dd>
               </div>
-              <div :if={@contact.last_talked_to} class="flex justify-between">
-                <dt class="text-[var(--color-text-tertiary)]">Last contact</dt>
-                <dd class="text-[var(--color-accent)] font-medium">
+              <div :if={@contact.last_talked_to} class="flex justify-between gap-4">
+                <dt class="text-[var(--color-text-tertiary)] shrink-0">Last contact</dt>
+                <dd class="text-end text-[var(--color-accent)] font-medium">
                   <KithUI.relative_time datetime={@contact.last_talked_to} />
                 </dd>
               </div>
@@ -294,18 +358,18 @@
     </div>
 
     <%!-- ========== TWO COLUMN LAYOUT ========== --%>
-    <div class="flex flex-col lg:flex-row gap-4 items-start">
+    <div class="flex flex-col lg:flex-row gap-5 items-start w-full">
       <%!-- ===== LEFT SIDEBAR (hidden on mobile — shown as tabs above) ===== --%>
-      <aside class="hidden lg:block lg:w-[300px] shrink-0 space-y-2.5">
+      <aside class="hidden lg:block lg:w-[340px] shrink-0 space-y-2.5">
         <%!-- CORE: Basic Info --%>
         <div class="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] shadow-[var(--shadow-card)] p-3">
           <div class="flex justify-between items-center mb-2">
             <span class="font-semibold text-xs text-[var(--color-text-primary)]">Basic Info</span>
           </div>
           <dl class="space-y-2 text-xs">
-            <div :if={@contact.birthdate} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Birthday</dt>
-              <dd>
+            <div :if={@contact.birthdate} class="flex justify-between gap-4">
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Birthday</dt>
+              <dd class="text-end">
                 <KithUI.date_display date={@contact.birthdate} />
                 <span
                   :if={age = compute_age(@contact.birthdate)}
@@ -315,27 +379,30 @@
                 </span>
               </dd>
             </div>
-            <div :if={@contact.gender} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Gender</dt>
-              <dd>{@contact.gender.name}</dd>
+            <div :if={@contact.gender} class="flex justify-between gap-4">
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Gender</dt>
+              <dd class="text-end">{@contact.gender.name}</dd>
             </div>
-            <div :if={@contact.occupation} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Occupation</dt>
-              <dd>{@contact.occupation}</dd>
+            <div :if={@contact.occupation} class="flex justify-between gap-4">
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Occupation</dt>
+              <dd class="text-end min-w-0 truncate">{@contact.occupation}</dd>
             </div>
-            <div :if={@contact.company} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Company</dt>
-              <dd>{@contact.company}</dd>
+            <div :if={@contact.company} class="flex justify-between gap-4">
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Company</dt>
+              <dd class="text-end min-w-0 truncate">{@contact.company}</dd>
             </div>
-            <div :if={@contact.last_talked_to} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Last contact</dt>
-              <dd class="text-[var(--color-accent)] font-medium">
+            <div :if={@contact.last_talked_to} class="flex justify-between gap-4">
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Last contact</dt>
+              <dd class="text-end text-[var(--color-accent)] font-medium">
                 <KithUI.relative_time datetime={@contact.last_talked_to} />
               </dd>
             </div>
-            <div :if={@contact.deceased && @contact.deceased_at} class="flex justify-between">
-              <dt class="text-[var(--color-text-tertiary)]">Deceased</dt>
-              <dd><KithUI.date_display date={@contact.deceased_at} /></dd>
+            <div
+              :if={@contact.deceased && @contact.deceased_at}
+              class="flex justify-between gap-4"
+            >
+              <dt class="text-[var(--color-text-tertiary)] shrink-0">Deceased</dt>
+              <dd class="text-end"><KithUI.date_display date={@contact.deceased_at} /></dd>
             </div>
           </dl>
         </div>
@@ -492,7 +559,7 @@
       </aside>
 
       <%!-- ===== RIGHT: ACTIVITY STREAM ===== --%>
-      <main class="flex-1 min-w-0">
+      <main class="flex-1 min-w-0 w-full overflow-hidden">
         <.live_component
           module={KithWeb.ContactLive.ActivityStreamComponent}
           id={"activity-stream-#{@contact.id}"}

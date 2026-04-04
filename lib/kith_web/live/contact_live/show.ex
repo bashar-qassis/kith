@@ -21,7 +21,14 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:show_more_drawer, false)
      |> assign(:mobile_sidebar_tab, "basic-info")
      |> assign(:duplicate_candidates, [])
-     |> assign(:next_reminder, nil)}
+     |> assign(:next_reminder, nil)
+     |> assign(:show_avatar_picker, false)
+     |> assign(:avatar_photos, [])
+     |> allow_upload(:avatar,
+       accept: ~w(.jpg .jpeg .png .gif .webp),
+       max_entries: 1,
+       max_file_size: 10_000_000
+     )}
   end
 
   @impl true
@@ -145,6 +152,62 @@ defmodule KithWeb.ContactLive.Show do
      |> assign(:tag_search, "")}
   end
 
+  def handle_event("toggle-avatar-picker", _params, socket) do
+    show = !socket.assigns.show_avatar_picker
+    photos = if show, do: Contacts.list_photos(socket.assigns.contact.id), else: []
+    {:noreply, socket |> assign(:show_avatar_picker, show) |> assign(:avatar_photos, photos)}
+  end
+
+  def handle_event("pick-avatar-photo", %{"id" => id}, socket) do
+    contact = socket.assigns.contact
+    photo = Contacts.get_photo!(contact.account_id, String.to_integer(id))
+    {:ok, updated_contact} = Contacts.set_avatar(contact, photo)
+
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:show_avatar_picker, false)
+     |> put_flash(:info, "Avatar updated.")}
+  end
+
+  def handle_event("validate-avatar", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("upload-avatar", _params, socket) do
+    contact = socket.assigns.contact
+
+    [photo] =
+      consume_uploaded_entries(socket, :avatar, fn %{path: path}, entry ->
+        key = "contacts/#{contact.id}/photos/#{entry.uuid}-#{entry.client_name}"
+        {:ok, _} = Kith.Storage.upload(path, key)
+
+        {:ok, photo} =
+          Contacts.create_photo(contact, %{
+            file_name: entry.client_name,
+            storage_key: key,
+            file_size: entry.client_size,
+            content_type: entry.client_type
+          })
+
+        {:ok, photo}
+      end)
+
+    {:ok, updated_contact} = Contacts.set_avatar(contact, photo)
+
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:show_avatar_picker, false)
+     |> put_flash(:info, "Avatar updated.")}
+  end
+
   def handle_event("remove-tag", %{"tag_id" => tag_id}, socket) do
     account_id = socket.assigns.account_id
     contact = socket.assigns.contact
@@ -160,7 +223,13 @@ defmodule KithWeb.ContactLive.Show do
 
   @impl true
   def handle_info({:avatar_updated, updated_contact}, socket) do
-    {:noreply, assign(socket, :contact, updated_contact)}
+    updated_contact =
+      Kith.Repo.preload(updated_contact, [:tags, :gender, :first_met_through], force: true)
+
+    {:noreply,
+     socket
+     |> assign(:contact, updated_contact)
+     |> assign(:avatar_photos, Contacts.list_photos(updated_contact.id))}
   end
 
   def handle_info({:contact_updated, updated_contact}, socket) do

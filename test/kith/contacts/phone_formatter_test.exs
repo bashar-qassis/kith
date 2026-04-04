@@ -16,12 +16,16 @@ defmodule Kith.Contacts.PhoneFormatterTest do
       assert {:ok, "+12345678901"} = PhoneFormatter.normalize("+12345678901")
     end
 
-    test "adds country code to 10-digit US number" do
-      assert {:ok, "+12345678901"} = PhoneFormatter.normalize("2345678901")
+    test "preserves bare 10-digit number without adding country code" do
+      assert {:ok, "2345678901"} = PhoneFormatter.normalize("2345678901")
     end
 
-    test "strips formatting and normalizes" do
-      assert {:ok, "+12345678901"} = PhoneFormatter.normalize("(234) 567-8901")
+    test "strips formatting from 10-digit number" do
+      assert {:ok, "2345678901"} = PhoneFormatter.normalize("(234) 567-8901")
+    end
+
+    test "does not assume country code for 10-digit numbers" do
+      assert {:ok, "9876543210"} = PhoneFormatter.normalize("987-654-3210")
     end
 
     test "handles 11-digit number starting with 1" do

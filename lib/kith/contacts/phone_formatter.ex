@@ -30,9 +30,9 @@ defmodule Kith.Contacts.PhoneFormatter do
       has_plus ->
         {:ok, "+" <> digits}
 
-      # US/Canada: bare 10-digit number
+      # Bare 10-digit number — could be many countries, store as-is
       String.length(digits) == 10 ->
-        {:ok, "+1" <> digits}
+        {:ok, digits}
 
       # US/Canada: 11-digit starting with 1
       String.length(digits) == 11 and String.starts_with?(digits, "1") ->
