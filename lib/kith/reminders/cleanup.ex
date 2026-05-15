@@ -1,7 +1,11 @@
 defmodule Kith.Reminders.Cleanup do
   @moduledoc """
   Cancels all Oban jobs tracked on the account's reminders, then deletes
-  the reminders. FK CASCADE removes `reminder_rules` and `reminder_instances`.
+  the reminders. FK CASCADE removes `reminder_instances`.
+
+  Note: `reminder_rules` is intentionally NOT wiped — rules are account-level
+  pre-notification configuration (3 defaults seeded per account, toggleable
+  but not deletable per the schema) and are treated as reference data.
   """
 
   alias Kith.Reminders.Reminder
