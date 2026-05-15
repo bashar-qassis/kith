@@ -2,9 +2,11 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
   @moduledoc """
   Oban worker that crawls a Monica CRM API instance and imports all contacts.
 
-  Single long-running job that paginates through the contacts API, imports
-  contacts with all embedded data, resolves cross-references, and optionally
-  imports photos.
+  Paginates through the contacts API, imports contacts with all embedded data,
+  and resolves cross-references. When the user opts into photos via
+  `api_options["photos"]`, this worker enqueues `MonicaPhotoSyncWorker` after
+  the main crawl completes — photo import runs as a separate job so the main
+  import status reflects only contact work.
 
   Connection is validated in the import wizard before this job is enqueued.
   """
