@@ -36,7 +36,8 @@ defmodule Kith.MixProject do
     [
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       plt_add_apps: [:mix, :ex_unit],
-      flags: [:error_handling, :underspecs, :unknown]
+      flags: [:error_handling, :underspecs, :unknown],
+      ignore_warnings: ".dialyzer_ignore.exs"
     ]
   end
 
@@ -107,6 +108,7 @@ defmodule Kith.MixProject do
       {:ex_cldr, "~> 2.40"},
       {:ex_cldr_dates_times, "~> 2.20"},
       {:ex_cldr_numbers, "~> 2.33"},
+      {:ex_cldr_territories, "~> 2.9"},
 
       # Logging & Observability
       {:logger_json, "~> 6.0"},
@@ -129,6 +131,9 @@ defmodule Kith.MixProject do
 
       # HTML Sanitization (rich text from Trix editor)
       {:html_sanitize_ex, "~> 1.4"},
+
+      # Phone number parsing & E.164 normalization (libphonenumber port)
+      {:ex_phone_number, "~> 0.4"},
 
       # Server-side sorting, filtering, and pagination
       {:flop, "~> 0.26"},

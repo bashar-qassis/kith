@@ -84,12 +84,19 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
     }
   end
 
-  defp build_opts(import_job) do
+  @doc false
+  # Public for testing — the wizard → source-module flag handoff is the
+  # contract that Bug C silently violated, so we want a regression test that
+  # binds against this directly.
+  def build_opts(import_job) do
     options = import_job.api_options || %{}
 
-    %{
-      "extra_notes" => options["extra_notes"] != false
-    }
+    # Forward every wizard-saved option so the source module is the single
+    # source of truth for which keys it reads. Normalize only the legacy
+    # extra_notes default-on semantic.
+    options
+    |> Map.put_new("extra_notes", true)
+    |> Map.update!("extra_notes", &(&1 != false))
   end
 
   defp maybe_enqueue_photo_sync(import_job) do

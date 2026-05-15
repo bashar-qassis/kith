@@ -866,7 +866,47 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
         |> Enum.map(& &1.value)
         |> Enum.sort()
 
-      assert fields == ["+5551234", "fieldy@test.com"]
+      # Without a `phone_default_region` in opts, bare numbers round-trip
+      # trimmed-but-unchanged — opt-in normalization preserves user input
+      # when the importer can't safely guess a country.
+      assert fields == ["555-1234", "fieldy@test.com"]
+    end
+
+    test "normalizes phone fields to E.164 when phone_default_region is set",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 42,
+          first_name: "Regional",
+          contact_fields: [
+            contact_field_json(content: "(202) 555-0100", type_name: "Phone"),
+            contact_field_json(content: "+44 20 7946 0958", type_name: "Phone")
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, _} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "phone_default_region" => "US"
+               })
+
+      rec = Imports.find_import_record(account_id, "monica_api", "contact", "42")
+
+      fields =
+        Repo.all(from cf in Contacts.ContactField, where: cf.contact_id == ^rec.local_entity_id)
+        |> Enum.map(& &1.value)
+        |> Enum.sort()
+
+      # Bare US number normalized via region hint; +-prefixed UK number ignores
+      # the US hint and uses its own country code.
+      assert "+12025550100" in fields
+      assert "+442079460958" in fields
     end
   end
 

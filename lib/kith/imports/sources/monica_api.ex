@@ -27,6 +27,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
   import Ecto.Query, warn: false
 
   alias Kith.Contacts
+  alias Kith.Contacts.PhoneFormatter
   alias Kith.Imports
   alias Kith.Repo
   alias Kith.Workers.MonicaDocumentImportWorker
@@ -81,6 +82,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
       user_id: user_id,
       credential: credential,
       import_job: import_job,
+      opts: opts,
       topic: "import:#{account_id}"
     }
 
@@ -375,7 +377,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
   defp import_api_contact_children(ctx, contact, api_contact, source_id, ref_data, acc, deferred) do
     # Contact fields (embedded with ?with=contactfields)
-    import_api_contact_fields(contact, api_contact, ref_data, ctx.import_job)
+    import_api_contact_fields(contact, api_contact, ref_data, ctx)
 
     # Addresses (embedded directly)
     import_api_addresses(contact, api_contact, ctx.import_job)
@@ -393,21 +395,57 @@ defmodule Kith.Imports.Sources.MonicaApi do
     {acc, deferred}
   end
 
-  defp import_api_contact_fields(contact, api_contact, ref_data, import_job) do
+  defp import_api_contact_fields(contact, api_contact, ref_data, ctx) do
     fields = api_contact["contactFields"] || []
 
     Enum.each(fields, fn field ->
-      import_single_contact_field(contact, field, ref_data, import_job)
+      import_single_contact_field(contact, field, ref_data, ctx)
     end)
   end
 
-  defp import_single_contact_field(contact, field, ref_data, import_job) do
+  defp import_single_contact_field(contact, field, ref_data, ctx) do
     cft_name = get_in(field, ["contact_field_type", "name"])
     cft_id = if cft_name, do: Map.get(ref_data.contact_field_types, cft_name)
-    value = field["content"]
+    raw_value = field["content"]
+    value = normalize_field_value(raw_value, cft_id, ctx.opts)
 
     if cft_id && value && !contact_field_duplicate?(contact.id, cft_id, value) do
-      create_contact_field(contact, field, cft_id, value, import_job)
+      create_contact_field(contact, field, cft_id, value, ctx.import_job)
+    end
+  end
+
+  # Normalize phone fields to E.164 at import time so detection and intra-contact
+  # dedup do simple equality. Other field types (email, social, etc) pass through.
+  defp normalize_field_value(nil, _cft_id, _opts), do: nil
+
+  defp normalize_field_value(value, cft_id, opts) when is_binary(value) do
+    if phone_field_type?(cft_id) do
+      region = opts["phone_default_region"]
+      region = if region in [nil, ""], do: nil, else: region
+      {:ok, normalized} = PhoneFormatter.normalize(value, region)
+      normalized || value
+    else
+      value
+    end
+  end
+
+  defp phone_field_type?(nil), do: false
+
+  defp phone_field_type?(cft_id) do
+    case :persistent_term.get({__MODULE__, :phone_cft, cft_id}, :miss) do
+      :miss ->
+        result =
+          Repo.exists?(
+            from(t in Contacts.ContactFieldType,
+              where: t.id == ^cft_id and fragment("? LIKE 'tel%'", t.protocol)
+            )
+          )
+
+        :persistent_term.put({__MODULE__, :phone_cft, cft_id}, result)
+        result
+
+      result ->
+        result
     end
   end
 
@@ -575,21 +613,22 @@ defmodule Kith.Imports.Sources.MonicaApi do
         )
       )
 
-    # Load contacts with contact fields
+    # Load contacts with contact fields and addresses (addresses participate
+    # in the broadened definite-duplicate predicate).
     contacts =
       Repo.all(
         from(c in Contacts.Contact,
           where: c.id in ^import_records and is_nil(c.deleted_at),
-          preload: [contact_fields: :contact_field_type]
+          preload: [:addresses, contact_fields: :contact_field_type]
         )
       )
 
-    # Group by normalized name
+    # Group by trimmed-and-collapsed normalized name. CardDAV-style duplicates
+    # (monicahq/monica#6175) often differ only in trailing whitespace or
+    # double-space artifacts, so the trim is load-bearing here.
     name_groups =
       contacts
-      |> Enum.group_by(fn c ->
-        {String.downcase(c.first_name || ""), String.downcase(c.last_name || "")}
-      end)
+      |> Enum.group_by(&name_key/1)
       |> Enum.filter(fn {_key, group} -> length(group) >= 2 end)
 
     merged_ids = MapSet.new()
@@ -651,27 +690,97 @@ defmodule Kith.Imports.Sources.MonicaApi do
     end
   end
 
+  # "Definite duplicate" predicate evaluated only after callers have already
+  # grouped contacts by normalized {first_name, last_name}. The trimmed-name
+  # equality is itself a strong identity signal, so within a group a single
+  # shared {email, phone, address} suffices — this catches CardDAV-shaped
+  # duplicates (monicahq/monica#6175) where every field is identical, the
+  # "triple duplicates" case (same name + same email × N), and the original
+  # narrow case (same name + shared phone or email).
   defp definite_duplicate?(contact_a, contact_b) do
-    emails_a = extract_values_by_protocol(contact_a, "mailto")
-    emails_b = extract_values_by_protocol(contact_b, "mailto")
-
-    phones_a = extract_values_by_protocol(contact_a, "tel")
-    phones_b = extract_values_by_protocol(contact_b, "tel")
-
-    shared_email? = not MapSet.disjoint?(emails_a, emails_b)
-    shared_phone? = not MapSet.disjoint?(phones_a, phones_b)
-
-    shared_email? or shared_phone?
+    shared_emails?(contact_a, contact_b) or
+      shared_phones?(contact_a, contact_b) or
+      shared_addresses?(contact_a, contact_b)
   end
 
-  defp extract_values_by_protocol(contact, protocol_prefix) do
+  defp shared_emails?(a, b) do
+    set_a = extract_values_by_protocol(a, "mailto", &normalize_email_value/1)
+    set_b = extract_values_by_protocol(b, "mailto", &normalize_email_value/1)
+    intersects?(set_a, set_b)
+  end
+
+  defp shared_phones?(a, b) do
+    # Phone values are E.164-canonical at this point (PhoneFormatter.normalize/2
+    # ran during import for `tel`-protocol fields). Comparison is strict equality
+    # after stripping non-digit characters as a safety net for any pre-existing
+    # rows that bypassed normalization.
+    set_a = extract_values_by_protocol(a, "tel", &normalize_phone_digits/1)
+    set_b = extract_values_by_protocol(b, "tel", &normalize_phone_digits/1)
+    intersects?(set_a, set_b)
+  end
+
+  defp shared_addresses?(a, b) do
+    set_a = address_keys(a)
+    set_b = address_keys(b)
+    intersects?(set_a, set_b)
+  end
+
+  defp extract_values_by_protocol(contact, protocol_prefix, normalizer) do
     contact.contact_fields
     |> Enum.filter(fn cf ->
       cf.contact_field_type &&
         String.starts_with?(cf.contact_field_type.protocol || "", protocol_prefix)
     end)
-    |> Enum.map(fn cf -> String.downcase(cf.value || "") end)
+    |> Enum.map(fn cf -> normalizer.(cf.value) end)
+    |> Enum.reject(&(&1 in [nil, ""]))
     |> MapSet.new()
+  end
+
+  defp normalize_email_value(nil), do: nil
+  defp normalize_email_value(v) when is_binary(v), do: v |> String.trim() |> String.downcase()
+
+  defp normalize_phone_digits(nil), do: nil
+
+  defp normalize_phone_digits(v) when is_binary(v) do
+    case String.replace(v, ~r/[^0-9]/, "") do
+      "" -> nil
+      digits -> digits
+    end
+  end
+
+  defp address_keys(contact) do
+    contact.addresses
+    |> Enum.map(fn a ->
+      line1 = normalize_address_part(a.line1)
+      postal = normalize_address_part(a.postal_code)
+      if line1 != "" and postal != "", do: {line1, postal}, else: nil
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> MapSet.new()
+  end
+
+  defp normalize_address_part(nil), do: ""
+
+  defp normalize_address_part(v) when is_binary(v) do
+    v |> String.trim() |> String.downcase() |> String.replace(~r/\s+/, " ")
+  end
+
+  defp intersects?(a, b) do
+    if MapSet.size(a) == 0 or MapSet.size(b) == 0 do
+      false
+    else
+      not MapSet.disjoint?(a, b)
+    end
+  end
+
+  defp name_key(contact) do
+    {normalize_name_part(contact.first_name), normalize_name_part(contact.last_name)}
+  end
+
+  defp normalize_name_part(nil), do: ""
+
+  defp normalize_name_part(v) when is_binary(v) do
+    v |> String.trim() |> String.downcase() |> String.replace(~r/\s+/, " ")
   end
 
   defp update_import_records_after_merge(account_id, import_job, old_contact_id, new_contact_id) do

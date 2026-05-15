@@ -119,12 +119,15 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
   end
 
   defp find_email_matches(account_id) do
-    # Case-insensitive email match, both fields verified as email type
+    # Case-insensitive email match on TRIMmed values. Trim is required because
+    # CardDAV-style imports occasionally leak trailing whitespace; the != ''
+    # checks on the trimmed form prevent whitespace-only values from forming a
+    # cartesian product across all such rows.
     query =
       from cf1 in ContactField,
         join: cf2 in ContactField,
         on:
-          fragment("LOWER(?)", cf1.value) == fragment("LOWER(?)", cf2.value) and
+          fragment("LOWER(TRIM(?))", cf1.value) == fragment("LOWER(TRIM(?))", cf2.value) and
             cf1.id < cf2.id,
         join: cft1 in ContactFieldType,
         on: cf1.contact_field_type_id == cft1.id,
@@ -135,7 +138,8 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
         where: fragment("? LIKE 'mailto%'", cft1.protocol),
         where: fragment("? LIKE 'mailto%'", cft2.protocol),
         where: cf1.contact_id != cf2.contact_id,
-        where: cf1.value != "" and not is_nil(cf1.value),
+        where: not is_nil(cf1.value) and fragment("TRIM(?) <> ''", cf1.value),
+        where: not is_nil(cf2.value) and fragment("TRIM(?) <> ''", cf2.value),
         select: {cf1.contact_id, cf2.contact_id}
 
     query
@@ -148,14 +152,15 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
   end
 
   defp find_phone_matches(account_id) do
-    # Normalized phone match (digits only), both fields verified as phone type
+    # Phone values are normalized to E.164 on import (see
+    # `Kith.Contacts.PhoneFormatter.normalize/2`), so this becomes a plain
+    # equality join. The previous in-query regex normalization combined with a
+    # raw-value `!= ""` filter let formatting-only inputs (`+`, `()`, `-`)
+    # collapse to an empty string and cartesian-explode (see Bug A).
     query =
       from cf1 in ContactField,
         join: cf2 in ContactField,
-        on:
-          fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf1.value) ==
-            fragment("regexp_replace(?, '[^0-9]', '', 'g')", cf2.value) and
-            cf1.id < cf2.id,
+        on: cf1.value == cf2.value and cf1.id < cf2.id,
         join: cft1 in ContactFieldType,
         on: cf1.contact_field_type_id == cft1.id,
         join: cft2 in ContactFieldType,
@@ -165,7 +170,8 @@ defmodule Kith.Workers.DuplicateDetectionWorker do
         where: fragment("? LIKE 'tel%'", cft1.protocol),
         where: fragment("? LIKE 'tel%'", cft2.protocol),
         where: cf1.contact_id != cf2.contact_id,
-        where: cf1.value != "" and not is_nil(cf1.value),
+        where: not is_nil(cf1.value) and fragment("TRIM(?) <> ''", cf1.value),
+        where: not is_nil(cf2.value) and fragment("TRIM(?) <> ''", cf2.value),
         select: {cf1.contact_id, cf2.contact_id}
 
     query

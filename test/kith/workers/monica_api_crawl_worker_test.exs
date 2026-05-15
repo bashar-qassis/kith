@@ -61,6 +61,61 @@ defmodule Kith.Workers.MonicaApiCrawlWorkerTest do
       assert import_job.api_options["extra_notes"] == false
     end
 
+    test "build_opts forwards every wizard-saved option to the source module",
+         %{user: user, account_id: account_id} do
+      # Regression for Bug C: build_opts used to hand-curate a map containing
+      # only "extra_notes" — every other wizard option (auto_merge_duplicates,
+      # photos, pets, phone_default_region, …) was silently dropped before
+      # reaching MonicaApi.crawl/5.
+      import_job =
+        import_fixture(account_id, user.id, %{
+          source: "monica_api",
+          api_url: "https://monica.test",
+          api_key_encrypted: "test-key",
+          api_options: %{
+            "auto_merge_duplicates" => true,
+            "phone_default_region" => "US",
+            "photos" => true,
+            "pets" => true
+          }
+        })
+
+      opts = MonicaApiCrawlWorker.build_opts(import_job)
+
+      assert opts["auto_merge_duplicates"] == true
+      assert opts["phone_default_region"] == "US"
+      assert opts["photos"] == true
+      assert opts["pets"] == true
+      # extra_notes defaults to true unless explicitly false
+      assert opts["extra_notes"] == true
+    end
+
+    test "build_opts honors extra_notes=false explicitly",
+         %{user: user, account_id: account_id} do
+      import_job =
+        import_fixture(account_id, user.id, %{
+          source: "monica_api",
+          api_url: "https://monica.test",
+          api_key_encrypted: "test-key",
+          api_options: %{"extra_notes" => false}
+        })
+
+      assert MonicaApiCrawlWorker.build_opts(import_job)["extra_notes"] == false
+    end
+
+    test "build_opts handles missing api_options map", %{user: user, account_id: account_id} do
+      import_job =
+        import_fixture(account_id, user.id, %{
+          source: "monica_api",
+          api_url: "https://monica.test",
+          api_key_encrypted: "test-key",
+          api_options: nil
+        })
+
+      opts = MonicaApiCrawlWorker.build_opts(import_job)
+      assert opts["extra_notes"] == true
+    end
+
     test "enqueues MonicaPhotoSyncWorker when photos opt-in", %{
       user: user,
       account_id: account_id

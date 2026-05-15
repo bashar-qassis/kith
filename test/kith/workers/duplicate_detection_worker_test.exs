@@ -147,6 +147,41 @@ defmodule Kith.Workers.DuplicateDetectionWorkerTest do
       assert "email_match" in hd(candidates).reasons
     end
 
+    test "email matching trims surrounding whitespace",
+         %{account: account, email_type_id: email_type_id} do
+      c1 =
+        insert(:contact,
+          account: account,
+          display_name: "Alice",
+          first_name: "Alice",
+          last_name: ""
+        )
+
+      c2 =
+        insert(:contact,
+          account: account,
+          display_name: "Bob",
+          first_name: "Bob",
+          last_name: ""
+        )
+
+      contact_field_fixture(c1, email_type_id, %{"value" => "  Foo@BAR.com  "})
+      contact_field_fixture(c2, email_type_id, %{"value" => "foo@bar.com"})
+
+      assert :ok = run_detection(account.id)
+
+      candidates = pending_candidates(account.id)
+      assert length(candidates) == 1
+      assert "email_match" in hd(candidates).reasons
+    end
+
+    # Note: pure whitespace-only email values are rejected by the ContactField
+    # changeset's `validate_required`, so the cartesian-explosion case from
+    # Bug A can't actually manifest for emails through the normal write path.
+    # Coverage is provided by the "trims surrounding whitespace" case above,
+    # which exercises the same TRIM-in-JOIN code path on values that survive
+    # validation.
+
     test "email-only match scores around 0.85", %{account: account, email_type_id: email_type_id} do
       c1 =
         insert(:contact,
@@ -207,7 +242,10 @@ defmodule Kith.Workers.DuplicateDetectionWorkerTest do
       assert hd(candidates).score >= 0.7
     end
 
-    test "phone matching normalizes formatting", %{account: account, phone_type_id: phone_type_id} do
+    test "phone matching is strict equality on canonical E.164 values",
+         %{account: account, phone_type_id: phone_type_id} do
+      # Phone normalization runs at write-time (see PhoneFormatter.normalize/2),
+      # so the detection worker assumes both values are already canonical.
       c1 =
         insert(:contact,
           account: account,
@@ -224,14 +262,52 @@ defmodule Kith.Workers.DuplicateDetectionWorkerTest do
           last_name: "Williams"
         )
 
-      contact_field_fixture(c1, phone_type_id, %{"value" => "+1-555-1234"})
-      contact_field_fixture(c2, phone_type_id, %{"value" => "15551234"})
+      contact_field_fixture(c1, phone_type_id, %{"value" => "+12025550100"})
+      contact_field_fixture(c2, phone_type_id, %{"value" => "+12025550100"})
 
       assert :ok = run_detection(account.id)
 
       candidates = pending_candidates(account.id)
       assert length(candidates) == 1
       assert "phone_match" in hd(candidates).reasons
+    end
+
+    test "does not cartesian-explode across formatting-only phone values",
+         %{account: account, phone_type_id: phone_type_id} do
+      # Regression for Bug A: previously the in-query regex normalized any
+      # zero-digit value to "" and matched it against every other zero-digit
+      # value (C(N,2) false candidates). With strict equality on canonical
+      # values plus a TRIM-non-empty filter, distinct garbage strings produce
+      # no matches.
+      # Use deliberately dissimilar names so pg_trgm doesn't generate
+      # name-based false positives and contaminate the assertion.
+      contacts_data = [
+        {"Aaron Zephyr", "Aaron", "Zephyr", "+"},
+        {"Quincy Bramble", "Quincy", "Bramble", "-"},
+        {"Yolanda Khoury", "Yolanda", "Khoury", "()"},
+        {"Vladimir Tcheng", "Vladimir", "Tcheng", "abc"},
+        {"Saoirse Mwangi", "Saoirse", "Mwangi", "N/A"},
+        {"Daiyu Olafsson", "Daiyu", "Olafsson", "x"}
+      ]
+
+      for {display, first, last, garbage} <- contacts_data do
+        contact =
+          insert(:contact,
+            account: account,
+            display_name: display,
+            first_name: first,
+            last_name: last
+          )
+
+        contact_field_fixture(contact, phone_type_id, %{"value" => garbage})
+      end
+
+      assert :ok = run_detection(account.id)
+
+      candidates = pending_candidates(account.id)
+
+      assert candidates == [],
+             "expected no phone matches across distinct garbage values, got #{length(candidates)}"
     end
 
     test "phone-only match scores 0.75", %{account: account, phone_type_id: phone_type_id} do

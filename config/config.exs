@@ -10,6 +10,10 @@ import Config
 # Register .vcf (vCard) MIME type for LiveView uploads
 config :mime, :types, %{"text/vcard" => ["vcf"], "application/json" => ["json"]}
 
+# Default CLDR backend — required so ex_cldr_territories can resolve
+# locale-aware territory data without an explicit per-call backend argument.
+config :ex_cldr, default_backend: Kith.Cldr
+
 config :kith, :scopes,
   user: [
     default: true,

@@ -26,6 +26,10 @@ config :kith, KithWeb.Endpoint,
 # Disable Oban in tests (use Oban.Testing)
 config :kith, Oban, testing: :manual
 
+# Use the production libphonenumber metadata in tests so test-only validation
+# rules (NANP "555" prefixes, etc.) don't diverge from real behavior.
+config :ex_phone_number, metadata_file: Path.join("resources", "PhoneNumberMetadata.xml")
+
 # Disable PromEx in tests (its Ecto poller conflicts with sandbox ownership)
 config :kith, Kith.PromEx, disabled: true
 
