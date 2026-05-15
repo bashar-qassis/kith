@@ -16,6 +16,7 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
   alias Kith.Imports
   alias Kith.Imports.Sources.MonicaApi
   alias Kith.Workers.DuplicateDetectionWorker
+  alias Kith.Workers.MonicaPhotoSyncWorker
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"import_id" => import_id}}) do
@@ -51,6 +52,9 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
       # Trigger duplicate detection for newly imported contacts
       Oban.insert(DuplicateDetectionWorker.new(%{account_id: import_job.account_id}))
 
+      # Enqueue photo sync (separate job) if the user opted in
+      maybe_enqueue_photo_sync(import_job)
+
       Logger.info("MonicaApi import #{import_id} completed: #{inspect(summary_map)}")
       :ok
     else
@@ -82,9 +86,23 @@ defmodule Kith.Workers.MonicaApiCrawlWorker do
     options = import_job.api_options || %{}
 
     %{
-      "photos" => options["photos"] || false,
       "extra_notes" => options["extra_notes"] != false
     }
+  end
+
+  defp maybe_enqueue_photo_sync(import_job) do
+    if get_in(import_job.api_options || %{}, ["photos"]) do
+      # api_key is wiped from the DB immediately after this worker completes,
+      # so the photo sync worker receives its own copy via job args
+      # (same pattern as MonicaDocumentImportWorker).
+      %{
+        "import_id" => import_job.id,
+        "credential_url" => import_job.api_url,
+        "credential_api_key" => import_job.api_key_encrypted
+      }
+      |> MonicaPhotoSyncWorker.new()
+      |> Oban.insert()
+    end
   end
 
   defp ensure_map(m) when is_map(m), do: m

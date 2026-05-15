@@ -16,7 +16,10 @@ defmodule Kith.Imports.Sources.MonicaApi do
        using import_records (no API calls needed).
     3. **Extra notes** — for contacts with `statistics.number_of_notes > 3`,
        fetch remaining notes via `GET /api/contacts/{id}/notes`.
-    4. **Photos** — optionally crawl `GET /api/photos?limit=100` to import all photos.
+
+  Photo import is handled by `Kith.Workers.MonicaPhotoSyncWorker`, enqueued
+  separately by `MonicaApiCrawlWorker` after this crawl completes when the
+  user opts in via `api_options["photos"]`.
   """
 
   @behaviour Kith.Imports.Source
@@ -103,19 +106,11 @@ defmodule Kith.Imports.Sources.MonicaApi do
         []
       end
 
-    # Phase 4: Photos (optional)
-    photo_errors =
-      if opts["photos"] do
-        crawl_all_photos(credential, account_id, import_job)
-      else
-        []
-      end
-
-    # Phase 5-12: Additional data types (per-contact endpoints)
+    # Phase 4: Additional data types (per-contact endpoints)
     extra_data_errors =
       import_extra_data_types(credential, account_id, user_id, import_job, opts)
 
-    # Phase 13: Enqueue document import jobs (async, runs after main import)
+    # Phase 5: Enqueue document import jobs (async, runs after main import)
     if opts["documents"] do
       enqueue_document_imports(credential, account_id, user_id, import_job)
     end
@@ -124,12 +119,11 @@ defmodule Kith.Imports.Sources.MonicaApi do
       acc.errors ++
         ref_errors ++
         notes_errors ++
-        photo_errors ++
         merge_result.errors ++
         extra_data_errors
 
     error_count =
-      acc.error_count + length(ref_errors) + length(notes_errors) + length(photo_errors) +
+      acc.error_count + length(ref_errors) + length(notes_errors) +
         length(merge_result.errors) + length(extra_data_errors)
 
     {:ok,
@@ -861,150 +855,6 @@ defmodule Kith.Imports.Sources.MonicaApi do
       end
     end)
   end
-
-  # ── Phase 4: Photo crawl ────────────────────────────────────────────
-
-  defp crawl_all_photos(credential, account_id, import_job) do
-    crawl_photos_loop(credential, account_id, import_job, _page = 1, _errors = [])
-  end
-
-  defp crawl_photos_loop(credential, account_id, import_job, page, errors) do
-    url = "#{credential.url}/api/photos"
-
-    case api_get_json(credential, url, limit: @page_limit, page: page) do
-      {:ok, %{"data" => photos, "meta" => meta}} when is_list(photos) ->
-        last_page = meta["last_page"] || 1
-
-        errors =
-          Enum.reduce(photos, errors, fn photo, errs ->
-            import_api_photo(photo, account_id, import_job, errs)
-          end)
-
-        if page < last_page do
-          crawl_photos_loop(credential, account_id, import_job, page + 1, errors)
-        else
-          errors
-        end
-
-      {:error, :rate_limited} ->
-        errors ++ ["Rate limited fetching photos"]
-
-      {:error, reason} ->
-        errors ++ ["Failed to fetch photos page #{page}: #{inspect(reason)}"]
-
-      _ ->
-        errors
-    end
-  end
-
-  defp import_api_photo(photo, account_id, import_job, errors) do
-    contact_id = get_in(photo, ["contact", "id"])
-    source_id = to_string(contact_id)
-
-    contact_rec = Imports.find_import_record(account_id, "monica_api", "contact", source_id)
-
-    if contact_rec do
-      contact = Repo.get(Contacts.Contact, contact_rec.local_entity_id)
-
-      if contact do
-        do_import_photo(contact, photo, import_job, errors)
-      else
-        errors
-      end
-    else
-      Logger.debug("[MonicaApi] Skipping photo for unknown contact #{source_id}")
-      errors
-    end
-  end
-
-  defp do_import_photo(contact, photo, import_job, errors) do
-    file_name = photo["original_filename"] || "photo.jpg"
-
-    case decode_photo_data(photo) do
-      {:ok, binary} ->
-        store_and_create_photo(contact, photo, binary, file_name, import_job, errors)
-
-      :no_data ->
-        errors
-
-      :error ->
-        errors ++ ["Failed to decode photo data for #{contact.first_name}"]
-    end
-  end
-
-  defp store_and_create_photo(contact, photo, binary, file_name, import_job, errors) do
-    content_hash = :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower)
-
-    if Contacts.photo_exists_by_hash?(contact.id, content_hash) do
-      Logger.debug("[MonicaApi] Skipping duplicate photo for #{contact.first_name}")
-      errors
-    else
-      upload_and_record_photo(contact, photo, binary, file_name, content_hash, import_job, errors)
-    end
-  end
-
-  defp upload_and_record_photo(
-         contact,
-         photo,
-         binary,
-         file_name,
-         content_hash,
-         import_job,
-         errors
-       ) do
-    key = Kith.Storage.generate_key(contact.account_id, "photos", file_name)
-
-    case Kith.Storage.upload_binary(binary, key) do
-      {:ok, _} ->
-        attrs = %{
-          "file_name" => file_name,
-          "storage_key" => key,
-          "file_size" => byte_size(binary),
-          "content_type" => photo["mime_type"] || "image/jpeg",
-          "content_hash" => content_hash
-        }
-
-        create_photo_and_set_avatar(contact, photo, attrs, import_job, errors)
-
-      {:error, reason} ->
-        errors ++ ["Failed to store photo for #{contact.first_name}: #{inspect(reason)}"]
-    end
-  end
-
-  defp create_photo_and_set_avatar(contact, photo, attrs, import_job, errors) do
-    case Contacts.create_photo(contact, attrs) do
-      {:ok, photo_record} ->
-        maybe_record_entity(import_job, "photo", photo["uuid"], "photo", photo_record.id)
-
-        if is_nil(contact.avatar) do
-          contact |> Ecto.Changeset.change(avatar: attrs["storage_key"]) |> Repo.update!()
-        end
-
-        errors
-
-      {:error, reason} ->
-        Logger.warning("[MonicaApi] Photo for #{contact.first_name}: #{inspect(reason)}")
-        errors
-    end
-  end
-
-  defp decode_photo_data(%{"dataUrl" => "data:" <> _ = data_url}) do
-    case String.split(data_url, ",", parts: 2) do
-      [_meta, encoded] -> {:ok, Base.decode64!(encoded)}
-      _ -> :error
-    end
-  rescue
-    _ -> :error
-  end
-
-  defp decode_photo_data(%{"link" => link}) when is_binary(link) and link != "" do
-    case Req.get(link, receive_timeout: 30_000) do
-      {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
-      _ -> :error
-    end
-  end
-
-  defp decode_photo_data(_), do: :no_data
 
   # ── Reference data building ──────────────────────────────────────────
 

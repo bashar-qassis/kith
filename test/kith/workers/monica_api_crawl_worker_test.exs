@@ -4,6 +4,7 @@ defmodule Kith.Workers.MonicaApiCrawlWorkerTest do
 
   alias Kith.Imports
   alias Kith.Workers.MonicaApiCrawlWorker
+  alias Kith.Workers.MonicaPhotoSyncWorker
 
   import Kith.AccountsFixtures
   import Kith.ContactsFixtures
@@ -58,6 +59,41 @@ defmodule Kith.Workers.MonicaApiCrawlWorkerTest do
       # Just verify the import was created correctly
       assert import_job.api_options["photos"] == true
       assert import_job.api_options["extra_notes"] == false
+    end
+
+    test "enqueues MonicaPhotoSyncWorker when photos opt-in", %{
+      user: user,
+      account_id: account_id
+    } do
+      import_job =
+        import_fixture(account_id, user.id, %{
+          source: "monica_api",
+          api_url: "https://monica.test",
+          api_key_encrypted: "test-key",
+          api_options: %{"photos" => true}
+        })
+
+      assert :ok = perform_job(MonicaApiCrawlWorker, %{import_id: import_job.id})
+
+      assert_enqueued(
+        worker: MonicaPhotoSyncWorker,
+        args: %{
+          "import_id" => import_job.id,
+          "credential_url" => "https://monica.test",
+          "credential_api_key" => "test-key"
+        }
+      )
+    end
+
+    test "does not enqueue MonicaPhotoSyncWorker when photos opt-out", %{
+      user: user,
+      account_id: account_id
+    } do
+      import_job = api_import_fixture_with_stub(account_id, user.id)
+
+      assert :ok = perform_job(MonicaApiCrawlWorker, %{import_id: import_job.id})
+
+      refute_enqueued(worker: MonicaPhotoSyncWorker)
     end
   end
 end

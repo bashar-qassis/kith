@@ -585,65 +585,6 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
     end
   end
 
-  # ── crawl/5 — photo crawl ────────────────────────────────────────────
-
-  describe "crawl/5 — photo crawl" do
-    test "imports photos from paginated photos endpoint", %{user: user, account_id: account_id} do
-      # Small 1x1 JPEG encoded as data URL
-      pixel = Base.encode64(<<0xFF, 0xD8, 0xFF, 0xE0>>)
-      data_url = "data:image/jpeg;base64,#{pixel}"
-
-      contacts = [contact_json(id: 1, first_name: "PhotoPerson")]
-
-      photos = [
-        photo_json(
-          id: 1,
-          data_url: data_url,
-          contact: contact_short_json(1, Ecto.UUID.generate(), "PhotoPerson", "Test")
-        )
-      ]
-
-      {:ok, agent} = Agent.start_link(fn -> 0 end)
-
-      Req.Test.stub(@stub_name, fn conn ->
-        call = Agent.get_and_update(agent, fn n -> {n + 1, n + 1} end)
-
-        if call == 1 do
-          Req.Test.json(conn, contacts_page_json(contacts))
-        else
-          Req.Test.json(conn, photos_page_json(photos))
-        end
-      end)
-
-      import_job = api_import_fixture(account_id, user.id)
-
-      assert {:ok, _} =
-               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{"photos" => true})
-
-      # Verify photos endpoint was called
-      assert Agent.get(agent, & &1) == 2
-      Agent.stop(agent)
-    end
-
-    test "skips photos when opt-out", %{user: user, account_id: account_id} do
-      contacts = [contact_json(id: 1, first_name: "NoPhotos")]
-
-      {:ok, agent} = Agent.start_link(fn -> 0 end)
-
-      Req.Test.stub(@stub_name, fn conn ->
-        Agent.update(agent, &(&1 + 1))
-        Req.Test.json(conn, contacts_page_json(contacts))
-      end)
-
-      import_job = api_import_fixture(account_id, user.id)
-      assert {:ok, _} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
-
-      # Only contacts page, no photos
-      assert Agent.get(agent, & &1) == 1
-      Agent.stop(agent)
-    end
-  end
-
   # ── crawl/5 — rate limiting ──────────────────────────────────────────
 
   describe "crawl/5 — rate limiting" do

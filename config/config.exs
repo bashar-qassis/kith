@@ -117,7 +117,8 @@ config :logger, :default_formatter,
     :attempt,
     :max_attempts,
     :state,
-    :source
+    :source,
+    :import_id
   ]
 
 # Cloak encryption vault — key set per-environment
