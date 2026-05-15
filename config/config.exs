@@ -40,8 +40,7 @@ config :kith, Oban,
     exports: 2,
     imports: 2,
     immich: 3,
-    purge: 1,
-    photo_sync: 5
+    purge: 1
   ],
   plugins: [
     Oban.Plugins.Pruner,

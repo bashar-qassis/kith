@@ -73,6 +73,7 @@ defmodule Kith.MixProject do
 
       # Background Jobs
       {:oban, "~> 2.18"},
+      {:oban_web, "~> 2.11"},
 
       # Email
       {:swoosh, "~> 1.17"},
