@@ -92,9 +92,9 @@ consumer.
 
 ```
 lib/kith/
+├── activities/cleanup.ex            # NEW   — wipe account-scoped activities
 ├── audit_logs/cleanup.ex            # NEW   — wipe audit_logs
-├── contacts/cleanup.ex              # NEW   — hard-delete contacts (CASCADE)
-├── contacts/tags_and_activities_cleanup.ex  # NEW   — account-scoped tags + activities
+├── contacts/cleanup.ex              # NEW   — hard-delete contacts (CASCADE) + tags
 ├── conversations/cleanup.ex         # NEW   — wipe conversations (CASCADE → messages)
 ├── imports/cleanup.ex               # NEW   — wipe imports + import_records
 ├── imports/job_cancellation.ex      # NEW   — cancel pending Oban jobs for THIS account's imports
@@ -104,6 +104,10 @@ lib/kith/
 ├── tasks/cleanup.ex                 # NEW   — wipe tasks
 └── workers/account_reset_worker.ex  # REFACTOR — orchestrator only (~40 LoC)
 ```
+
+(Note: `tags` is wiped inside `Contacts.Cleanup` because it shares the
+contacts axis-of-change. `activities` is its own context and gets its own
+module per SOLID-elixir's SRP-module guidance.)
 
 Each cleanup module exposes a single function:
 
@@ -147,7 +151,7 @@ defmodule Kith.Workers.AccountResetWorker do
     Reminders.Cleanup,
     Tasks.Cleanup,
     Journal.Cleanup,
-    Contacts.TagsAndActivitiesCleanup,
+    Activities.Cleanup,
     AuditLogs.Cleanup
   ]
 
@@ -200,8 +204,8 @@ The ordering is load-bearing:
    removes reminder_rules, reminder_instances.
 7. **`Tasks.Cleanup`** — wipes tasks.
 8. **`Journal.Cleanup`** — wipes journal_entries.
-9. **`Contacts.TagsAndActivitiesCleanup`** — wipes the account-scoped `tags`
-   and `activities` tables (no contact FK, so not cleared by step 3).
+9. **`Activities.Cleanup`** — wipes account-scoped `activities` (no contact FK).
+   (Note: `tags` is wiped inside `Contacts.Cleanup` at step 3.)
 10. **`AuditLogs.Cleanup`** — runs LAST. The "account_data_reset" audit log
     written at start needs to live until the reset completes; wiping it earlier
     would erase the audit trail of the reset itself.
@@ -453,9 +457,9 @@ will sweep them.
 
 | File | Change |
 |---|---|
+| `lib/kith/activities/cleanup.ex` | NEW |
 | `lib/kith/audit_logs/cleanup.ex` | NEW |
-| `lib/kith/contacts/cleanup.ex` | NEW |
-| `lib/kith/contacts/tags_and_activities_cleanup.ex` | NEW |
+| `lib/kith/contacts/cleanup.ex` | NEW (handles contacts + tags) |
 | `lib/kith/conversations/cleanup.ex` | NEW |
 | `lib/kith/imports/cleanup.ex` | NEW |
 | `lib/kith/imports/job_cancellation.ex` | NEW |
@@ -464,9 +468,9 @@ will sweep them.
 | `lib/kith/storage/account_cleanup.ex` | NEW |
 | `lib/kith/tasks/cleanup.ex` | NEW |
 | `lib/kith/workers/account_reset_worker.ex` | REFACTOR — orchestrator only |
+| `test/kith/activities/cleanup_test.exs` | NEW |
 | `test/kith/audit_logs/cleanup_test.exs` | NEW |
 | `test/kith/contacts/cleanup_test.exs` | NEW |
-| `test/kith/contacts/tags_and_activities_cleanup_test.exs` | NEW |
 | `test/kith/conversations/cleanup_test.exs` | NEW |
 | `test/kith/imports/cleanup_test.exs` | NEW |
 | `test/kith/imports/job_cancellation_test.exs` | NEW |
