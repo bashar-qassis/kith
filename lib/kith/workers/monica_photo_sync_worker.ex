@@ -11,7 +11,7 @@ defmodule Kith.Workers.MonicaPhotoSyncWorker do
   import-history UI shows live counts and a per-photo table.
   """
 
-  use Oban.Worker, queue: :photo_sync, max_attempts: 3
+  use Oban.Worker, queue: :imports, max_attempts: 3
 
   require Logger
 
