@@ -75,7 +75,7 @@ services:
     environment:
       # ── BEAM distribution / clustering (libcluster Epmd strategy) ──
       RELEASE_COOKIE: ${RELEASE_COOKIE}
-      RELEASE_DISTRIBUTION: name
+      RELEASE_DISTRIBUTION: sname
       RELEASE_NODE: kith@app
       KITH_CLUSTER_HOSTS: kith@app,kith@worker
       # ── existing env vars unchanged ──
@@ -158,7 +158,7 @@ services:
     environment:
       # ── BEAM distribution / clustering (libcluster Epmd strategy) ──
       RELEASE_COOKIE: ${RELEASE_COOKIE}
-      RELEASE_DISTRIBUTION: name
+      RELEASE_DISTRIBUTION: sname
       RELEASE_NODE: kith@worker
       KITH_CLUSTER_HOSTS: kith@app,kith@worker
       # ── existing env vars unchanged ──
