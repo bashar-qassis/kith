@@ -373,54 +373,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
     initial = {acc, ref_data, stats, seen_ids}
 
     {final_acc, final_ref_data, final_stats, final_seen} =
-      Enum.reduce_while(candidates, initial, fn id, {acc, ref_data, stats, seen} ->
-        if MapSet.size(seen) >= monica_total do
-          {:halt, {acc, ref_data, stats, seen}}
-        else
-          case fetch_and_dispatch_backfill(ctx, id, acc, ref_data) do
-            {:imported_full, new_acc, new_ref_data} ->
-              {:cont,
-               {new_acc, new_ref_data,
-                %{
-                  stats
-                  | range_scanned: stats.range_scanned + 1,
-                    imported_full: stats.imported_full + 1
-                }, MapSet.put(seen, id)}}
-
-            {:imported_partial, new_acc, new_ref_data} ->
-              {:cont,
-               {new_acc, new_ref_data,
-                %{
-                  stats
-                  | range_scanned: stats.range_scanned + 1,
-                    imported_partial: stats.imported_partial + 1
-                }, MapSet.put(seen, id)}}
-
-            :skipped_deleted ->
-              {:cont,
-               {acc, ref_data,
-                %{
-                  stats
-                  | range_scanned: stats.range_scanned + 1,
-                    skipped_deleted: stats.skipped_deleted + 1
-                }, seen}}
-
-            :skipped_inactive ->
-              {:cont,
-               {acc, ref_data,
-                %{
-                  stats
-                  | range_scanned: stats.range_scanned + 1,
-                    skipped_inactive: stats.skipped_inactive + 1
-                }, seen}}
-
-            {:error, _reason} ->
-              {:cont,
-               {acc, ref_data,
-                %{stats | range_scanned: stats.range_scanned + 1, errors: stats.errors + 1},
-                seen}}
-          end
-        end
+      Enum.reduce_while(candidates, initial, fn id, state ->
+        step_backfill(ctx, id, state, monica_total)
       end)
 
     unresolved = max(0, monica_total - MapSet.size(final_seen))
@@ -435,35 +389,82 @@ defmodule Kith.Imports.Sources.MonicaApi do
     {final_acc, final_ref_data, %{final_stats | unresolved_gap: unresolved}}
   end
 
+  defp step_backfill(ctx, id, {acc, ref_data, stats, seen} = state, monica_total) do
+    if MapSet.size(seen) >= monica_total do
+      {:halt, state}
+    else
+      case fetch_and_dispatch_backfill(ctx, id, acc, ref_data) do
+        {:imported_full, new_acc, new_ref_data} ->
+          {:cont,
+           {new_acc, new_ref_data,
+            %{
+              stats
+              | range_scanned: stats.range_scanned + 1,
+                imported_full: stats.imported_full + 1
+            }, MapSet.put(seen, id)}}
+
+        {:imported_partial, new_acc, new_ref_data} ->
+          {:cont,
+           {new_acc, new_ref_data,
+            %{
+              stats
+              | range_scanned: stats.range_scanned + 1,
+                imported_partial: stats.imported_partial + 1
+            }, MapSet.put(seen, id)}}
+
+        :skipped_deleted ->
+          {:cont,
+           {acc, ref_data,
+            %{
+              stats
+              | range_scanned: stats.range_scanned + 1,
+                skipped_deleted: stats.skipped_deleted + 1
+            }, seen}}
+
+        :skipped_inactive ->
+          {:cont,
+           {acc, ref_data,
+            %{
+              stats
+              | range_scanned: stats.range_scanned + 1,
+                skipped_inactive: stats.skipped_inactive + 1
+            }, seen}}
+
+        {:error, _reason} ->
+          {:cont,
+           {acc, ref_data,
+            %{stats | range_scanned: stats.range_scanned + 1, errors: stats.errors + 1}, seen}}
+      end
+    end
+  end
+
   defp fetch_and_dispatch_backfill(ctx, monica_id, acc, ref_data) do
     case fetch_single_contact(ctx.credential, monica_id) do
-      :not_found ->
-        :skipped_deleted
+      :not_found -> :skipped_deleted
+      {:error, reason} -> {:error, reason}
+      {:ok, api_contact} -> dispatch_accepted_contact(ctx, api_contact, acc, ref_data)
+    end
+  end
 
-      {:error, reason} ->
-        {:error, reason}
+  defp dispatch_accepted_contact(ctx, api_contact, acc, ref_data) do
+    case accept_backfill_response(api_contact) do
+      :skip_inactive ->
+        :skipped_inactive
 
-      {:ok, api_contact} ->
-        case accept_backfill_response(api_contact) do
-          :skip_inactive ->
-            :skipped_inactive
+      verdict when verdict in [:import_full, :import_partial] ->
+        new_ref_data = build_or_update_ref_data(ctx.account_id, [api_contact], ref_data)
 
-          verdict when verdict in [:import_full, :import_partial] ->
-            new_ref_data =
-              build_or_update_ref_data(ctx.account_id, [api_contact], ref_data)
+        {new_acc, _new_deferred} =
+          safe_import_api_contact(ctx, api_contact, new_ref_data, acc, %{
+            first_met_through: [],
+            relationships: [],
+            extra_notes: [],
+            misc_data: []
+          })
 
-            {new_acc, _new_deferred} =
-              safe_import_api_contact(ctx, api_contact, new_ref_data, acc, %{
-                first_met_through: [],
-                relationships: [],
-                extra_notes: [],
-                misc_data: []
-              })
-
-            case verdict do
-              :import_full -> {:imported_full, new_acc, new_ref_data}
-              :import_partial -> {:imported_partial, new_acc, new_ref_data}
-            end
+        case verdict do
+          :import_full -> {:imported_full, new_acc, new_ref_data}
+          :import_partial -> {:imported_partial, new_acc, new_ref_data}
         end
     end
   end
