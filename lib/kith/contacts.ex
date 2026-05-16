@@ -387,8 +387,13 @@ defmodule Kith.Contacts do
     ContactField |> scope_to_account(account_id) |> Repo.get!(id)
   end
 
-  def create_contact_field(%Contact{} = contact, attrs) do
-    attrs = maybe_normalize_phone(attrs)
+  def create_contact_field(%Contact{} = contact, attrs, opts \\ []) do
+    attrs =
+      if Keyword.get(opts, :normalize, true) do
+        maybe_normalize_phone(attrs)
+      else
+        attrs
+      end
 
     %ContactField{contact_id: contact.id, account_id: contact.account_id}
     |> ContactField.changeset(attrs)
