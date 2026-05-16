@@ -29,14 +29,13 @@ defmodule Kith.Imports.Sources.MonicaApi do
   alias Kith.Contacts
   alias Kith.Contacts.PhoneFormatter
   alias Kith.Imports
+  alias Kith.Imports.Sources.MonicaApi.RateLimiter
   alias Kith.Repo
   alias Kith.Workers.MonicaDocumentImportWorker
 
   require Logger
 
   @page_limit 100
-  @max_rate_limit_retries 3
-  @rate_limit_sleep_ms :timer.seconds(65)
 
   # ── Behaviour callbacks ───────────────────────────────────────────────
 
@@ -1099,40 +1098,28 @@ defmodule Kith.Imports.Sources.MonicaApi do
   # ── HTTP helpers ─────────────────────────────────────────────────────
 
   defp api_get(credential, url, params \\ []) do
+    RateLimiter.wait!(credential.url)
+
     headers = [{"Authorization", "Bearer #{credential.api_key}"}, {"Accept", "application/json"}]
     req_options = Map.get(credential, :req_options, [])
-    options = [headers: headers, params: params] ++ req_options
+
+    options =
+      [
+        headers: headers,
+        params: params,
+        max_retries: 5,
+        retry_log_level: :warn
+      ] ++ req_options
 
     Req.get(url, options)
   end
 
   defp api_get_json(credential, url, params) do
-    api_get_json_with_retry(credential, url, params, 0)
-  end
-
-  defp api_get_json_with_retry(_credential, _url, _params, retries)
-       when retries >= @max_rate_limit_retries do
-    {:error, :rate_limited}
-  end
-
-  defp api_get_json_with_retry(credential, url, params, retries) do
     case api_get(credential, url, params) do
-      {:ok, %{status: 200, body: body}} when is_map(body) ->
-        {:ok, body}
-
-      {:ok, %{status: 429}} ->
-        Logger.info(
-          "[MonicaApi] Rate limited, sleeping #{@rate_limit_sleep_ms}ms (retry #{retries + 1})"
-        )
-
-        Process.sleep(@rate_limit_sleep_ms)
-        api_get_json_with_retry(credential, url, params, retries + 1)
-
-      {:ok, %{status: status}} ->
-        {:error, "Unexpected status: #{status}"}
-
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, %{status: 200, body: body}} when is_map(body) -> {:ok, body}
+      {:ok, %{status: 429}} -> {:error, :rate_limited}
+      {:ok, %{status: status}} -> {:error, "Unexpected status: #{status}"}
+      {:error, reason} -> {:error, reason}
     end
   end
 
