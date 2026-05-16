@@ -41,11 +41,6 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
   @page_limit 100
 
-  # Tasks 2-3 of the coverage-backfill plan add private helpers that aren't
-  # wired in until Task 4. Suppress warnings until then; this directive is
-  # removed in the Task 4 commit when the helpers become reachable.
-  @compile {:nowarn_unused_function, fetch_single_contact: 2, accept_backfill_response: 1}
-
   # ── Behaviour callbacks ───────────────────────────────────────────────
 
   @impl true
@@ -271,6 +266,213 @@ defmodule Kith.Imports.Sources.MonicaApi do
       msg = "Contact #{name}: #{Exception.message(e)}"
       Logger.error("[MonicaApi] #{msg}")
       {add_error(acc, msg), deferred}
+  end
+
+  # ── Phase 1.4: Coverage check + backfill ──────────────────────────────
+  #
+  # Monica's /api/contacts listing endpoint silently drops a subset of
+  # contacts under LIMIT/OFFSET pagination over its default sort (this is
+  # a v4 server-side issue we can't fix). We compensate by re-fetching
+  # meta.total and any IDs in [min_seen, max_seen + safety_margin] that
+  # weren't returned by the listing.
+  #
+  # See docs/superpowers/specs/2026-05-17-monica-import-coverage-backfill-design.md
+  # for full design context.
+
+  @safety_margin 50
+  @max_iterations_buffer 100
+
+  defp coverage_check_and_backfill(ctx, acc, ref_data) do
+    case fetch_meta_total(ctx.credential) do
+      {:ok, monica_total} ->
+        do_backfill(ctx, acc, ref_data, monica_total)
+
+      {:error, _reason} ->
+        # Can't determine gap; pass through with zeroed coverage stats.
+        {acc, ref_data, empty_backfill_stats()}
+    end
+  end
+
+  defp fetch_meta_total(credential) do
+    url = "#{credential.url}/api/contacts"
+
+    case api_get_json(credential, url, limit: 1, page: 1) do
+      {:ok, %{"meta" => %{"total" => total}}} when is_integer(total) -> {:ok, total}
+      _ -> {:error, :unknown_total}
+    end
+  end
+
+  defp do_backfill(ctx, acc, ref_data, monica_total) do
+    seen_ids = seen_source_ids(ctx.import_job.id)
+
+    if Enum.empty?(seen_ids) do
+      # Nothing imported by listing; refuse to scan an unbounded range.
+      {acc, ref_data, empty_backfill_stats(gap: monica_total)}
+    else
+      min_id = Enum.min(seen_ids)
+      max_id = Enum.max(seen_ids)
+      gap = monica_total - MapSet.size(seen_ids)
+
+      stats = %{
+        gap_detected: gap,
+        range_scanned: 0,
+        imported_full: 0,
+        imported_partial: 0,
+        skipped_deleted: 0,
+        skipped_inactive: 0,
+        errors: 0,
+        unresolved_gap: 0
+      }
+
+      if gap <= 0 do
+        {acc, ref_data, %{stats | unresolved_gap: 0}}
+      else
+        scan_gap_range(ctx, acc, ref_data, seen_ids, min_id, max_id, monica_total, stats)
+      end
+    end
+  end
+
+  defp seen_source_ids(import_id) do
+    from(ir in Imports.ImportRecord,
+      where:
+        ir.import_id == ^import_id and
+          ir.source_entity_type == "contact",
+      select: ir.source_entity_id
+    )
+    |> Repo.all()
+    |> Enum.flat_map(fn s ->
+      case Integer.parse(s) do
+        {n, ""} -> [n]
+        _ -> []
+      end
+    end)
+    |> MapSet.new()
+  end
+
+  defp scan_gap_range(ctx, acc, ref_data, seen_ids, min_id, max_id, monica_total, stats) do
+    scan_start = min_id
+    scan_end = max_id + @safety_margin
+    max_iterations = max_id - min_id + @max_iterations_buffer
+
+    Logger.info(
+      "[MonicaApi] Coverage backfill scanning [#{scan_start}..#{scan_end}] " <>
+        "(seen=#{MapSet.size(seen_ids)}, monica_total=#{monica_total}, gap=#{stats.gap_detected})"
+    )
+
+    candidates =
+      scan_start..scan_end
+      |> Enum.reject(&MapSet.member?(seen_ids, &1))
+      |> Enum.take(max_iterations)
+
+    initial = {acc, ref_data, stats, seen_ids}
+
+    {final_acc, final_ref_data, final_stats, final_seen} =
+      Enum.reduce_while(candidates, initial, fn id, {acc, ref_data, stats, seen} ->
+        if MapSet.size(seen) >= monica_total do
+          {:halt, {acc, ref_data, stats, seen}}
+        else
+          case fetch_and_dispatch_backfill(ctx, id, acc, ref_data) do
+            {:imported_full, new_acc, new_ref_data} ->
+              {:cont,
+               {new_acc, new_ref_data,
+                %{
+                  stats
+                  | range_scanned: stats.range_scanned + 1,
+                    imported_full: stats.imported_full + 1
+                }, MapSet.put(seen, id)}}
+
+            {:imported_partial, new_acc, new_ref_data} ->
+              {:cont,
+               {new_acc, new_ref_data,
+                %{
+                  stats
+                  | range_scanned: stats.range_scanned + 1,
+                    imported_partial: stats.imported_partial + 1
+                }, MapSet.put(seen, id)}}
+
+            :skipped_deleted ->
+              {:cont,
+               {acc, ref_data,
+                %{
+                  stats
+                  | range_scanned: stats.range_scanned + 1,
+                    skipped_deleted: stats.skipped_deleted + 1
+                }, seen}}
+
+            :skipped_inactive ->
+              {:cont,
+               {acc, ref_data,
+                %{
+                  stats
+                  | range_scanned: stats.range_scanned + 1,
+                    skipped_inactive: stats.skipped_inactive + 1
+                }, seen}}
+
+            {:error, _reason} ->
+              {:cont,
+               {acc, ref_data,
+                %{stats | range_scanned: stats.range_scanned + 1, errors: stats.errors + 1},
+                seen}}
+          end
+        end
+      end)
+
+    unresolved = max(0, monica_total - MapSet.size(final_seen))
+
+    if unresolved > 0 do
+      Logger.warning(
+        "[MonicaApi] Coverage backfill could not close the gap: " <>
+          "monica_total=#{monica_total}, seen=#{MapSet.size(final_seen)}, unresolved=#{unresolved}"
+      )
+    end
+
+    {final_acc, final_ref_data, %{final_stats | unresolved_gap: unresolved}}
+  end
+
+  defp fetch_and_dispatch_backfill(ctx, monica_id, acc, ref_data) do
+    case fetch_single_contact(ctx.credential, monica_id) do
+      :not_found ->
+        :skipped_deleted
+
+      {:error, reason} ->
+        {:error, reason}
+
+      {:ok, api_contact} ->
+        case accept_backfill_response(api_contact) do
+          :skip_inactive ->
+            :skipped_inactive
+
+          verdict when verdict in [:import_full, :import_partial] ->
+            new_ref_data =
+              build_or_update_ref_data(ctx.account_id, [api_contact], ref_data)
+
+            {new_acc, _new_deferred} =
+              safe_import_api_contact(ctx, api_contact, new_ref_data, acc, %{
+                first_met_through: [],
+                relationships: [],
+                extra_notes: [],
+                misc_data: []
+              })
+
+            case verdict do
+              :import_full -> {:imported_full, new_acc, new_ref_data}
+              :import_partial -> {:imported_partial, new_acc, new_ref_data}
+            end
+        end
+    end
+  end
+
+  defp empty_backfill_stats(opts \\ []) do
+    %{
+      gap_detected: Keyword.get(opts, :gap, 0),
+      range_scanned: 0,
+      imported_full: 0,
+      imported_partial: 0,
+      skipped_deleted: 0,
+      skipped_inactive: 0,
+      errors: 0,
+      unresolved_gap: Keyword.get(opts, :gap, 0)
+    }
   end
 
   defp import_api_contact(ctx, api_contact, ref_data, acc, deferred) do
