@@ -61,6 +61,7 @@ services:
   app:
     image: kith:latest
     command: ["start"]
+    hostname: kith-app
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -72,6 +73,11 @@ services:
     tmpfs:
       - /tmp:size=64M
     environment:
+      # ── BEAM distribution / clustering ──
+      RELEASE_COOKIE: ${RELEASE_COOKIE}
+      RELEASE_DISTRIBUTION: name
+      DNS_CLUSTER_QUERY: kith-cluster
+      # ── existing env vars unchanged ──
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       KITH_HOSTNAME: ${KITH_HOSTNAME:-localhost}
@@ -116,6 +122,10 @@ services:
       REDIS_URL: ${REDIS_URL:-}
       # Network
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+    networks:
+      default:
+        aliases:
+          - kith-cluster
     volumes:
       - uploads:/app/uploads
     deploy:
@@ -135,6 +145,7 @@ services:
   worker:
     image: kith:latest
     command: ["start"]
+    hostname: kith-worker
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -148,6 +159,11 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
+      # ── BEAM distribution / clustering ──
+      RELEASE_COOKIE: ${RELEASE_COOKIE}
+      RELEASE_DISTRIBUTION: name
+      DNS_CLUSTER_QUERY: kith-cluster
+      # ── existing env vars unchanged ──
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       KITH_HOSTNAME: ${KITH_HOSTNAME:-localhost}
@@ -178,6 +194,10 @@ services:
       IMMICH_API_KEY: ${IMMICH_API_KEY:-}
       IMMICH_SYNC_INTERVAL_HOURS: ${IMMICH_SYNC_INTERVAL_HOURS:-24}
       METRICS_TOKEN: ${METRICS_TOKEN}
+    networks:
+      default:
+        aliases:
+          - kith-cluster
     volumes:
       - uploads:/app/uploads
     deploy:
