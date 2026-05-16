@@ -451,7 +451,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
   defp create_contact_field(contact, field, cft_id, value, import_job) do
     attrs = %{"value" => value, "contact_field_type_id" => cft_id}
 
-    case Contacts.create_contact_field(contact, attrs) do
+    case Contacts.create_contact_field(contact, attrs, normalize: false) do
       {:ok, cf} ->
         maybe_record_entity(import_job, "contact_field", field["uuid"], "contact_field", cf.id)
 

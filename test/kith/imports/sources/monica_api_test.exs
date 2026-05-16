@@ -908,6 +908,38 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
       assert "+12025550100" in fields
       assert "+442079460958" in fields
     end
+
+    test "phone normalization happens exactly once during import",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 99,
+          first_name: "OnceOnly",
+          contact_fields: [
+            contact_field_json(content: "(202) 555-0100", type_name: "Phone")
+          ]
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, _} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "phone_default_region" => "US"
+               })
+
+      rec = Imports.find_import_record(account_id, "monica_api", "contact", "99")
+
+      values =
+        Repo.all(from cf in Contacts.ContactField, where: cf.contact_id == ^rec.local_entity_id)
+        |> Enum.map(& &1.value)
+
+      assert "+12025550100" in values
+    end
   end
 
   # ── Behaviour callbacks ──────────────────────────────────────────────
