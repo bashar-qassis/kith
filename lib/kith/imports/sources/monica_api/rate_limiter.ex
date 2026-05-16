@@ -25,11 +25,11 @@ defmodule Kith.Imports.Sources.MonicaApi.RateLimiter do
   @spec wait!(String.t()) :: :ok
   def wait!(url_or_host) when is_binary(url_or_host) do
     bucket = bucket_key(url_or_host)
-    limit = Application.get_env(:kith, :monica_rate_limit, @default_limit)
-    scale_ms = Application.get_env(:kith, :monica_rate_limit_scale_ms, @default_scale_ms)
+    limit = Application.get_env(:kith, :monica_rate_limit) || @default_limit
+    scale_ms = Application.get_env(:kith, :monica_rate_limit_scale_ms) || @default_scale_ms
 
     retry_sleep_ms =
-      Application.get_env(:kith, :monica_rate_limit_retry_sleep_ms, @default_retry_sleep_ms)
+      Application.get_env(:kith, :monica_rate_limit_retry_sleep_ms) || @default_retry_sleep_ms
 
     case Hammer.check_rate(bucket, scale_ms, limit) do
       {:allow, _count} ->

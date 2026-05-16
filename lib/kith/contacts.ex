@@ -387,6 +387,17 @@ defmodule Kith.Contacts do
     ContactField |> scope_to_account(account_id) |> Repo.get!(id)
   end
 
+  @doc """
+  Fetch a contact by ID without scope enforcement, for use by the
+  Monica misc-data worker. The worker has already verified the contact
+  belongs to an import the user authorized; we just need the row.
+
+  Returns `nil` if not found.
+  """
+  def get_contact_for_misc(id) when is_integer(id) or is_binary(id) do
+    Repo.get(Contact, id)
+  end
+
   def create_contact_field(%Contact{} = contact, attrs, opts \\ []) do
     attrs =
       if Keyword.get(opts, :normalize, true) do
