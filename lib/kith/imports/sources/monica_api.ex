@@ -90,7 +90,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
     }
 
     # Phase 1: Crawl contacts
-    {acc, deferred} = crawl_all_contacts(ctx)
+    {acc, deferred, ref_data} = crawl_all_contacts(ctx)
+    _ = ref_data
 
     # Phase 1.5: Auto-merge definite duplicates (optional)
     merge_result =
@@ -182,22 +183,22 @@ defmodule Kith.Imports.Sources.MonicaApi do
         handle_contacts_page(ctx, state, contacts, meta)
 
       {:ok, %{"data" => [], "meta" => _}} ->
-        {state.acc, state.deferred}
+        {state.acc, state.deferred, state.ref_data}
 
       {:ok, unexpected} ->
         Logger.error("[MonicaApi] Unexpected contacts response: #{inspect(unexpected)}")
         acc = add_error(state.acc, "Unexpected API response format from contacts endpoint")
-        {acc, state.deferred}
+        {acc, state.deferred, state.ref_data}
 
       {:error, :rate_limited} ->
         acc = add_error(state.acc, "Rate limited by Monica API after retries")
-        {acc, state.deferred}
+        {acc, state.deferred, state.ref_data}
 
       {:error, reason} ->
         acc =
           add_error(state.acc, "Failed to fetch contacts page #{state.page}: #{inspect(reason)}")
 
-        {acc, state.deferred}
+        {acc, state.deferred, state.ref_data}
     end
   end
 
@@ -231,7 +232,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
       crawl_contacts_loop(ctx, next_state)
     else
-      {acc, deferred}
+      {acc, deferred, ref_data}
     end
   end
 
