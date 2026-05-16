@@ -41,6 +41,11 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
   @page_limit 100
 
+  # Tasks 2-3 of the coverage-backfill plan add private helpers that aren't
+  # wired in until Task 4. Suppress warnings until then; this directive is
+  # removed in the Task 4 commit when the helpers become reachable.
+  @compile {:nowarn_unused_function, fetch_single_contact: 2, accept_backfill_response: 1}
+
   # ── Behaviour callbacks ───────────────────────────────────────────────
 
   @impl true
@@ -1187,6 +1192,42 @@ defmodule Kith.Imports.Sources.MonicaApi do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp fetch_single_contact(credential, monica_id) do
+    url = "#{credential.url}/api/contacts/#{monica_id}"
+
+    case api_get(credential, url, []) do
+      {:ok, %{status: 200, body: %{"data" => contact}}} when is_map(contact) ->
+        {:ok, contact}
+
+      {:ok, %{status: 404}} ->
+        :not_found
+
+      {:ok, %{status: 429}} ->
+        {:error, :rate_limited}
+
+      {:ok, %{status: status}} ->
+        {:error, "Unexpected status: #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Mirror Monica's listing filter on direct-GET responses:
+  # - Monica's index() chains ->real()->active() which means
+  #   is_active = 1 AND is_partial = 0.
+  # - Partials still anchor relationship targets, so we accept them
+  #   (relationship resolution depends on importing the partial stubs).
+  # - Inactive contacts are deliberately hidden by Monica's UI; skip them.
+  defp accept_backfill_response(%{"is_active" => true, "is_partial" => true}),
+    do: :import_partial
+
+  defp accept_backfill_response(%{"is_active" => true, "is_partial" => false}),
+    do: :import_full
+
+  defp accept_backfill_response(%{"is_active" => false}), do: :skip_inactive
+  defp accept_backfill_response(_other), do: :skip_inactive
 
   # ── Date parsing helpers ─────────────────────────────────────────────
 
