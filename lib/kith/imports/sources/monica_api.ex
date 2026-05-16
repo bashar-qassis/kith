@@ -17,9 +17,13 @@ defmodule Kith.Imports.Sources.MonicaApi do
     3. **Extra notes** — for contacts with `statistics.number_of_notes > 3`,
        fetch remaining notes via `GET /api/contacts/{id}/notes`.
 
-  Photo import is handled by `Kith.Workers.MonicaPhotoSyncWorker`, enqueued
-  separately by `MonicaApiCrawlWorker` after this crawl completes when the
-  user opts in via `api_options["photos"]`.
+  Per-contact "misc" data (pets, calls, activities, gifts, debts, tasks,
+  reminders, conversations) is planned during Phase 1 — for each contact,
+  endpoints with `statistics.number_of_X > 0` are recorded in
+  `summary.misc_data_plan` — and dispatched separately by
+  `Kith.Workers.MonicaMiscDataWorker`. Photo import and document import
+  follow the same separate-worker pattern (`MonicaPhotoSyncWorker`,
+  `MonicaDocumentImportWorker`).
   """
 
   @behaviour Kith.Imports.Source
