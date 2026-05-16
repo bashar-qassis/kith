@@ -9,7 +9,16 @@ defmodule Kith.Contacts.PhoneFormatter do
   is never silently destroyed.
 
   Display formatting (`format/2`) reads the account's `phone_format`
-  preference and renders the stored E.164 value as national/international/raw.
+  preference and renders the stored value via the `ExPhoneNumber`
+  (libphonenumber) library. The phone's country code (carried in the stored
+  E.164 value) determines national-format conventions; the account's region
+  is not consulted at display time. Unparseable stored values pass through
+  unchanged.
+
+  **Contributors:** any UI surface that displays a phone number for a human
+  must call `format/2` with the account's `phone_format` setting, otherwise
+  the user's display preference is silently ignored. API/JSON responses are
+  exempt — those return the canonical E.164 storage value.
   """
 
   alias ExPhoneNumber
@@ -174,9 +183,10 @@ defmodule Kith.Contacts.PhoneFormatter do
   def format(phone, "international"), do: render(phone, :international)
   def format(phone, _), do: phone
 
-  defp render(value, library_format) do
+  defp render(value, phone_number_format) do
+    # phone_number_format is an ExPhoneNumber atom: :national or :international.
     case ExPhoneNumber.parse(value, nil) do
-      {:ok, parsed} -> ExPhoneNumber.format(parsed, library_format)
+      {:ok, parsed} -> ExPhoneNumber.format(parsed, phone_number_format)
       {:error, _} -> value
     end
   end
