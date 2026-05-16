@@ -150,5 +150,58 @@ defmodule Kith.Workers.MonicaApiCrawlWorkerTest do
 
       refute_enqueued(worker: MonicaPhotoSyncWorker)
     end
+
+    test "enqueues MonicaMiscDataWorker with the plan from crawl summary",
+         %{user: user, account_id: account_id} do
+      # Boundary regression: the misc_data_plan key produced by
+      # MonicaApi.crawl/5 must reach MonicaMiscDataWorker.new/1 unmodified —
+      # the same wizard→crawl→worker contract that Bug C silently violated
+      # for auto_merge_duplicates in the previous PR.
+
+      stub_name = :monica_crawl_misc_stub
+
+      Application.put_env(
+        :kith,
+        :monica_req_options,
+        plug: {Req.Test, stub_name},
+        retry: false
+      )
+
+      on_exit(fn -> Application.delete_env(:kith, :monica_req_options) end)
+
+      import_job =
+        import_fixture(account_id, user.id, %{
+          source: "monica_api",
+          api_url: "https://monica.test",
+          api_key_encrypted: "test-key",
+          api_options: %{"calls" => true, "pets" => false}
+        })
+
+      contacts =
+        Kith.MonicaApiFixtures.contacts_page_json(
+          [
+            Kith.MonicaApiFixtures.contact_json(
+              id: 7,
+              first_name: "Plan",
+              last_name: "Test",
+              statistics: %{"number_of_calls" => 2}
+            )
+          ],
+          1,
+          1,
+          1
+        )
+
+      Req.Test.stub(stub_name, fn conn ->
+        Req.Test.json(conn, contacts)
+      end)
+
+      assert :ok = perform_job(MonicaApiCrawlWorker, %{import_id: import_job.id})
+
+      assert_enqueued(
+        worker: Kith.Workers.MonicaMiscDataWorker,
+        args: %{"import_id" => import_job.id}
+      )
+    end
   end
 end
