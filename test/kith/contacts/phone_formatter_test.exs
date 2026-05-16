@@ -150,16 +150,72 @@ defmodule Kith.Contacts.PhoneFormatterTest do
       assert "+1 234-567-8901" = PhoneFormatter.format("+12345678901", "international")
     end
 
-    test "national falls back for non-US numbers" do
-      assert "+442079460958" = PhoneFormatter.format("+442079460958", "national")
+    test "national formats GB number" do
+      assert "020 7946 0958" = PhoneFormatter.format("+442079460958", "national")
     end
 
-    test "international falls back for non-US numbers" do
-      assert "+442079460958" = PhoneFormatter.format("+442079460958", "international")
+    test "international formats GB number" do
+      assert "+44 20 7946 0958" = PhoneFormatter.format("+442079460958", "international")
     end
 
-    test "nil returns nil" do
-      assert nil == PhoneFormatter.format(nil, "e164")
+    test "national formats FR number" do
+      assert "01 23 45 67 89" = PhoneFormatter.format("+33123456789", "national")
+    end
+
+    test "international formats FR number" do
+      assert "+33 1 23 45 67 89" = PhoneFormatter.format("+33123456789", "international")
+    end
+
+    test "national formats DE number" do
+      assert "030 12345678" = PhoneFormatter.format("+493012345678", "national")
+    end
+
+    test "international formats DE number" do
+      assert "+49 30 12345678" = PhoneFormatter.format("+493012345678", "international")
+    end
+
+    test "national formats JP number" do
+      assert "090-1234-5678" = PhoneFormatter.format("+819012345678", "national")
+    end
+
+    test "international formats JP number" do
+      assert "+81 90-1234-5678" = PhoneFormatter.format("+819012345678", "international")
+    end
+
+    test "national formats SA number" do
+      assert "050 123 4567" = PhoneFormatter.format("+966501234567", "national")
+    end
+
+    test "international formats SA number" do
+      assert "+966 50 123 4567" = PhoneFormatter.format("+966501234567", "international")
+    end
+
+    test "national leaves bare-number legacy value unchanged" do
+      assert "5551234567" = PhoneFormatter.format("5551234567", "national")
+    end
+
+    test "international leaves bare-number legacy value unchanged" do
+      assert "5551234567" = PhoneFormatter.format("5551234567", "international")
+    end
+
+    test "national leaves unparseable input unchanged" do
+      assert "garbage" = PhoneFormatter.format("garbage", "national")
+    end
+
+    test "international leaves unparseable input unchanged" do
+      assert "garbage" = PhoneFormatter.format("garbage", "international")
+    end
+
+    test "nil returns nil for every format" do
+      for fmt <- ["e164", "national", "international", "raw"] do
+        assert is_nil(PhoneFormatter.format(nil, fmt)), "expected nil for format=#{fmt}"
+      end
+    end
+
+    test "empty string returns nil for every format" do
+      for fmt <- ["e164", "national", "international", "raw"] do
+        assert is_nil(PhoneFormatter.format("", fmt)), "expected nil for format=#{fmt}"
+      end
     end
   end
 end

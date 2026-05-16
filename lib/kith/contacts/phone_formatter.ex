@@ -167,27 +167,17 @@ defmodule Kith.Contacts.PhoneFormatter do
     * `"raw"` — return the stored value unchanged
   """
   def format(nil, _format), do: nil
+  def format("", _format), do: nil
   def format(phone, "raw"), do: phone
   def format(phone, "e164"), do: phone
-  def format(phone, "national"), do: format_national(phone)
-  def format(phone, "international"), do: format_international(phone)
+  def format(phone, "national"), do: render(phone, :national)
+  def format(phone, "international"), do: render(phone, :international)
   def format(phone, _), do: phone
 
-  defp format_national(
-         <<"+"::utf8, ?1, area::binary-size(3), prefix::binary-size(3), line::binary-size(4)>>
-       )
-       when byte_size(area) == 3 do
-    "(#{area}) #{prefix}-#{line}"
+  defp render(value, library_format) do
+    case ExPhoneNumber.parse(value, nil) do
+      {:ok, parsed} -> ExPhoneNumber.format(parsed, library_format)
+      {:error, _} -> value
+    end
   end
-
-  defp format_national(phone), do: phone
-
-  defp format_international(
-         <<"+"::utf8, ?1, area::binary-size(3), prefix::binary-size(3), line::binary-size(4)>>
-       )
-       when byte_size(area) == 3 do
-    "+1 #{area}-#{prefix}-#{line}"
-  end
-
-  defp format_international(phone), do: phone
 end
