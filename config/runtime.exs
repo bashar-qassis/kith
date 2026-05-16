@@ -215,6 +215,22 @@ if config_env() == :prod do
       backend: {Hammer.Backend.Redis, [expiry_ms: 60_000 * 60, redis_url: redis_url]}
   end
 
+  # Oban — only the worker container processes jobs in production.
+  # The web container can call `Oban.insert/1` to enqueue jobs, but
+  # runs no queues or plugins (no cron, no pruner) — so it never claims
+  # rows from `oban_jobs`. The worker container keeps the full config
+  # from `config.exs`.
+  #
+  # Dev (`config_env() == :dev`) is unaffected: this block only runs in
+  # `:prod`. Test env is pinned to `testing: :manual` in `config/test.exs`.
+  case System.get_env("KITH_MODE", "web") do
+    "worker" ->
+      :ok
+
+    _web ->
+      config :kith, Oban, queues: false, plugins: false
+  end
+
   # Sentry error tracking (optional — only when SENTRY_DSN is set)
   if sentry_dsn = System.get_env("SENTRY_DSN") do
     config :sentry,
