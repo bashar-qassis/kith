@@ -230,6 +230,8 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
         case page_num do
           1 -> Req.Test.json(conn, contacts_page_json(page1, 1, 2, 5))
           2 -> Req.Test.json(conn, contacts_page_json(page2, 2, 2, 5))
+          # 3 = fetch_meta_total call during coverage backfill
+          3 -> Req.Test.json(conn, contacts_page_json(page1 ++ page2, 1, 1, 5))
         end
       end)
 
@@ -237,8 +239,8 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
       assert {:ok, summary} = MonicaApi.crawl(account_id, user.id, credential(), import_job, %{})
       assert summary.contacts == 5
 
-      # Verify both pages were fetched
-      assert Agent.get(agent, & &1) == 2
+      # Verify both pages + meta-total were fetched
+      assert Agent.get(agent, & &1) == 3
       Agent.stop(agent)
     end
 
@@ -313,6 +315,8 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
         case page_num do
           1 -> Req.Test.json(conn, contacts_page_json([alice], 1, 2, 2))
           2 -> Req.Test.json(conn, contacts_page_json([bob], 2, 2, 2))
+          # 3 = fetch_meta_total call during coverage backfill
+          3 -> Req.Test.json(conn, contacts_page_json([alice, bob], 1, 1, 2))
         end
       end)
 
@@ -579,8 +583,8 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
                  "extra_notes" => true
                })
 
-      # Only the contacts page should have been fetched
-      assert Agent.get(agent, & &1) == 1
+      # Contacts page + meta-total call during coverage backfill
+      assert Agent.get(agent, & &1) == 2
       Agent.stop(agent)
     end
   end
@@ -1525,6 +1529,69 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
         )
 
       assert length(active) == 1
+    end
+  end
+
+  describe "coverage_check_and_backfill" do
+    test "closes a single-ID gap via direct fetch", %{user: user, account_id: account_id} do
+      import_job = api_import_fixture(account_id, user.id)
+
+      Req.Test.stub(@stub_name, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/contacts"} ->
+            # Listing call — return IDs 1, 2, 3, 5 (ID 4 missing) with meta.total=5
+            Req.Test.json(conn, %{
+              "data" =>
+                Enum.map([1, 2, 3, 5], fn id ->
+                  %{
+                    "id" => id,
+                    "first_name" => "Listed#{id}",
+                    "last_name" => "X",
+                    "is_active" => true,
+                    "is_partial" => false,
+                    "contactFields" => []
+                  }
+                end),
+              "meta" => %{
+                "total" => 5,
+                "last_page" => 1,
+                "current_page" => 1,
+                "per_page" => 100
+              }
+            })
+
+          {"GET", "/api/contacts/4"} ->
+            Req.Test.json(conn, %{
+              "data" => %{
+                "id" => 4,
+                "first_name" => "Backfilled4",
+                "last_name" => "X",
+                "is_active" => true,
+                "is_partial" => false,
+                "contactFields" => []
+              }
+            })
+
+          {"GET", "/api/contacts/" <> _} ->
+            conn |> Plug.Conn.put_status(404) |> Req.Test.json(%{})
+        end
+      end)
+
+      {:ok, summary} =
+        MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+          "auto_merge_duplicates" => false
+        })
+
+      assert summary.coverage_backfill.gap_detected == 1
+      assert summary.coverage_backfill.imported_full == 1
+      assert summary.coverage_backfill.imported_partial == 0
+      assert summary.coverage_backfill.skipped_deleted == 0
+      assert summary.coverage_backfill.skipped_inactive == 0
+      assert summary.coverage_backfill.unresolved_gap == 0
+      assert summary.imported == 5
+
+      record = Imports.find_import_record(account_id, "monica_api", "contact", "4")
+      refute is_nil(record)
     end
   end
 end

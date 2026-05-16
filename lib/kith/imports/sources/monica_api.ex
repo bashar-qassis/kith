@@ -91,9 +91,13 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
     # Phase 1: Crawl contacts
     {acc, deferred, ref_data} = crawl_all_contacts(ctx)
-    _ = ref_data
 
-    # Phase 1.5: Auto-merge definite duplicates (optional)
+    # Phase 1.4: Coverage check + backfill any silently-dropped contacts.
+    # See docs/superpowers/specs/2026-05-17-monica-import-coverage-backfill-design.md
+    {acc, _ref_data, coverage_stats} = coverage_check_and_backfill(ctx, acc, ref_data)
+
+    # Phase 1.5: Auto-merge definite duplicates (optional).
+    # Runs AFTER Phase 1.4 so backfilled contacts participate in auto-merge.
     merge_result =
       if opts["auto_merge_duplicates"] do
         auto_merge_duplicates(account_id, import_job)
@@ -141,7 +145,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
        merged: merge_result.merged,
        error_count: error_count,
        errors: Enum.take(all_errors, 50),
-       misc_data_plan: Enum.reverse(deferred.misc_data)
+       misc_data_plan: Enum.reverse(deferred.misc_data),
+       coverage_backfill: coverage_stats
      }}
   catch
     :cancelled ->
@@ -153,7 +158,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
          skipped: 0,
          merged: 0,
          error_count: 1,
-         errors: ["Import cancelled"]
+         errors: ["Import cancelled"],
+         coverage_backfill: empty_backfill_stats()
        }}
   end
 
