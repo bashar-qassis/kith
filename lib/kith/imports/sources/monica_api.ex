@@ -406,7 +406,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
     cft_name = get_in(field, ["contact_field_type", "name"])
     cft_id = if cft_name, do: Map.get(ref_data.contact_field_types, cft_name)
     raw_value = field["content"]
-    value = normalize_field_value(raw_value, cft_id, ctx.opts)
+    value = normalize_field_value(raw_value, cft_id, ref_data, ctx)
 
     if cft_id && value && !contact_field_duplicate?(contact.id, cft_id, value) do
       create_contact_field(contact, field, cft_id, value, ctx.import_job)
@@ -415,12 +415,11 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
   # Normalize phone fields to E.164 at import time so detection and intra-contact
   # dedup do simple equality. Other field types (email, social, etc) pass through.
-  defp normalize_field_value(nil, _cft_id, _opts), do: nil
+  defp normalize_field_value(nil, _cft_id, _ref_data, _ctx), do: nil
 
-  defp normalize_field_value(value, cft_id, opts) when is_binary(value) do
-    if phone_field_type?(cft_id) do
-      region = opts["phone_default_region"]
-      region = if region in [nil, ""], do: nil, else: region
+  defp normalize_field_value(value, cft_id, ref_data, ctx) when is_binary(value) do
+    if cft_id && Map.has_key?(ref_data.phone_cft_ids, cft_id) do
+      region = parse_phone_region(ctx.opts["phone_default_region"])
       {:ok, normalized} = PhoneFormatter.normalize(value, region)
       normalized || value
     else
@@ -428,25 +427,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
     end
   end
 
-  defp phone_field_type?(nil), do: false
-
-  defp phone_field_type?(cft_id) do
-    case :persistent_term.get({__MODULE__, :phone_cft, cft_id}, :miss) do
-      :miss ->
-        result =
-          Repo.exists?(
-            from(t in Contacts.ContactFieldType,
-              where: t.id == ^cft_id and fragment("? LIKE 'tel%'", t.protocol)
-            )
-          )
-
-        :persistent_term.put({__MODULE__, :phone_cft, cft_id}, result)
-        result
-
-      result ->
-        result
-    end
-  end
+  defp parse_phone_region(region) when region in [nil, ""], do: nil
+  defp parse_phone_region(region) when is_binary(region), do: region
 
   defp create_contact_field(contact, field, cft_id, value, import_job) do
     attrs = %{"value" => value, "contact_field_type_id" => cft_id}
@@ -970,11 +952,13 @@ defmodule Kith.Imports.Sources.MonicaApi do
     genders = collect_api_genders(contacts)
     tags = collect_api_tags(contacts)
     cfts = collect_api_contact_field_types(contacts)
+    cft_map = find_or_create_contact_field_types(account_id, cfts)
 
     %{
       genders: find_or_create_genders(account_id, genders),
       tags: find_or_create_tags(account_id, tags),
-      contact_field_types: find_or_create_contact_field_types(account_id, cfts)
+      contact_field_types: cft_map,
+      phone_cft_ids: phone_cft_id_map(account_id, Map.values(cft_map))
     }
   end
 
@@ -994,14 +978,23 @@ defmodule Kith.Imports.Sources.MonicaApi do
       |> collect_api_contact_field_types()
       |> Enum.reject(&Map.has_key?(ref_data.contact_field_types, &1))
 
+    added_cfts = find_or_create_contact_field_types(account_id, new_cfts)
+
+    phone_cft_ids =
+      if new_cfts == [] do
+        ref_data.phone_cft_ids
+      else
+        Map.merge(
+          ref_data.phone_cft_ids,
+          phone_cft_id_map(account_id, Map.values(added_cfts))
+        )
+      end
+
     %{
       genders: Map.merge(ref_data.genders, find_or_create_genders(account_id, new_genders)),
       tags: Map.merge(ref_data.tags, find_or_create_tags(account_id, new_tags)),
-      contact_field_types:
-        Map.merge(
-          ref_data.contact_field_types,
-          find_or_create_contact_field_types(account_id, new_cfts)
-        )
+      contact_field_types: Map.merge(ref_data.contact_field_types, added_cfts),
+      phone_cft_ids: phone_cft_ids
     }
   end
 
@@ -1075,6 +1068,22 @@ defmodule Kith.Imports.Sources.MonicaApi do
 
       {name, cft.id}
     end)
+  end
+
+  # O(1)-lookup map of phone-protocol contact_field_type IDs. A plain map
+  # (`%{id => true}`) is used rather than a MapSet to keep dialyzer happy
+  # with the ref_data shape inference.
+  defp phone_cft_id_map(_account_id, []), do: %{}
+
+  defp phone_cft_id_map(account_id, cft_ids) when is_list(cft_ids) do
+    Repo.all(
+      from t in Contacts.ContactFieldType,
+        where: t.id in ^cft_ids,
+        where: is_nil(t.account_id) or t.account_id == ^account_id,
+        where: fragment("? LIKE 'tel%'", t.protocol),
+        select: t.id
+    )
+    |> Map.new(&{&1, true})
   end
 
   defp find_or_create_relationship_type(_account_id, nil, _reverse), do: nil
