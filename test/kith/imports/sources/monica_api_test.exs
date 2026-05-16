@@ -942,6 +942,129 @@ defmodule Kith.Imports.Sources.MonicaApiTest do
     end
   end
 
+  describe "crawl/5 — misc-data plan" do
+    test "includes a contact when statistics.number_of_calls > 0",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 1,
+          first_name: "Has",
+          last_name: "Calls",
+          statistics: %{"number_of_calls" => 3}
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 1))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "calls" => true,
+                 "pets" => false
+               })
+
+      assert [%{source_id: "1", endpoints: endpoints}] = summary.misc_data_plan
+      assert "calls" in endpoints
+    end
+
+    test "excludes a contact when all opts are off",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 2,
+          first_name: "AllOff",
+          statistics: %{"number_of_calls" => 5, "number_of_gifts" => 5}
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 1))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "calls" => false,
+                 "gifts" => false,
+                 "pets" => false,
+                 "activities" => false,
+                 "debts" => false,
+                 "tasks" => false,
+                 "reminders" => false,
+                 "conversations" => false
+               })
+
+      assert summary.misc_data_plan == []
+    end
+
+    test "includes :pets unconditionally when opt is on (no stat field)",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 3,
+          first_name: "PetsOnly",
+          statistics: %{}
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 1))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "pets" => true,
+                 "calls" => false,
+                 "activities" => false,
+                 "gifts" => false,
+                 "debts" => false,
+                 "tasks" => false,
+                 "reminders" => false,
+                 "conversations" => false
+               })
+
+      assert [%{endpoints: ["pets"]}] = summary.misc_data_plan
+    end
+
+    test "missing statistic field is treated as >=1 (safe default)",
+         %{user: user, account_id: account_id} do
+      contacts = [
+        contact_json(
+          id: 4,
+          first_name: "NoStats",
+          statistics: %{}
+        )
+      ]
+
+      Req.Test.stub(@stub_name, fn conn ->
+        Req.Test.json(conn, contacts_page_json(contacts, 1, 1, 1))
+      end)
+
+      import_job = api_import_fixture(account_id, user.id)
+
+      assert {:ok, summary} =
+               MonicaApi.crawl(account_id, user.id, credential(), import_job, %{
+                 "calls" => true,
+                 "pets" => false,
+                 "activities" => false,
+                 "gifts" => false,
+                 "debts" => false,
+                 "tasks" => false,
+                 "reminders" => false,
+                 "conversations" => false
+               })
+
+      assert [%{endpoints: endpoints}] = summary.misc_data_plan
+      assert "calls" in endpoints
+    end
+  end
+
   # ── Behaviour callbacks ──────────────────────────────────────────────
 
   describe "behaviour callbacks" do

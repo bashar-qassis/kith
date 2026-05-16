@@ -135,7 +135,8 @@ defmodule Kith.Imports.Sources.MonicaApi do
        skipped: acc.skipped,
        merged: merge_result.merged,
        error_count: error_count,
-       errors: Enum.take(all_errors, 50)
+       errors: Enum.take(all_errors, 50),
+       misc_data_plan: Enum.reverse(deferred.misc_data)
      }}
   catch
     :cancelled ->
@@ -158,7 +159,12 @@ defmodule Kith.Imports.Sources.MonicaApi do
       page: 1,
       total: nil,
       acc: %{contacts: 0, notes: 0, skipped: 0, error_count: 0, errors: []},
-      deferred: %{first_met_through: [], relationships: [], extra_notes: []},
+      deferred: %{
+        first_met_through: [],
+        relationships: [],
+        extra_notes: [],
+        misc_data: []
+      },
       ref_data: nil,
       global_idx: 0
     }
@@ -388,7 +394,7 @@ defmodule Kith.Imports.Sources.MonicaApi do
     import_api_tags(contact, api_contact, ref_data)
 
     # Collect deferred data
-    deferred = collect_deferred_data(api_contact, source_id, deferred)
+    deferred = collect_deferred_data(api_contact, source_id, contact.id, deferred, ctx.opts)
 
     acc = %{acc | contacts: acc.contacts + 1, notes: acc.notes + n}
     {acc, deferred}
@@ -519,11 +525,56 @@ defmodule Kith.Imports.Sources.MonicaApi do
     end)
   end
 
-  defp collect_deferred_data(api_contact, source_id, deferred) do
+  defp collect_deferred_data(api_contact, source_id, local_id, deferred, opts) do
     deferred
     |> collect_first_met_through(api_contact, source_id)
     |> collect_relationships(api_contact, source_id)
     |> collect_extra_notes(api_contact, source_id)
+    |> collect_misc_data(api_contact, source_id, local_id, opts)
+  end
+
+  @misc_endpoints [
+    {:calls, "number_of_calls"},
+    {:activities, "number_of_activities"},
+    {:gifts, "number_of_gifts"},
+    {:debts, "number_of_debts"},
+    {:tasks, "number_of_tasks"},
+    {:reminders, "number_of_reminders"},
+    {:conversations, "number_of_conversations"}
+  ]
+
+  # Build a plan entry for a contact's per-contact extra-data endpoints.
+  # An endpoint is included only if (a) the wizard opt for that data type is
+  # not explicitly false AND (b) Monica's `statistics.number_of_X` reports
+  # > 0 (or the stat field is missing — safer to fetch than to silently
+  # skip when Monica's payload shape is unfamiliar).
+  #
+  # `:pets` has no statistics field in Monica's contact payload, so it is
+  # included whenever the wizard opt is on. The redundant fetch for pet-free
+  # contacts is the documented cost.
+  defp collect_misc_data(deferred, api_contact, source_id, local_id, opts) do
+    stats = api_contact["statistics"] || %{}
+
+    endpoints =
+      @misc_endpoints
+      |> Enum.filter(fn {key, stat_field} ->
+        opts[Atom.to_string(key)] != false and (stats[stat_field] || 1) > 0
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+    endpoints = if opts["pets"] != false, do: [:pets | endpoints], else: endpoints
+
+    if endpoints == [] do
+      deferred
+    else
+      entry = %{
+        source_id: to_string(source_id),
+        local_id: local_id,
+        endpoints: Enum.map(endpoints, &Atom.to_string/1)
+      }
+
+      %{deferred | misc_data: [entry | deferred.misc_data]}
+    end
   end
 
   defp collect_first_met_through(deferred, api_contact, source_id) do
